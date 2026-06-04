@@ -1,0 +1,220 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #06060a;
+  --foreground: #f1f1f6;
+  --card-bg: rgba(13, 13, 22, 0.7);
+  --border-color: rgba(168, 85, 247, 0.15);
+}
+
+@theme {
+  --font-sans: 'Outfit', sans-serif;
+  --font-mono: 'Space Grotesk', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-cyber-bg: #06060a;
+  --color-cyber-card: #0d0d16;
+  --color-cyber-border: rgba(168, 85, 247, 0.15);
+  --color-neon-purple: #a855f7;
+  --color-neon-cyan: #06b6d4;
+  --color-neon-pink: #ec4899;
+  --color-neon-green: #10b981;
+  --color-neon-orange: #f97316;
+  --color-muted-foreground: #94a3b8;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Outfit', sans-serif;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(236, 72, 153, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: rgba(13, 13, 21, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover {
+  border-color: rgba(168, 85, 247, 0.25);
+  box-shadow: 0 8px 32px 0 rgba(168, 85, 247, 0.05);
+}
+
+/* Cyber Neon Borders and Glows */
+.neon-border-purple {
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.1);
+}
+.neon-border-cyan {
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.1);
+}
+.neon-border-pink {
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.1);
+}
+
+.neon-glow-purple {
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.25);
+}
+.neon-glow-cyan {
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+}
+.neon-glow-pink {
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.25);
+}
+
+/* Custom Scrollbar for Sci-fi feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(6, 6, 10, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.5);
+}
+
+/* Custom Grid scan lines */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+.scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 10;
+  background-size: 100% 4px, 6px 100%;
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+/* Custom Animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+.font-mono {
+  font-family: 'Space Grotesk', monospace !important;
+}
+.font-sans {
+  font-family: 'Outfit', sans-serif !important;
+}
+
+/* Jarvis Voice Console Animations */
+@keyframes orbPulse {
+  0% {
+    transform: scale(0.92);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4), inset 0 0 15px rgba(168, 85, 247, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 40px rgba(6, 182, 212, 0.7), inset 0 0 25px rgba(6, 182, 212, 0.5);
+  }
+  100% {
+    transform: scale(0.92);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4), inset 0 0 15px rgba(168, 85, 247, 0.3);
+  }
+}
+
+@keyframes voiceWave {
+  0%, 100% {
+    height: 10%;
+  }
+  50% {
+    height: 90%;
+  }
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-orb-pulse {
+  animation: orbPulse 2s infinite ease-in-out;
+}
+
+.animate-spin-slow {
+  animation: spinSlow 12s infinite linear;
+}
+
+.animate-spin-reverse {
+  animation: spinReverse 8s infinite linear;
+}
+
+.sound-wave-bar {
+  display: inline-block;
+  width: 3px;
+  height: 20px;
+  margin: 0 1.5px;
+  background-color: #06b6d4;
+  border-radius: 3px;
+  animation: voiceWave 1s infinite ease-in-out;
+}
+
+.sound-wave-bar:nth-child(2) {
+  animation-delay: 0.15s;
+  background-color: #a855f7;
+}
+
+.sound-wave-bar:nth-child(3) {
+  animation-delay: 0.3s;
+  background-color: #ec4899;
+}
+
+.sound-wave-bar:nth-child(4) {
+  animation-delay: 0.45s;
+  background-color: #06b6d4;
+}
+
+.sound-wave-bar:nth-child(5) {
+  animation-delay: 0.25s;
+  background-color: #a855f7;
+}
+
