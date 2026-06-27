@@ -21,7 +21,7 @@ export default function ContentStudio() {
       const ids = await db.getContentIdeas();
       setIdeas(ids);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load content ideas:', e);
     } finally {
       setLoading(false);
     }
@@ -37,7 +37,7 @@ export default function ContentStudio() {
       await loadIdeas();
       alert(`Content item status updated to ${newStatus}`);
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to update content idea status:', err);
     }
   };
 
@@ -61,7 +61,7 @@ export default function ContentStudio() {
         alert(data.error || 'Failed to generate content');
       }
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to generate content ideas via AI:', err);
     } finally {
       setGenerating(false);
     }

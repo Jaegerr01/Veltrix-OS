@@ -29,7 +29,7 @@ export default function ProposalsCenter() {
       setProposals(props);
       setLeads(lds);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load proposals or leads data:', e);
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export default function ProposalsCenter() {
         alert(`Proposal marked as ${newStatus}!`);
       }
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to update proposal status:', err);
     }
   };
 
@@ -84,7 +84,7 @@ export default function ProposalsCenter() {
         alert(data.error || 'Failed to generate proposal');
       }
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to generate proposal via AI:', err);
     } finally {
       setGenerating(false);
     }

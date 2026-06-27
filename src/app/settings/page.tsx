@@ -5,7 +5,7 @@ import { db, isSupabaseConfigured } from '@/lib/db';
 import { isGeminiConfigured } from '@/lib/gemini';
 import { BusinessProfile } from '@/lib/types';
 import LoadingState from '@/components/LoadingState';
-import { Settings, Shield, Cpu, Key, HelpCircle, Save, Database, Trash2, Sparkles, CheckSquare } from 'lucide-react';
+import { Settings, Shield, Cpu, Key, HelpCircle, Save, Database, Trash2, Sparkles, CheckSquare, Volume2 } from 'lucide-react';
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
@@ -18,6 +18,12 @@ export default function SettingsPage() {
   const [primaryOffer, setPrimaryOffer] = useState('');
   const [secondaryOffer, setSecondaryOffer] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // ElevenLabs Voice states
+  const [elevenLabsEnabled, setElevenLabsEnabled] = useState(false);
+  const [elevenLabsApiKey, setElevenLabsApiKey] = useState('');
+  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState('');
+  const [elevenLabsAgentId, setElevenLabsAgentId] = useState('');
 
   // Selected permission
   const [permission, setPermission] = useState(() => {
@@ -64,7 +70,7 @@ export default function SettingsPage() {
       const out = await db.getOutreachMessages();
       setOutreachCount(out.length);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load settings data:', e);
     } finally {
       setLoading(false);
     }
@@ -72,7 +78,42 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadProfile();
+    if (typeof window !== 'undefined') {
+      const storedEnabled = localStorage.getItem('elevenlabs_enabled');
+      const envKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
+      const envAgentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || '';
+      
+      if (storedEnabled === null) {
+        setElevenLabsEnabled(!!envKey);
+      } else {
+        setElevenLabsEnabled(storedEnabled === 'true');
+      }
+      
+      setElevenLabsApiKey(localStorage.getItem('elevenlabs_api_key') || envKey);
+      const storedVoiceId = localStorage.getItem('elevenlabs_voice_id');
+      if (storedVoiceId === '21m0aTcmKKvq9ZOq5XO2') {
+        setElevenLabsVoiceId('EXAVITQu4vr4xnSDxMaL');
+        localStorage.setItem('elevenlabs_voice_id', 'EXAVITQu4vr4xnSDxMaL');
+      } else {
+        setElevenLabsVoiceId(storedVoiceId || 'EXAVITQu4vr4xnSDxMaL');
+      }
+      setElevenLabsAgentId(localStorage.getItem('elevenlabs_agent_id') || envAgentId);
+    }
   }, []);
+
+  const handleSaveElevenLabs = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('elevenlabs_enabled', elevenLabsEnabled.toString());
+      localStorage.setItem('elevenlabs_api_key', elevenLabsApiKey);
+      localStorage.setItem('elevenlabs_voice_id', elevenLabsVoiceId);
+      localStorage.setItem('elevenlabs_agent_id', elevenLabsAgentId);
+      alert('ElevenLabs voice settings saved successfully!');
+      
+      // Dispatch custom event to notify components (like VoiceAssistant)
+      window.dispatchEvent(new CustomEvent('elevenlabs-settings-updated'));
+    }
+  };
 
   const handlePermissionChange = (level: string) => {
     setPermission(level);
@@ -97,7 +138,7 @@ export default function SettingsPage() {
       alert('Profile details updated successfully!');
       await loadProfile();
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to update business profile:', err);
     } finally {
       setSubmitting(false);
     }
@@ -116,7 +157,7 @@ export default function SettingsPage() {
       alert(mode === 'clean' ? 'Database reset to clean slate!' : 'Demo data loaded successfully!');
       await loadProfile();
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to reset database:', err);
       alert('Failed to reset database.');
     } finally {
       setResetting(false);
@@ -352,6 +393,73 @@ export default function SettingsPage() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* ElevenLabs Voice Agent Config */}
+        <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 space-y-4">
+          <div className="flex items-center space-x-2 text-neon-purple">
+            <Volume2 size={18} />
+            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
+              ElevenLabs Voice Integration
+            </h3>
+          </div>
+
+          <form onSubmit={handleSaveElevenLabs} className="space-y-4 text-xs">
+            <div className="flex items-center justify-between p-2 rounded bg-white/2 border border-white/5">
+              <span className="font-semibold text-foreground">Enable ElevenLabs Voice (TTS)</span>
+              <input
+                type="checkbox"
+                checked={elevenLabsEnabled}
+                onChange={(e) => setElevenLabsEnabled(e.target.checked)}
+                className="accent-neon-purple w-4 h-4 cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">ElevenLabs API Key</label>
+              <input
+                type="password"
+                placeholder="xi-api-key"
+                value={elevenLabsApiKey}
+                onChange={(e) => setElevenLabsApiKey(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-purple transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Voice ID (for Agentic Output)</label>
+              <input
+                type="text"
+                placeholder="e.g. 21m0aTcmKKvq9ZOq5XO2"
+                value={elevenLabsVoiceId}
+                onChange={(e) => setElevenLabsVoiceId(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-purple transition"
+              />
+              <span className="text-[9px] text-muted-foreground mt-1 block">Default: Sarah (EXAVITQu4vr4xnSDxMaL)</span>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Agent ID (for Interactive Call Widget)</label>
+              <input
+                type="text"
+                placeholder="e.g. agent-id-from-elevenlabs"
+                value={elevenLabsAgentId}
+                onChange={(e) => setElevenLabsAgentId(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-purple transition"
+              />
+              <span className="text-[9px] text-muted-foreground mt-1 block">If supplied, embeds ElevenLabs Voice Agent call orb widget.</span>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="submit"
+                className="px-3 py-2 bg-neon-purple hover:bg-neon-purple/80 text-white rounded font-mono font-bold flex items-center space-x-1.5 transition cursor-pointer"
+              >
+                <Save size={12} />
+                <span>SAVE VOICE SETTINGS</span>
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* AI & Database Connections */}

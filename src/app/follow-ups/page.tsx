@@ -27,7 +27,7 @@ export default function FollowupCenter() {
       setFollowups(fups);
       setLeads(lds);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load follow-ups or leads data:', e);
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ export default function FollowupCenter() {
       }
       alert('Follow-up marked as Completed!');
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to mark follow-up completed:', e);
     }
   };
 
@@ -88,7 +88,7 @@ export default function FollowupCenter() {
         alert(data.error || 'Failed to generate follow-up');
       }
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to generate follow-up via AI:', err);
     } finally {
       setGenerating(false);
     }

@@ -32,7 +32,7 @@ export default function ProjectsCenter() {
         }
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load projects data:', e);
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function ProjectsCenter() {
       await loadData();
       alert(`Project stage updated to ${newStage}`);
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to update project stage:', err);
     }
   };
 

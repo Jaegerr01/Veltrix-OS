@@ -1,57 +1,62 @@
--- Supabase Database Schema SQL for VELTRIX COMMAND OS
--- Run this script in the Supabase SQL Editor to set up the tables.
+-- Supabase Database Schema SQL for VELTRIX COMMAND OS (v2 - Production Single Source of Truth)
+-- Execute this script in your Supabase SQL Editor to set up isolated tables and triggers.
 
--- Enable UUID extension
+-- Enable UUID and Vector extensions
 create extension if not exists "uuid-ossp";
+create extension if not exists vector;
 
--- 1. business_profile
-create table if not exists business_profile (
-  id uuid primary key default gen_random_uuid(),
-  business_name text not null,
-  description text,
-  services text[],
+-- Clean reset existing tables to avoid conflict with legacy column structures
+drop table if exists public.community_metrics cascade;
+drop table if exists public.ad_campaigns cascade;
+drop table if exists public.content_ideas cascade;
+drop table if exists public.expenses cascade;
+drop table if exists public.daily_reports cascade;
+drop table if exists public.offers cascade;
+drop table if exists public.goals cascade;
+drop table if exists public.agent_memory cascade;
+drop table if exists public.notes cascade;
+drop table if exists public.activities cascade;
+drop table if exists public.revenue cascade;
+drop table if exists public.tasks cascade;
+drop table if exists public.projects cascade;
+drop table if exists public.proposals cascade;
+drop table if exists public.followups cascade;
+drop table if exists public.outreach_messages cascade;
+drop table if exists public.lead_scores cascade;
+drop table if exists public.leads cascade;
+drop table if exists public.profiles cascade;
+drop table if exists public.clients cascade;
+drop table if exists public.users cascade;
+drop function if exists public.match_notes(vector, float, int, uuid) cascade;
+drop function if exists public.handle_new_user() cascade;
+
+-- 1. users (public table linking auth.users)
+create table if not exists public.users (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  created_at timestamptz default now()
+);
+
+-- 2. profiles (combining user settings and business details)
+create table if not exists public.profiles (
+  id uuid primary key references public.users(id) on delete cascade,
+  business_name text not null default 'VELTRIX automation',
+  description text default 'My business powered by VELTRIX OS',
+  services text[] default array['AI Website Development', 'AI Receptionist Chatbots'],
   target_monthly_revenue numeric default 6000,
   current_monthly_revenue numeric default 0,
-  primary_offer text,
-  secondary_offer text,
-  target_markets text[],
+  primary_offer text default 'AI Website System',
+  secondary_offer text default 'AI Receptionist Voice/Chatbot',
+  target_markets text[] default array['Local Medical Clinics', 'Chiropractors', 'Dentists'],
+  autopilot boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
--- 2. goals
-create table if not exists goals (
+-- 3. leads
+create table if not exists public.leads (
   id uuid primary key default gen_random_uuid(),
-  title text not null,
-  description text,
-  target_amount numeric,
-  status text default 'Active',
-  priority text default 'High',
-  deadline date,
-  success_criteria text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
--- 3. offers
-create table if not exists offers (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  description text,
-  target_customer text,
-  price_min numeric,
-  price_max numeric,
-  monthly_retainer_min numeric,
-  monthly_retainer_max numeric,
-  deliverables text[],
-  status text default 'Active',
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
--- 4. leads
-create table if not exists leads (
-  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
   business_name text not null,
   contact_name text,
   industry text,
@@ -61,7 +66,7 @@ create table if not exists leads (
   social_link text,
   location text,
   pain_point text,
-  lead_score numeric,
+  lead_score numeric default 0,
   status text default 'New',
   source text,
   notes text,
@@ -69,10 +74,11 @@ create table if not exists leads (
   updated_at timestamptz default now()
 );
 
--- 5. lead_scores
-create table if not exists lead_scores (
+-- 4. lead_scores
+create table if not exists public.lead_scores (
   id uuid primary key default gen_random_uuid(),
-  lead_id uuid references leads(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  lead_id uuid references public.leads(id) on delete cascade,
   website_score numeric,
   branding_score numeric,
   automation_need_score numeric,
@@ -83,10 +89,11 @@ create table if not exists lead_scores (
   created_at timestamptz default now()
 );
 
--- 6. outreach_messages
-create table if not exists outreach_messages (
+-- 5. outreach_messages
+create table if not exists public.outreach_messages (
   id uuid primary key default gen_random_uuid(),
-  lead_id uuid references leads(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  lead_id uuid references public.leads(id) on delete cascade,
   channel text,
   message text not null,
   status text default 'Draft',
@@ -95,10 +102,11 @@ create table if not exists outreach_messages (
   created_at timestamptz default now()
 );
 
--- 7. followups
-create table if not exists followups (
+-- 6. followups
+create table if not exists public.followups (
   id uuid primary key default gen_random_uuid(),
-  lead_id uuid references leads(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  lead_id uuid references public.leads(id) on delete cascade,
   followup_date date,
   followup_type text,
   message text,
@@ -107,26 +115,28 @@ create table if not exists followups (
   updated_at timestamptz default now()
 );
 
--- 8. proposals
-create table if not exists proposals (
+-- 7. proposals
+create table if not exists public.proposals (
   id uuid primary key default gen_random_uuid(),
-  lead_id uuid references leads(id) on delete set null,
-  client_id uuid,
-  title text,
+  user_id uuid not null references public.users(id) on delete cascade,
+  lead_id uuid references public.leads(id) on delete set null,
+  client_id uuid, -- will link to client table
+  title text not null,
   problem text,
   solution text,
   deliverables text[],
   timeline text,
-  price numeric,
+  price numeric not null default 0,
   payment_terms text,
   status text default 'Draft',
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
--- 9. clients
-create table if not exists clients (
+-- 8. clients
+create table if not exists public.clients (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
   business_name text not null,
   contact_name text,
   email text,
@@ -140,10 +150,18 @@ create table if not exists clients (
   updated_at timestamptz default now()
 );
 
--- 10. projects
-create table if not exists projects (
+-- Foreign key update on proposals to reference public.clients
+alter table public.proposals 
+  add constraint fk_proposals_client 
+  foreign key (client_id) 
+  references public.clients(id) 
+  on delete set null;
+
+-- 9. projects
+create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),
-  client_id uuid references clients(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  client_id uuid references public.clients(id) on delete cascade,
   project_name text not null,
   service_type text,
   status text default 'Discovery',
@@ -156,9 +174,10 @@ create table if not exists projects (
   updated_at timestamptz default now()
 );
 
--- 11. tasks
-create table if not exists tasks (
+-- 10. tasks
+create table if not exists public.tasks (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
   agent_name text,
   title text not null,
   description text,
@@ -166,18 +185,19 @@ create table if not exists tasks (
   status text default 'Pending',
   due_date date,
   result text,
-  related_goal_id uuid references goals(id) on delete set null,
-  related_lead_id uuid references leads(id) on delete set null,
-  related_client_id uuid references clients(id) on delete set null,
+  related_goal_id uuid, -- kept for client compatibility
+  related_lead_id uuid references public.leads(id) on delete set null,
+  related_client_id uuid references public.clients(id) on delete set null,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
--- 12. revenue
-create table if not exists revenue (
+-- 11. revenue
+create table if not exists public.revenue (
   id uuid primary key default gen_random_uuid(),
-  client_id uuid references clients(id) on delete set null,
-  proposal_id uuid references proposals(id) on delete set null,
+  user_id uuid not null references public.users(id) on delete cascade,
+  client_id uuid references public.clients(id) on delete set null,
+  proposal_id uuid references public.proposals(id) on delete set null,
   amount numeric not null,
   type text default 'Project',
   status text default 'Expected',
@@ -187,32 +207,113 @@ create table if not exists revenue (
   created_at timestamptz default now()
 );
 
--- 13. memories
-create table if not exists memories (
+-- 12. activities (unified logging table for agents, tools, and system events)
+create table if not exists public.activities (
   id uuid primary key default gen_random_uuid(),
-  type text,
+  user_id uuid not null references public.users(id) on delete cascade,
+  type text not null, -- 'agent', 'tool', 'system'
+  actor text, -- agent name, tool name, or user
+  action text not null,
+  input jsonb,
+  output jsonb,
+  status text,
+  error text,
+  created_at timestamptz default now()
+);
+
+-- 13. notes (unified table for user manual notes and AI business memories)
+create table if not exists public.notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  title text,
   content text not null,
   tags text[],
   importance numeric default 5,
   source text,
+  embedding vector(768),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
--- 14. agent_logs
-create table if not exists agent_logs (
+-- RPC function for semantic matching of notes/memories
+create or replace function match_notes (
+  query_embedding vector(768),
+  match_threshold float,
+  match_count int,
+  p_user_id uuid
+) returns table (
+  id uuid,
+  content text,
+  tags text[],
+  importance numeric,
+  similarity float
+)
+language plpgsql
+as $$
+begin
+  return query
+  select
+    n.id,
+    n.content,
+    n.tags,
+    n.importance,
+    1 - (n.embedding <=> query_embedding) as similarity
+  from public.notes n
+  where n.user_id = p_user_id
+    and n.embedding is not null
+    and 1 - (n.embedding <=> query_embedding) > match_threshold
+  order by n.embedding <=> query_embedding
+  limit match_count;
+end;
+$$;
+
+-- 14. agent_memory (long-term AI facts, preferences, and state keys)
+create table if not exists public.agent_memory (
   id uuid primary key default gen_random_uuid(),
-  agent_name text,
-  action text,
-  input jsonb,
-  output jsonb,
-  status text,
-  created_at timestamptz default now()
+  user_id uuid not null references public.users(id) on delete cascade,
+  key text not null,
+  value jsonb not null,
+  tags text[],
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
--- 15. daily_reports
-create table if not exists daily_reports (
+-- 15. goals (supporting isolated table)
+create table if not exists public.goals (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  title text not null,
+  description text,
+  target_amount numeric,
+  status text default 'Active',
+  priority text default 'High',
+  deadline date,
+  success_criteria text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- 16. offers (supporting isolated table)
+create table if not exists public.offers (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  name text not null,
+  description text,
+  target_customer text,
+  price_min numeric,
+  price_max numeric,
+  monthly_retainer_min numeric,
+  monthly_retainer_max numeric,
+  deliverables text[],
+  status text default 'Active',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- 17. daily_reports (supporting isolated table)
+create table if not exists public.daily_reports (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
   report_date date default current_date,
   revenue_target numeric default 6000,
   closed_revenue numeric default 0,
@@ -226,26 +327,10 @@ create table if not exists daily_reports (
   created_at timestamptz default now()
 );
 
--- Enable RLS for Security Readiness (RLS is off by default for MVP convenience)
-alter table business_profile enable row level security;
-alter table goals enable row level security;
-alter table offers enable row level security;
-alter table leads enable row level security;
-alter table lead_scores enable row level security;
-alter table outreach_messages enable row level security;
-alter table followups enable row level security;
-alter table proposals enable row level security;
-alter table clients enable row level security;
-alter table projects enable row level security;
-alter table tasks enable row level security;
-alter table revenue enable row level security;
-alter table memories enable row level security;
-alter table agent_logs enable row level security;
-alter table daily_reports enable row level security;
-
--- 16. expenses
-create table if not exists expenses (
+-- 18. expenses (supporting isolated table)
+create table if not exists public.expenses (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
   title text not null,
   amount numeric not null,
   category text not null,
@@ -254,21 +339,10 @@ create table if not exists expenses (
   created_at timestamptz default now()
 );
 
--- 17. tool_logs
-create table if not exists tool_logs (
+-- 19. content_ideas (supporting isolated table)
+create table if not exists public.content_ideas (
   id uuid primary key default gen_random_uuid(),
-  tool_name text not null,
-  action text not null,
-  input text,
-  output text,
-  status text default 'Success',
-  error text,
-  created_at timestamptz default now()
-);
-
--- 18. content_ideas
-create table if not exists content_ideas (
-  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
   platform text not null,
   title text not null,
   hook text,
@@ -279,9 +353,10 @@ create table if not exists content_ideas (
   updated_at timestamptz default now()
 );
 
--- 19. ad_campaigns
-create table if not exists ad_campaigns (
+-- 20. ad_campaigns (supporting isolated table)
+create table if not exists public.ad_campaigns (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
   name text not null,
   platform text,
   status text default 'Draft',
@@ -294,9 +369,10 @@ create table if not exists ad_campaigns (
   updated_at timestamptz default now()
 );
 
--- 20. community_metrics
-create table if not exists community_metrics (
+-- 21. community_metrics (supporting isolated table)
+create table if not exists public.community_metrics (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
   name text not null,
   platform text,
   value text not null,
@@ -305,32 +381,132 @@ create table if not exists community_metrics (
   created_at timestamptz default now()
 );
 
-alter table expenses enable row level security;
-alter table tool_logs enable row level security;
-alter table content_ideas enable row level security;
-alter table ad_campaigns enable row level security;
-alter table community_metrics enable row level security;
 
--- Create Open Public Access Policies for MVP (Can be tightened later with Auth)
-create policy "Public Access Profile" on business_profile for all using (true) with check (true);
-create policy "Public Access Goals" on goals for all using (true) with check (true);
-create policy "Public Access Offers" on offers for all using (true) with check (true);
-create policy "Public Access Leads" on leads for all using (true) with check (true);
-create policy "Public Access Lead Scores" on lead_scores for all using (true) with check (true);
-create policy "Public Access Outreach" on outreach_messages for all using (true) with check (true);
-create policy "Public Access Followups" on followups for all using (true) with check (true);
-create policy "Public Access Proposals" on proposals for all using (true) with check (true);
-create policy "Public Access Clients" on clients for all using (true) with check (true);
-create policy "Public Access Projects" on projects for all using (true) with check (true);
-create policy "Public Access Tasks" on tasks for all using (true) with check (true);
-create policy "Public Access Revenue" on revenue for all using (true) with check (true);
-create policy "Public Access Memories" on memories for all using (true) with check (true);
-create policy "Public Access Agent Logs" on agent_logs for all using (true) with check (true);
-create policy "Public Access Daily Reports" on daily_reports for all using (true) with check (true);
-create policy "Public Access Expenses" on expenses for all using (true) with check (true);
-create policy "Public Access Tool Logs" on tool_logs for all using (true) with check (true);
-create policy "Public Access Content Ideas" on content_ideas for all using (true) with check (true);
-create policy "Public Access Ad Campaigns" on ad_campaigns for all using (true) with check (true);
-create policy "Public Access Community Metrics" on community_metrics for all using (true) with check (true);
+-- ==========================================
+-- ROW LEVEL SECURITY (RLS) POLICIES DEFINITION
+-- ==========================================
+
+-- Enable RLS for all tables
+alter table public.users enable row level security;
+alter table public.profiles enable row level security;
+alter table public.leads enable row level security;
+alter table public.lead_scores enable row level security;
+alter table public.outreach_messages enable row level security;
+alter table public.followups enable row level security;
+alter table public.proposals enable row level security;
+alter table public.clients enable row level security;
+alter table public.projects enable row level security;
+alter table public.tasks enable row level security;
+alter table public.revenue enable row level security;
+alter table public.activities enable row level security;
+alter table public.notes enable row level security;
+alter table public.agent_memory enable row level security;
+alter table public.goals enable row level security;
+alter table public.offers enable row level security;
+alter table public.daily_reports enable row level security;
+alter table public.expenses enable row level security;
+alter table public.content_ideas enable row level security;
+alter table public.ad_campaigns enable row level security;
+alter table public.community_metrics enable row level security;
+
+-- Drop any legacy public access policies
+drop policy if exists "Public Access Profile" on public.profiles;
+drop policy if exists "Public Access Goals" on public.goals;
+drop policy if exists "Public Access Offers" on public.offers;
+drop policy if exists "Public Access Leads" on public.leads;
+drop policy if exists "Public Access Lead Scores" on public.lead_scores;
+drop policy if exists "Public Access Outreach" on public.outreach_messages;
+drop policy if exists "Public Access Followups" on public.followups;
+drop policy if exists "Public Access Proposals" on public.proposals;
+drop policy if exists "Public Access Clients" on public.clients;
+drop policy if exists "Public Access Projects" on public.projects;
+drop policy if exists "Public Access Tasks" on public.tasks;
+drop policy if exists "Public Access Revenue" on public.revenue;
+drop policy if exists "Public Access Memories" on public.notes;
+drop policy if exists "Public Access Agent Logs" on public.activities;
+drop policy if exists "Public Access Daily Reports" on public.daily_reports;
+drop policy if exists "Public Access Expenses" on public.expenses;
+drop policy if exists "Public Access Tool Logs" on public.activities;
+drop policy if exists "Public Access Content Ideas" on public.content_ideas;
+drop policy if exists "Public Access Ad Campaigns" on public.ad_campaigns;
+drop policy if exists "Public Access Community Metrics" on public.community_metrics;
+
+-- Create secure, user-isolated policies
+create policy "Users can access their own user row" on public.users for all using (auth.uid() = id) with check (auth.uid() = id);
+create policy "Users can access their own profile" on public.profiles for all using (auth.uid() = id) with check (auth.uid() = id);
+create policy "Users can access their own leads" on public.leads for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own lead scores" on public.lead_scores for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own outreach" on public.outreach_messages for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own followups" on public.followups for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own proposals" on public.proposals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own clients" on public.clients for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own projects" on public.projects for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own tasks" on public.tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own revenue" on public.revenue for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own activities" on public.activities for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own notes" on public.notes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own agent memory" on public.agent_memory for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own goals" on public.goals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own offers" on public.offers for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own daily reports" on public.daily_reports for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own expenses" on public.expenses for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own content ideas" on public.content_ideas for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own ad campaigns" on public.ad_campaigns for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own community metrics" on public.community_metrics for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 
+-- ==========================================
+-- AUTH USER TRIGGERS DEFINITION
+-- ==========================================
+
+-- Function to handle copying users from auth.users to public tables on signup
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.users (id, email)
+  values (new.id, new.email);
+  
+  insert into public.profiles (
+    id, 
+    business_name, 
+    description, 
+    target_monthly_revenue, 
+    autopilot
+  )
+  values (
+    new.id, 
+    'VELTRIX Enterprise', 
+    'A business powered by VELTRIX OS.', 
+    6000, 
+    false
+  );
+  
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger to execute function on new auth.users signup
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+
+-- ==========================================
+-- REALTIME SUBSCRIPTIONS ENABLING
+-- ==========================================
+
+begin;
+  -- If publication exists, we add tables to it.
+  -- This setup ensures client-side listeners receive updates instantly.
+  alter publication supabase_realtime add table public.leads;
+  alter publication supabase_realtime add table public.clients;
+  alter publication supabase_realtime add table public.tasks;
+  alter publication supabase_realtime add table public.proposals;
+  alter publication supabase_realtime add table public.followups;
+  alter publication supabase_realtime add table public.revenue;
+  alter publication supabase_realtime add table public.activities;
+  alter publication supabase_realtime add table public.notes;
+  alter publication supabase_realtime add table public.projects;
+  alter publication supabase_realtime add table public.profiles;
+commit;

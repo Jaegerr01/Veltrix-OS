@@ -14,10 +14,10 @@ if (isGeminiConfigured) {
 }
 
 const SYSTEM_CONTEXT = `
-You are FRIDAY COMMAND OS, an enterprise-grade autonomous AI Business Operating System for FRIDAY.
-FRIDAY is a futuristic AI and creative technology studio offering branding, graphic design, 2D/3D illustrations, streaming/VTuber assets, website development, Shopify storefronts, AI automations, AI chatbots, AI receptionists, AI customer service agents, and growth consulting.
+You are VELTRIX COMMAND OS, an enterprise-grade autonomous AI Business Operating System for VELTRIX.
+VELTRIX is a futuristic AI and creative technology studio offering branding, graphic design, 2D/3D illustrations, streaming/VTuber assets, website development, Shopify storefronts, AI automations, AI chatbots, AI receptionists, AI customer service agents, and growth consulting.
 
-Primary Goal: Help FRIDAY reach $6,000/month in revenue.
+Primary Goal: Help VELTRIX reach $6,000/month in revenue.
 Calculations Model: Monthly Revenue = Leads * Booked Calls * Close Rate * Average Deal Value.
 Safety permission constraint: Do not send any emails or message clients without explicit human approval (Level 4 approval).
 
@@ -35,39 +35,45 @@ async function generateText(prompt: string, systemInstruction?: string): Promise
     throw new Error('Gemini API key is missing. Add GEMINI_API_KEY to your environment variables.');
   }
 
-  const maxRetries = 3;
-  let delay = 1000;
+  const modelsToTry = ['gemini-2.5-flash'];
+  let lastError: any = null;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
-        systemInstruction: systemInstruction || SYSTEM_CONTEXT
-      });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      if (!text) {
-        throw new Error('Gemini returned an empty response.');
-      }
-      return text;
-    } catch (e: any) {
-      console.error(`Gemini API call failed (attempt ${attempt}/${maxRetries}):`, e);
-      const isTransient = e.message?.includes('503') || 
-                          e.message?.includes('Service Unavailable') || 
-                          e.message?.includes('429') || 
-                          e.message?.includes('Resource Has Exhausted') ||
-                          e.message?.includes('overloaded');
-      
-      if (isTransient && attempt < maxRetries) {
-        console.log(`Transient error encountered. Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2;
-      } else {
-        throw new Error(`AI request failed. Check API key, model name, and server logs. Details: ${e.message}`);
+  for (const modelName of modelsToTry) {
+    const maxRetries = 5;
+    let delay = 1500;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemInstruction || SYSTEM_CONTEXT
+        });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        if (!text) {
+          throw new Error('Gemini returned an empty response.');
+        }
+        return text;
+      } catch (e: any) {
+        lastError = e;
+        console.warn(`Gemini API call failed for model ${modelName} (attempt ${attempt}/${maxRetries}):`, e.message || e);
+        const isTransient = e.message?.includes('503') || 
+                            e.message?.includes('Service Unavailable') || 
+                            e.message?.includes('429') || 
+                            e.message?.includes('Resource Has Exhausted') ||
+                            e.message?.includes('overloaded');
+        
+        if (isTransient && attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2;
+        } else {
+          break; // Try the next fallback model (if any)
+        }
       }
     }
   }
-  throw new Error('AI request failed after maximum retries.');
+
+  throw new Error(`AI request failed. Check API key, model name, and server logs. Details: ${lastError?.message || lastError}`);
 }
 
 export const gemini = {
@@ -84,7 +90,7 @@ export const gemini = {
     const memoriesStr = memories.map(m => `[${m.type}] ${m.content}`).join('\n');
 
     const prompt = `
-Generate a FRIDAY Daily Command Report based on:
+Generate a VELTRIX Daily Command Report based on:
 - Revenue Target: $${target}
 - Current Closed Revenue: $${closed}
 - Pipeline Value: $${pipeline}
@@ -95,7 +101,7 @@ ${leadsStr}
 ${memoriesStr}
 
 Follow this exact format:
-FRIDAY Daily Command Report
+VELTRIX Daily Command Report
 
 Revenue Target:
 $${target}
@@ -253,7 +259,7 @@ Format as standard markdown with sections:
   // 6. Generate Content Ideas
   async generateContentIdeas(topic: string): Promise<ContentIdea[]> {
     const prompt = `
-You are Content Agent. Generate 3 social media content ideas for FRIDAY authority posting.
+You are Content Agent. Generate 3 social media content ideas for VELTRIX authority posting.
 Topic/Pillar: ${topic}
 
 Output ONLY a JSON array of 3 ideas matching this schema:
@@ -288,7 +294,85 @@ Output ONLY a JSON array of 3 ideas matching this schema:
       ] as any;
     }
   },
+  async generateRoiReport(params: {
+    clientName: string;
+    servicePurchased: string;
+    setupFee: number;
+    monthlyRetainer: number;
+    monthsActive: number;
+    projectStatus: string;
+    tasksCompleted: number;
+    tasksTotal: number;
+    estimatedMonthlySaving: number;
+    estimatedRoiPct: number;
+  }): Promise<string> {
+    const {
+      clientName, servicePurchased, setupFee, monthlyRetainer,
+      monthsActive, projectStatus, tasksCompleted, tasksTotal,
+      estimatedMonthlySaving, estimatedRoiPct
+    } = params;
+    const prompt = `
+You are VELTRIX's AI Value Analyst. Write a professional, client-facing ROI summary for:
+
+Client: ${clientName}
+Service: ${servicePurchased}
+Investment: $${setupFee} setup fee${monthlyRetainer > 0 ? ` + $${monthlyRetainer}/mo retainer` : ''}
+Months Active: ${monthsActive}
+Project Status: ${projectStatus}
+Milestone Completion: ${tasksCompleted}/${tasksTotal} tasks done
+Estimated Monthly Value Generated: ~$${estimatedMonthlySaving}/mo
+Estimated ROI: ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}% on investment
+
+Write exactly 3 short paragraphs (no markdown headers, plain text):
+1. What was delivered and the current status — be specific about the service and milestones.
+2. The measurable ROI impact — reference the investment vs. value generated numbers confidently.
+3. A forward-looking recommendation — one high-impact next step that would deepen the results.
+
+Tone: executive, confident, data-backed, client-ready. No fluff. Under 180 words total.
+`;
+    return generateText(prompt, 'You are a business value analyst. Output plain prose only — no headers, no bullet points, no markdown.');
+  },
+
   async callRawLLM(prompt: string, systemInstruction?: string): Promise<string> {
     return generateText(prompt, systemInstruction);
+  },
+  async getEmbedding(text: string): Promise<number[]> {
+    if (!isGeminiConfigured || !genAI) {
+      throw new Error('Gemini API key is missing. Add GEMINI_API_KEY to your environment variables.');
+    }
+    const maxRetries = 3;
+    let delay = 1000;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+        const result = await model.embedContent({
+          content: {
+            role: 'user',
+            parts: [{ text }]
+          },
+          outputDimensionality: 768
+        } as any);
+        if (!result.embedding || !result.embedding.values) {
+          throw new Error('Gemini returned an empty embedding response.');
+        }
+        return result.embedding.values;
+      } catch (e: any) {
+        console.error(`Gemini Embedding API call failed (attempt ${attempt}/${maxRetries}):`, e);
+        const isTransient = e.message?.includes('503') || 
+                            e.message?.includes('Service Unavailable') || 
+                            e.message?.includes('429') || 
+                            e.message?.includes('Resource Has Exhausted') ||
+                            e.message?.includes('overloaded');
+        
+        if (isTransient && attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2;
+        } else {
+          throw e;
+        }
+      }
+    }
+    throw new Error('Failed to generate embedding after maximum retries.');
   }
 };

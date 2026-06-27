@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
+import { useRealtime } from '@/hooks/useRealtime';
 import { Task, Goal } from '@/lib/types';
 import TaskBoard from '@/components/TaskBoard';
 import LoadingState from '@/components/LoadingState';
@@ -30,11 +31,14 @@ export default function TasksPage() {
       setTasks(tks);
       setGoals(gls);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load tasks:', e);
     } finally {
       setLoading(false);
     }
   }
+
+  useRealtime('tasks', loadData);
+  useRealtime('goals', loadData);
 
   useEffect(() => {
     loadData();
@@ -50,7 +54,7 @@ export default function TasksPage() {
       await db.updateTask(taskId, patch);
       await loadData();
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to update task status:', err);
     }
   };
 
@@ -87,7 +91,7 @@ export default function TasksPage() {
       setShowAddForm(false);
       await loadData();
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to add task:', err);
     } finally {
       setSubmitting(false);
     }

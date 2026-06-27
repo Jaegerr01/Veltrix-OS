@@ -17,7 +17,7 @@ export default function DailyReportsHistory() {
       const rps = await db.getDailyReports();
       setReports(rps);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load reports:', e);
     } finally {
       setLoading(false);
     }

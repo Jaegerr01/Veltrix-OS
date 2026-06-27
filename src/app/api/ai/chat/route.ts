@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { classifyRequest, executeAgent } from '@/lib/agents/router';
+import { requireUser } from '@/lib/auth/requireUser';
+import { checkRateLimit } from '@/lib/auth/rateLimit';
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req);
+  if (auth.response) return auth.response;
+  const rl = checkRateLimit(auth.user.id);
+  if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
+
   try {
     const { message } = await req.json();
     if (!message) {
@@ -33,7 +40,7 @@ export async function POST(req: Request) {
     const runAgentRegex = /\[RUN_AGENT:\s*(\w+),\s*({[^\]]+})\]/g;
     const matches: { full: string; key: string; paramsStr: string }[] = [];
     let match;
-    
+
     while ((match = runAgentRegex.exec(aiResponse.text)) !== null) {
       matches.push({
         full: match[0],
@@ -51,20 +58,19 @@ export async function POST(req: Request) {
         try {
           const parsedParams = JSON.parse(m.paramsStr);
           const subAgentName = AGENTS[m.key]?.name || m.key;
-          executionLogs.push(`Coordinating with **${subAgentName}**...`);
-          
+
           const runRes = await runAgentLogic(m.key, parsedParams, true);
           if (runRes.success) {
-            executionLogs.push(`**${subAgentName} Run Complete**:\n${runRes.result}`);
+            executionLogs.push(`💬 ${runRes.result}`);
           } else {
-            executionLogs.push(`**${subAgentName} Run Failed**: ${runRes.error}`);
+            executionLogs.push(`⚠️ **${subAgentName}** encountered an issue: ${runRes.error}`);
           }
         } catch (err: any) {
-          executionLogs.push(`**Failed to execute agent ${m.key}**: ${err.message}`);
+          executionLogs.push(`⚠️ **Failed to coordinate with agent ${m.key}**: ${err.message}`);
         }
       }
 
-      updatedText += `\n\n---\n\n### ⚡ FRIDAY Autonomous Coordination Logs\n` + executionLogs.map(log => `- ${log}`).join('\n\n');
+      updatedText += `\n\n---\n\n### 👥 VELTRIX TEAM COLLABORATIVE WORKSPACE\n` + executionLogs.join('\n\n');
     }
 
     // Save AI response to database

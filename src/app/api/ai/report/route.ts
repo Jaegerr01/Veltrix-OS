@@ -1,8 +1,14 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { gemini } from '@/lib/gemini';
+import { requireUser } from '@/lib/auth/requireUser';
+import { checkRateLimit } from '@/lib/auth/rateLimit';
 
-export async function POST() {
+export async function POST(req: Request) {
+  const auth = await requireUser(req);
+  if (auth.response) return auth.response;
+  const rl = checkRateLimit(auth.user.id);
+  if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
   try {
     const profile = await db.getBusinessProfile();
     const leads = await db.getLeads();
@@ -56,7 +62,7 @@ export async function POST() {
     let section = '';
     lines.forEach(line => {
       const trimLine = line.trim();
-      if (trimLine.startsWith('Today’s Top Priority:')) {
+      if (trimLine.startsWith("Today's Top Priority:")) {
         section = 'priority';
       } else if (trimLine.startsWith('Leads to Contact:')) {
         section = 'leads';
@@ -160,7 +166,7 @@ $${pipelineValue}
 Revenue Gap:
 $${Math.max(0, (profile?.target_monthly_revenue || 6000) - (profile?.current_monthly_revenue || 0))}
 
-Today’s Top Priority:
+Today's Top Priority:
 Qualify and follow up with all active leads in CRM to close the gap.
 
 Leads to Contact:
@@ -192,7 +198,7 @@ Access CRM potential clients page.
       let section = '';
       lines.forEach(line => {
         const trimLine = line.trim();
-        if (trimLine.startsWith('Today’s Top Priority:')) {
+        if (trimLine.startsWith("Today's Top Priority:")) {
           section = 'priority';
         } else if (trimLine.startsWith('Leads to Contact:')) {
           section = 'leads';

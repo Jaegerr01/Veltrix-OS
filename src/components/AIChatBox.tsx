@@ -81,7 +81,7 @@ export default function AIChatBox({ onReportGenerated, onLeadScored }: AIChatBox
         throw new Error(data.error || 'Chat failed');
       }
     } catch (e: any) {
-      console.error(e);
+      console.warn('Chat interaction failed:', e);
       // Fallback response
       const errResponse: ChatMessage = {
         id: 'msg-temp-ai-' + Date.now(),
@@ -115,7 +115,7 @@ export default function AIChatBox({ onReportGenerated, onLeadScored }: AIChatBox
       });
       alert('Fact successfully recorded in Saved Notes (Memory Vault)!');
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to save memory:', e);
       alert('Failed to save memory.');
     }
   };
@@ -129,18 +129,14 @@ export default function AIChatBox({ onReportGenerated, onLeadScored }: AIChatBox
 
   return (
     <div className="glass-panel border border-white/5 rounded-xl flex flex-col h-[550px] overflow-hidden bg-cyber-bg/40">
-      {/* Header Header */}
-      <div className="px-6 py-3 border-b border-cyber-border bg-white/5 flex items-center justify-between">
-        <div className="flex items-center space-x-2.5">
-          <Terminal size={18} className="text-neon-purple animate-pulse-glow" />
-          <span className="text-sm font-mono tracking-wider font-bold">CHAT WITH AI ASSISTANT</span>
-        </div>
+      {/* Minimal header — just the clear button, no title */}
+      <div className="px-4 py-2 border-b border-white/[0.05] flex items-center justify-end">
         <button
           onClick={handleClear}
           title="Clear chat"
-          className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-neon-pink transition cursor-pointer"
+          className="p-1.5 rounded-lg hover:bg-white/8 text-white/20 hover:text-neon-pink transition-all duration-200 cursor-pointer"
         >
-          <Trash2 size={15} />
+          <Trash2 size={14} />
         </button>
       </div>
 

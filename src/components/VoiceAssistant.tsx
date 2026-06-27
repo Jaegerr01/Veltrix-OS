@@ -40,6 +40,7 @@ export default function VoiceAssistant() {
   const [agentResponse, setAgentResponse] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
+  const [elevenLabsAgentId, setElevenLabsAgentId] = useState('');
 
   // Speech Recognition and Synthesis references
   const recognitionRef = useRef<any>(null);
@@ -65,6 +66,30 @@ export default function VoiceAssistant() {
     });
     window.dispatchEvent(event);
   }, [isListening, isSpeaking]);
+
+  // Sync ElevenLabs settings from localStorage dynamically
+  useEffect(() => {
+    const checkElevenLabsAgent = () => {
+      if (typeof window !== 'undefined') {
+        const id = localStorage.getItem('elevenlabs_agent_id') || process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || '';
+        setElevenLabsAgentId(id);
+        
+        if (id && !document.getElementById('elevenlabs-convai-script')) {
+          const script = document.createElement('script');
+          script.id = 'elevenlabs-convai-script';
+          script.src = 'https://elevenlabs.io/convai-widget/index.js';
+          script.async = true;
+          script.type = 'text/javascript';
+          document.body.appendChild(script);
+        }
+      }
+    };
+    checkElevenLabsAgent();
+    window.addEventListener('elevenlabs-settings-updated', checkElevenLabsAgent);
+    return () => {
+      window.removeEventListener('elevenlabs-settings-updated', checkElevenLabsAgent);
+    };
+  }, []);
 
   // Initialize SpeechRecognition on mount (client-side only)
   useEffect(() => {
@@ -174,32 +199,28 @@ export default function VoiceAssistant() {
     }
   };
 
-  // Text-To-Speech Output
-  const speakText = (text: string) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis || isMuted) return;
-
-    // Pause recognition to prevent mic picking up system audio feedback loop
-    if (recognitionRef.current && isListeningActiveRef.current) {
-      shouldResumeRef.current = true;
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
+  const resumeListeningIfNeeded = () => {
+    if (shouldResumeRef.current) {
+      shouldResumeRef.current = false;
+      if (isListeningActiveRef.current && recognitionRef.current) {
+        try {
+          if (!isActuallyRunningRef.current) {
+            recognitionRef.current.start();
+          }
+        } catch (e) {
+          console.error('Failed to resume voice listening:', e);
+        }
+      }
     }
+  };
 
+  const speakBrowserTTS = (cleanedText: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      resumeListeningIfNeeded();
+      return;
+    }
     window.speechSynthesis.cancel();
-
-    // Clean markdown structures from AI outputs for natural spoken word
-    const cleanedText = text
-      .replace(/\*+/g, '')
-      .replace(/#+/g, '')
-      .replace(/`+/g, '')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/[-*+]\s+/g, '')
-      .replace(/⚠️|💡|📊|💰|🎯|✍️/g, '');
-
     const utterance = new SpeechSynthesisUtterance(cleanedText);
-
-    // Select suitable voice
     const voices = window.speechSynthesis.getVoices();
     let voice = null;
     
@@ -246,36 +267,153 @@ export default function VoiceAssistant() {
 
     utterance.onend = () => {
       setIsSpeaking(false);
-      // Resume listening if we were listening before TTS started
-      if (shouldResumeRef.current) {
-        shouldResumeRef.current = false;
-        if (isListeningActiveRef.current && recognitionRef.current) {
-          try {
-            if (!isActuallyRunningRef.current) {
-              recognitionRef.current.start();
-            }
-          } catch (e) {
-            console.error('Failed to resume voice listening:', e);
-          }
-        }
-      }
+      resumeListeningIfNeeded();
     };
 
     utterance.onerror = () => {
       setIsSpeaking(false);
-      if (shouldResumeRef.current) {
-        shouldResumeRef.current = false;
-        if (isListeningActiveRef.current && recognitionRef.current) {
-          try {
-            if (!isActuallyRunningRef.current) {
-              recognitionRef.current.start();
-            }
-          } catch (e) {}
-        }
-      }
+      resumeListeningIfNeeded();
     };
 
     window.speechSynthesis.speak(utterance);
+  };
+
+  // Text-To-Speech Output (Hybrid ElevenLabs + Browser fallback)
+  const speakText = async (text: string) => {
+    if (typeof window === 'undefined' || isMuted) return;
+
+    // Retrieve ElevenLabs settings from localStorage or fallback to environment variables
+    const storedEnabled = localStorage.getItem('elevenlabs_enabled');
+    const envKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
+    
+    const elEnabled = storedEnabled === null ? !!envKey : storedEnabled === 'true';
+    const elApiKey = localStorage.getItem('elevenlabs_api_key') || envKey;
+    const elVoiceId = localStorage.getItem('elevenlabs_voice_id') || 'EXAVITQu4vr4xnSDxMaL';
+
+    // Pause recognition to prevent mic picking up system audio feedback loop
+    if (recognitionRef.current && isListeningActiveRef.current) {
+      shouldResumeRef.current = true;
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+    }
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
+    // Clean markdown structures from AI outputs for natural spoken word
+    const cleanedText = text
+      .replace(/\*+/g, '')
+      .replace(/#+/g, '')
+      .replace(/`+/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/[-*+]\s+/g, '')
+      .replace(/⚠️|💡|📊|💰|🎯|✍️/g, '');
+
+    if (elEnabled && elApiKey && elVoiceId) {
+      setIsSpeaking(true);
+      try {
+        let activeVoiceId = elVoiceId;
+        // Upgrade legacy Rachel voice ID automatically if it's currently requested
+        if (activeVoiceId === '21m0aTcmKKvq9ZOq5XO2') {
+          activeVoiceId = 'EXAVITQu4vr4xnSDxMaL';
+        }
+
+        let response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${activeVoiceId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': elApiKey
+          },
+          body: JSON.stringify({
+            text: cleanedText,
+            model_id: 'eleven_monolingual_v1',
+            voice_settings: {
+              stability: 0.5,
+              similarity_boost: 0.75
+            }
+          })
+        });
+
+        // Dynamic 404 Fallback: if voice not found, query user's available voices and use the first one
+        if (response.status === 404) {
+          console.warn(`ElevenLabs voice ID ${activeVoiceId} not found (404). Fetching alternative voices...`);
+          try {
+            const voicesRes = await fetch('https://api.elevenlabs.io/v1/voices', {
+              headers: { 'xi-api-key': elApiKey }
+            });
+            if (voicesRes.ok) {
+              const voicesData = await voicesRes.json();
+              if (voicesData.voices && voicesData.voices.length > 0) {
+                const fallbackVoiceId = voicesData.voices[0].voice_id;
+                console.log(`Retrying with fallback voice ID: ${fallbackVoiceId} (${voicesData.voices[0].name})`);
+                response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${fallbackVoiceId}`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'xi-api-key': elApiKey
+                  },
+                  body: JSON.stringify({
+                    text: cleanedText,
+                    model_id: 'eleven_monolingual_v1',
+                    voice_settings: {
+                      stability: 0.5,
+                      similarity_boost: 0.75
+                    }
+                  })
+                });
+              }
+            }
+          } catch (fetchErr) {
+            console.warn('Failed to fetch available voices for fallback:', fetchErr);
+          }
+        }
+
+        if (!response.ok) {
+          console.warn(`ElevenLabs returned status ${response.status}. Falling back to browser TTS.`);
+          if (response.status === 401) {
+            console.warn('ElevenLabs API key is unauthorized (401). Clearing invalid localStorage key.');
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('elevenlabs_api_key');
+            }
+          }
+          speakBrowserTTS(cleanedText);
+          setIsSpeaking(false);
+          resumeListeningIfNeeded();
+          return;
+        }
+
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+
+        audio.onended = () => {
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          resumeListeningIfNeeded();
+        };
+
+        audio.onerror = (e) => {
+          console.warn('ElevenLabs Audio playback error:', e);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          speakBrowserTTS(cleanedText);
+        };
+
+        await audio.play();
+        return;
+      } catch (err) {
+        console.warn('ElevenLabs TTS call failed, falling back to browser TTS:', err);
+        speakBrowserTTS(cleanedText);
+        setIsSpeaking(false);
+        resumeListeningIfNeeded();
+        return;
+      }
+    }
+
+    // Default Browser TTS fallback
+    speakBrowserTTS(cleanedText);
   };
 
   // Parse Voice Commands
@@ -568,6 +706,19 @@ export default function VoiceAssistant() {
               </button>
             </form>
           </div>
+
+          {/* ElevenLabs Conversational Voice Agent Embedded Orb Widget */}
+          {elevenLabsAgentId && (
+            <div className="w-full p-4 border-t border-cyber-border bg-white/2 flex flex-col items-center space-y-2 select-none">
+              <span className="text-[9px] text-neon-purple font-bold tracking-widest uppercase">REAL-TIME AGENTIC VOICE CALL</span>
+              <p className="text-[10px] text-muted-foreground text-center leading-normal">
+                Start an interactive, direct voice conversation with your AI Business Agent:
+              </p>
+              <div className="py-2 scale-90 origin-center flex justify-center items-center min-h-[60px]">
+                <elevenlabs-convai agent-id={elevenLabsAgentId}></elevenlabs-convai>
+              </div>
+            </div>
+          )}
 
           {/* Quick Vocal Commands Reference trigger */}
           <div className="border-t border-cyber-border bg-white/2">

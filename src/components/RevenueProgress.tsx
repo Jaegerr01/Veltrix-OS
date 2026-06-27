@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Target, Calculator, Percent, ArrowUpRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface RevenueProgressProps {
   closedRevenue: number;
@@ -23,34 +24,40 @@ export default function RevenueProgress({ closedRevenue, targetRevenue }: Revenu
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 my-6">
       {/* 1. Progress Bar & Core KPIs */}
-      <div className="xl:col-span-1 glass-panel p-6 border border-white/5 rounded-xl flex flex-col justify-between">
+      <motion.div 
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className="xl:col-span-1 glass-panel p-6 border border-white/5 rounded-2xl flex flex-col justify-between glass-panel-purple"
+      >
         <div>
           <div className="flex items-center space-x-2 text-neon-purple mb-4">
-            <Target size={20} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">Your Earnings Goal</h3>
+            <Target size={18} className="animate-pulse-glow" />
+            <h3 className="font-mono text-xs font-bold uppercase tracking-wider">Your Earnings Goal</h3>
           </div>
 
           <div className="space-y-4">
             <div>
-              <div className="flex justify-between text-xs text-muted-foreground font-mono mb-1">
+              <div className="flex justify-between text-[10px] text-muted-foreground font-mono mb-1">
                 <span>PERCENT DONE</span>
                 <span>{progressPercent}%</span>
               </div>
-              <div className="w-full bg-white/5 rounded-full h-3.5 overflow-hidden border border-white/5 p-[2px]">
-                <div
-                  className="bg-gradient-to-r from-neon-purple to-neon-cyan h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]"
-                  style={{ width: `${progressPercent}%` }}
+              <div className="w-full bg-[#06060a]/60 rounded-full h-3.5 overflow-hidden border border-white/5 p-[2px]">
+                <motion.div
+                  className="bg-gradient-to-r from-neon-purple to-neon-cyan h-full rounded-full shadow-[0_0_12px_rgba(6,182,212,0.45)]"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPercent}%` }}
+                  transition={{ duration: 1.2, ease: "easeOut" }}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-2 font-mono">
-              <div className="p-3 bg-white/5 rounded-lg border border-white/5">
-                <span className="text-[10px] text-muted-foreground block uppercase">Money Earned</span>
+              <div className="p-3 bg-white/3 rounded-xl border border-white/5">
+                <span className="text-[9px] text-muted-foreground block uppercase">Money Earned</span>
                 <span className="text-xl font-bold text-neon-green">${closedRevenue.toLocaleString()}</span>
               </div>
-              <div className="p-3 bg-white/5 rounded-lg border border-white/5">
-                <span className="text-[10px] text-muted-foreground block uppercase">Left to Go</span>
+              <div className="p-3 bg-white/3 rounded-xl border border-white/5">
+                <span className="text-[9px] text-muted-foreground block uppercase">Left to Go</span>
                 <span className="text-xl font-bold text-neon-pink">
                   ${Math.max(0, targetRevenue - closedRevenue).toLocaleString()}
                 </span>
@@ -59,28 +66,32 @@ export default function RevenueProgress({ closedRevenue, targetRevenue }: Revenu
           </div>
         </div>
 
-        <div className="text-[11px] text-muted-foreground mt-4 italic">
+        <div className="text-[10px] text-muted-foreground mt-4 italic">
           To reach $6,000/month, focus on offering monthly retainer services.
         </div>
-      </div>
+      </motion.div>
 
       {/* 2. Revenue Formula Calculator */}
-      <div className="xl:col-span-1 glass-panel p-6 border border-white/5 rounded-xl">
+      <motion.div 
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className="xl:col-span-1 glass-panel p-6 border border-white/5 rounded-2xl glass-panel-cyan"
+      >
         <div className="flex items-center justify-between text-neon-cyan mb-4">
           <div className="flex items-center space-x-2">
-            <Calculator size={20} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">Earnings Calculator</h3>
+            <Calculator size={18} />
+            <h3 className="font-mono text-xs font-bold uppercase tracking-wider">Earnings Calculator</h3>
           </div>
-          <span className="text-xs font-mono bg-neon-cyan/10 px-2 py-0.5 rounded text-neon-cyan">
+          <span className="text-[9px] font-mono bg-neon-cyan/10 px-2 py-0.5 rounded-full text-neon-cyan font-bold">
             Interactive Tool
           </span>
         </div>
 
-        <div className="space-y-3 text-xs">
+        <div className="space-y-3.5 text-xs">
           {/* Leads Slider */}
           <div>
-            <div className="flex justify-between font-mono mb-1">
-              <span>Leads (People interested):</span>
+            <div className="flex justify-between font-mono mb-1 text-[11px]">
+              <span className="text-muted-foreground">Leads (People interested):</span>
               <span className="text-neon-cyan font-bold">{leads}</span>
             </div>
             <input
@@ -95,8 +106,8 @@ export default function RevenueProgress({ closedRevenue, targetRevenue }: Revenu
 
           {/* Booked Call Rate Slider */}
           <div>
-            <div className="flex justify-between font-mono mb-1">
-              <span>Percent that Book a Call:</span>
+            <div className="flex justify-between font-mono mb-1 text-[11px]">
+              <span className="text-muted-foreground">Percent that Book a Call:</span>
               <span className="text-neon-cyan font-bold">{bookedRate}%</span>
             </div>
             <input
@@ -111,8 +122,8 @@ export default function RevenueProgress({ closedRevenue, targetRevenue }: Revenu
 
           {/* Close Rate Slider */}
           <div>
-            <div className="flex justify-between font-mono mb-1">
-              <span>Percent that Hire Us (Close Rate):</span>
+            <div className="flex justify-between font-mono mb-1 text-[11px]">
+              <span className="text-muted-foreground">Percent that Hire Us:</span>
               <span className="text-neon-cyan font-bold">{closeRate}%</span>
             </div>
             <input
@@ -127,8 +138,8 @@ export default function RevenueProgress({ closedRevenue, targetRevenue }: Revenu
 
           {/* Average Deal Value Slider */}
           <div>
-            <div className="flex justify-between font-mono mb-1">
-              <span>Average Price per Client:</span>
+            <div className="flex justify-between font-mono mb-1 text-[11px]">
+              <span className="text-muted-foreground">Average Price per Client:</span>
               <span className="text-neon-cyan font-bold">${dealValue.toLocaleString()}</span>
             </div>
             <input
@@ -143,60 +154,64 @@ export default function RevenueProgress({ closedRevenue, targetRevenue }: Revenu
           </div>
 
           {/* Result Formula Output */}
-          <div className="p-2.5 bg-neon-cyan/5 border border-neon-cyan/20 rounded mt-3 text-center">
-            <span className="text-[10px] text-muted-foreground block font-mono">ESTIMATED MONTHLY EARNINGS</span>
-            <div className="text-lg font-mono font-bold text-neon-cyan">
+          <div className="p-2.5 bg-neon-cyan/5 border border-neon-cyan/15 rounded-xl mt-3 text-center">
+            <span className="text-[9px] text-muted-foreground block font-mono">ESTIMATED MONTHLY EARNINGS</span>
+            <div className="text-base font-mono font-bold text-neon-cyan">
               ${calculatedRevenue.toLocaleString()}/mo
             </div>
-            <span className="text-[9px] text-muted-foreground block font-mono mt-0.5">
+            <span className="text-[8px] text-muted-foreground block font-mono mt-0.5">
               {leads} leads × {bookedRate}% booked ({bookedCalls} calls) × {closeRate}% close ({closedDeals} deals) × ${dealValue}
             </span>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* 3. Model Targets */}
-      <div className="xl:col-span-1 glass-panel p-6 border border-white/5 rounded-xl flex flex-col justify-between">
+      <motion.div 
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className="xl:col-span-1 glass-panel p-6 border border-white/5 rounded-2xl flex flex-col justify-between glass-panel-pink"
+      >
         <div>
           <div className="flex items-center space-x-2 text-neon-pink mb-4">
-            <ArrowUpRight size={20} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">Choose Your Strategy</h3>
+            <ArrowUpRight size={18} />
+            <h3 className="font-mono text-xs font-bold uppercase tracking-wider">Choose Your Strategy</h3>
           </div>
 
           <div className="space-y-2 text-xs font-mono">
             {/* Model A */}
-            <div className="p-2.5 rounded bg-white/5 border border-white/5 flex justify-between items-center">
+            <div className="p-2.5 rounded-xl bg-white/3 border border-white/5 flex justify-between items-center hover:border-neon-pink/20 transition duration-300">
               <div>
-                <span className="text-[10px] text-neon-pink block uppercase font-bold">Plan A: Focus on Websites</span>
-                <span className="text-muted-foreground">4 Web Deliveries at $1,500</span>
+                <span className="text-[9px] text-neon-pink block uppercase font-bold">Plan A: Focus on Websites</span>
+                <span className="text-[10px] text-muted-foreground">4 Web Deliveries at $1,500</span>
               </div>
               <span className="font-bold text-foreground">$6,000</span>
             </div>
 
             {/* Model B */}
-            <div className="p-2.5 rounded bg-neon-purple/5 border border-neon-purple/20 flex justify-between items-center">
+            <div className="p-2.5 rounded-xl bg-neon-purple/5 border border-neon-purple/20 flex justify-between items-center hover:border-neon-purple/40 transition duration-300">
               <div>
-                <span className="text-[10px] text-neon-purple block uppercase font-bold">Plan B: Mix of Setup & Retainers (Best)</span>
-                <span className="text-muted-foreground">4 Setups ($1k) + 8 Retainers ($250)</span>
+                <span className="text-[9px] text-neon-purple block uppercase font-bold">Plan B: Setup & Retainers (Best)</span>
+                <span className="text-[10px] text-muted-foreground">4 Setups ($1k) + 8 Retainers ($250)</span>
               </div>
               <span className="font-bold text-neon-purple">$6,000</span>
             </div>
 
             {/* Model C */}
-            <div className="p-2.5 rounded bg-white/5 border border-white/5 flex justify-between items-center">
+            <div className="p-2.5 rounded-xl bg-white/3 border border-white/5 flex justify-between items-center hover:border-neon-cyan/20 transition duration-300">
               <div>
-                <span className="text-[10px] text-neon-cyan block uppercase font-bold">Plan C: High-Ticket Tech Packages</span>
-                <span className="text-muted-foreground">3 Growth Packages at $2,000</span>
+                <span className="text-[9px] text-neon-cyan block uppercase font-bold">Plan C: High-Ticket Packages</span>
+                <span className="text-[10px] text-muted-foreground">3 Growth Packages at $2,000</span>
               </div>
               <span className="font-bold text-foreground">$6,000</span>
             </div>
           </div>
         </div>
 
-        <div className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
-          💡 <span className="text-neon-cyan">Recommended</span>: Sell AI Assistant installs ($1,000 setup fee + $250 monthly fee) to get recurring income.
+        <div className="text-[9px] text-muted-foreground mt-3 leading-relaxed">
+          💡 <span className="text-neon-cyan font-semibold">Recommended</span>: Sell AI Assistant installs ($1,000 setup fee + $250 monthly fee) to get recurring income.
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

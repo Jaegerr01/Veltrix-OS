@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { gemini } from '@/lib/gemini';
+import { requireUser } from '@/lib/auth/requireUser';
+import { checkRateLimit } from '@/lib/auth/rateLimit';
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req);
+  if (auth.response) return auth.response;
+  const rl = checkRateLimit(auth.user.id);
+  if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
   let leadId = '';
   try {
     const body = await req.json().catch(() => ({}));
@@ -34,11 +40,23 @@ export async function POST(req: Request) {
     });
 
     // Automatically update the lead's score and status in the CRM
+    const nextStatus = scoreResult.total_score >= 7 ? 'Qualified' : 'Researched';
     await db.updateLead(leadId, {
       lead_score: scoreResult.total_score,
-      status: 'Researched',
+      status: nextStatus,
       notes: `${lead.notes || ''}\n\n[AI Qualification Score: ${scoreResult.total_score}/10]\n${scoreResult.reasoning}`.trim()
     });
+
+    // Check if autopilot is active, trigger background loop asynchronously for outreach
+    try {
+      const profile = await db.getBusinessProfile();
+      if (profile.autopilot && scoreResult.total_score >= 7) {
+        const { runAutopilotForLead } = await import('@/lib/agents/autopilot');
+        runAutopilotForLead(leadId);
+      }
+    } catch (apiErr) {
+      console.error('Failed to trigger autopilot in scoring POST api:', apiErr);
+    }
 
     // Save as memory context
     await db.addMemory({
@@ -91,11 +109,23 @@ export async function POST(req: Request) {
             reasoning: scoreResult.reasoning
           });
 
+          const nextStatus = scoreResult.total_score >= 7 ? 'Qualified' : 'Researched';
           await db.updateLead(leadId, {
             lead_score: scoreResult.total_score,
-            status: 'Researched',
+            status: nextStatus,
             notes: `${lead.notes || ''}\n\n[Qualifications calculated via local heuristics: ${scoreResult.total_score}/10]\n${scoreResult.reasoning}`.trim()
           });
+
+          // Check if autopilot is active, trigger background loop
+          try {
+            const profile = await db.getBusinessProfile();
+            if (profile.autopilot && scoreResult.total_score >= 7) {
+              const { runAutopilotForLead } = await import('@/lib/agents/autopilot');
+              runAutopilotForLead(leadId);
+            }
+          } catch (apiErr) {
+            console.error('Failed to trigger autopilot in scoring POST api fallback:', apiErr);
+          }
 
           await db.addMemory({
             type: 'Lead',

@@ -29,7 +29,7 @@ export default function ClientsCenter() {
       const clts = await db.getClients();
       setClients(clts);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load clients:', e);
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function ClientsCenter() {
       setShowAddForm(false);
       await loadClients();
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to save manual client:', err);
     } finally {
       setSubmitting(false);
     }

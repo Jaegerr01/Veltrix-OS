@@ -2,10 +2,24 @@ import { buildBusinessContext } from '../context/buildBusinessContext';
 import { gemini, isGeminiConfigured } from '../ai/gemini';
 import { AGENTS } from './agents';
 import { Lead, Task, Offer } from '../types';
+import { db } from '../db';
 
 // Helper: Classify query using keyword mapping as fallback
 export function getFallbackAgent(message: string): string {
   const msg = message.toLowerCase();
+  
+  // First match by agent first names
+  if (msg.includes('alex')) return 'ceo';
+  if (msg.includes('marcus')) return 'revenue';
+  if (msg.includes('sophia')) return 'sales';
+  if (msg.includes('daniel')) return 'leadResearch';
+  if (msg.includes('emma')) return 'outreach';
+  if (msg.includes('lucas')) return 'followup';
+  if (msg.includes('olivia')) return 'proposal';
+  if (msg.includes('ryan')) return 'content';
+  if (msg.includes('mia')) return 'delivery';
+  if (msg.includes('leo')) return 'memory';
+
   if (msg.includes('revenue') || msg.includes('earn') || msg.includes('finance') || msg.includes('money') || msg.includes('gap') || msg.includes('target')) {
     return 'revenue';
   }
@@ -40,16 +54,20 @@ export function getFallbackAgent(message: string): string {
 export async function classifyRequest(message: string): Promise<string> {
   const cleanMsg = message.trim();
   
-  // Check for explicit routing (e.g. "To CEO Agent: ..." or "CEO Agent: ...")
+  // Check for explicit routing (e.g. "To CEO Agent: ..." or "CEO Agent: ..." or "Alex: ...")
   const match = cleanMsg.match(/^(?:to\s+)?(?:the\s+)?([^:]+?)(?:\s+agent)?\s*:/i);
   if (match) {
     const targetName = match[1].trim().toLowerCase();
     const foundKey = Object.keys(AGENTS).find(key => {
-      const agentName = AGENTS[key].name.toLowerCase();
+      const agentName = AGENTS[key].name.toLowerCase(); // e.g. "alex (ceo agent)"
+      const firstWord = agentName.split(' ')[0].toLowerCase(); // e.g. "alex"
       return (
         agentName === targetName ||
-        agentName.replace(' agent', '') === targetName ||
-        AGENTS[key].role.toLowerCase() === targetName
+        agentName.includes(targetName) ||
+        firstWord === targetName ||
+        key.toLowerCase() === targetName ||
+        AGENTS[key].role.toLowerCase() === targetName ||
+        AGENTS[key].role.toLowerCase().includes(targetName)
       );
     });
     if (foundKey) {
@@ -64,16 +82,16 @@ export async function classifyRequest(message: string): Promise<string> {
   const prompt = `
 Classify the following user message to determine which business agent should handle it.
 Your choices are:
-- "ceo": Questions about overall strategy, what to do today, priority checklists, daily reports.
-- "revenue": Financial calculations, goals, monthly targets, closed earnings, revenue gap.
-- "sales": Closing clients, pitch angles, pricing options, objections.
-- "leadResearch": Qualifying leads, lead scoring, researching website/brand problems.
-- "outreach": Drafting first-contact messages (emails, DMs).
-- "followup": Scheduling/drafting sequential check-ins.
-- "proposal": Creating pricing quotes, contracts, scope of work.
-- "content": Ideas for social media, LinkedIn carousels, video hooks.
-- "delivery": Client project checklists, milestone plans, progress updates.
-- "memory": Saving, searching, recalling business facts.
+- "ceo" (Alex): Questions about overall strategy, what to do today, priority checklists, daily reports, and team delegation coordination.
+- "revenue" (Marcus): Financial calculations, goals, monthly targets, closed earnings, revenue gap.
+- "sales" (Sophia): Closing clients, pitch angles, pricing options, objections.
+- "leadResearch" (Daniel): Qualifying leads, lead scoring, researching website/brand problems.
+- "outreach" (Emma): Drafting first-contact messages (emails, DMs).
+- "followup" (Lucas): Scheduling/drafting sequential check-ins.
+- "proposal" (Olivia): Creating pricing quotes, contracts, scope of work.
+- "content" (Ryan): Ideas for social media, LinkedIn carousels, video hooks.
+- "delivery" (Mia): Client project checklists, milestone plans, progress updates.
+- "memory" (Leo): Saving, searching, recalling business facts.
 
 User Message: "${cleanMsg}"
 
@@ -126,11 +144,21 @@ export async function generateSimulatedResponse(
     console.error('Database fetch failed during simulated response generation:', dbError);
   }
 
-  let text = `⚠️ **Offline Simulator Mode** (Active due to: ${errorMessage})\n\n`;
-  text += `Hello! I am the **${agent.name}** (${agent.role}). I am running in offline mode using the workspace database context.\n\n`;
+  let cleanError = errorMessage;
+  if (errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID')) {
+    cleanError = 'Invalid Gemini API key in .env.local';
+  } else if (errorMessage.includes('503') || errorMessage.includes('Service Unavailable') || errorMessage.includes('overloaded')) {
+    cleanError = 'Gemini API is temporarily overloaded (503 Service Unavailable). Please try chat again in a few seconds.';
+  } else if (errorMessage.includes('429') || errorMessage.includes('Quota exceeded') || errorMessage.includes('rate limit')) {
+    cleanError = 'Gemini API Rate Limit exceeded (429 Too Many Requests). Please wait a moment.';
+  } else if (errorMessage.includes('not found') || errorMessage.includes('not supported')) {
+    cleanError = 'Model not supported or Generative Language API is disabled for this key';
+  }
+
+  let text = `⚠️ **Offline Simulator Mode** (${cleanError})\n\n`;
 
   if (agentKey === 'revenue') {
-    text += `### Revenue Metrics Analysis\n`;
+    text += `**Marcus (Revenue Agent)**: Hey Alex and team! Let's look at our revenue metrics. Here is where we stand:\n\n`;
     text += `- **Monthly Revenue Target**: $${targetRevenue.toLocaleString()}\n`;
     text += `- **Current Closed Revenue**: $${closedRevenue.toLocaleString()}\n`;
     text += `- **Revenue Gap**: $${revenueGap.toLocaleString()}\n`;
@@ -148,12 +176,12 @@ export async function generateSimulatedResponse(
         text += `To cover this, we should focus on securing 2-3 custom website or automation design projects ($800 - $1,500 each).`;
       }
     } else {
-      text += `Fantastic work! We have fully hit and exceeded our target monthly revenue of $${targetRevenue.toLocaleString()}!`;
+      text += `Fantastic work team! We have fully hit and exceeded our target monthly revenue of $${targetRevenue.toLocaleString()}!`;
     }
 
     text += `\n\n**Actionable Next Steps:**\n`;
     text += `1. Review pricing models and retainer terms to maximize margins.\n`;
-    text += `2. Focus efforts on closing pending pipeline deals (valued at $${pipelineValue.toLocaleString()}).`;
+    text += `2. Sophia, let's align on closing the warm leads in our pipeline (valued at $${pipelineValue.toLocaleString()}).`;
   } else if (agentKey === 'leadResearch' || lowercaseMsg.includes('score') || lowercaseMsg.includes('qualif')) {
     let targetLeadName = 'Radiant Smiles Dental Clinic';
     let matchedLead = leadList.find(l => lowercaseMsg.includes(l.business_name.toLowerCase()));
@@ -165,7 +193,7 @@ export async function generateSimulatedResponse(
       targetLeadName = matchedLead.business_name;
     }
 
-    text += `### Lead Evaluation: ${targetLeadName}\n`;
+    text += `**Daniel (Lead Research Agent)**: Hey Alex, I completed the qualification and research on **${targetLeadName}**:\n\n`;
     const webScore = matchedLead?.website ? 6 : 9;
     const brandingScore = 8;
     const autoNeed = matchedLead?.pain_point?.toLowerCase().includes('booking') || matchedLead?.pain_point?.toLowerCase().includes('chat') ? 9 : 7;
@@ -180,10 +208,10 @@ export async function generateSimulatedResponse(
     text += `- **Urgency Score**: ${urgency}/10 (No automated system to capture night/weekend leads)\n`;
     text += `- **Overall Qualified Score**: **${totalScore}/10**\n\n`;
 
-    text += `**Reasoning**: ${matchedLead?.pain_point || 'The prospect exhibits typical service industry pain points: no live appointment booking, slow follow-ups, and a lack of responsive mobile design. A custom AI receptionist or modern website upgrade would yield high ROI.'}\n\n`;
+    text += `**Analysis**: ${matchedLead?.pain_point || 'The prospect exhibits typical service industry pain points: no live appointment booking, slow follow-ups, and a lack of responsive mobile design. A custom AI receptionist or modern website upgrade would yield high ROI.'}\n\n`;
     text += `**Actionable Next Steps:**\n`;
-    text += `1. Move to the Outbox and customize the cold outreach sequence for this lead.\n`;
-    text += `2. Offer a risk-free 2-minute video mockup of their new booking system.`;
+    text += `1. Emma, let's draft a personalized cold outreach sequence for this lead.\n`;
+    text += `2. Alex, I recommend offering a risk-free 2-minute video mockup of their new booking system.`;
   } else if (agentKey === 'outreach' || lowercaseMsg.includes('outreach') || lowercaseMsg.includes('email') || lowercaseMsg.includes('message')) {
     let leadName = 'Radiant Smiles Dental Clinic';
     let leadWebsite = 'radiantsmiles.com';
@@ -196,16 +224,15 @@ export async function generateSimulatedResponse(
       leadWebsite = matchedLead.website || 'their site';
     }
 
-    text += `### Outreach Strategy & Draft\n`;
-    text += `Here is a custom outreach copy designed to address ${leadName}'s booking friction:\n\n`;
+    text += `**Emma (Outreach Agent)**: Hey team! Here is the custom outreach sequence I drafted for ${leadName}:\n\n`;
     text += `> "Hi ${matchedLead?.contact_name || 'there'},\n`;
     text += `> \n`;
     text += `> I was looking at ${leadName} and noticed that patients trying to book appointments after hours don't have an automated way to schedule. This typically leads to about 20% of web visitors bouncing to competitors.\n`;
     text += `> \n`;
     text += `> We build lightweight AI booking assistants for clinics that handle FAQs and schedule patients 24/7 directly into your calendar. Would it be okay if I sent over a short 90-second demo video of how it looks?"\n\n`;
     text += `**Actionable Next Steps:**\n`;
-    text += `1. Copy this script to the Outbox, and fill in the contact details.\n`;
-    text += `2. Set a follow-up reminder in 3 days if you do not receive a response.`;
+    text += `1. Alex, let's load this message into the Outbox and customize contact details.\n`;
+    text += `2. Lucas, please schedule a Day 3 follow-up sequence in case we don't get a reply.`;
   } else if (agentKey === 'proposal' || lowercaseMsg.includes('proposal') || lowercaseMsg.includes('quote') || lowercaseMsg.includes('price')) {
     let leadName = 'Radiant Smiles Dental Clinic';
     let matchedLead = leadList.find(l => lowercaseMsg.includes(l.business_name.toLowerCase()));
@@ -216,7 +243,7 @@ export async function generateSimulatedResponse(
       leadName = matchedLead.business_name;
     }
 
-    text += `### Business Proposal Overview: ${leadName}\n`;
+    text += `**Olivia (Proposal Agent)**: Hi Alex, I have prepared a business proposal outline for **${leadName}**:\n\n`;
     text += `**Recommended Package**: AI Website + Brand System & AI Booking Integration\n`;
     text += `**Estimated Investment**: $1,500 Setup + $150/mo Retainer\n\n`;
     text += `#### Proposed Deliverables:\n`;
@@ -224,10 +251,47 @@ export async function generateSimulatedResponse(
     text += `2. **Brand Identity System**: High-end color palette, custom graphics/illustrations, and brand style guide.\n`;
     text += `3. **AI Booking Assistant**: Chat widget configured to ingest clinic FAQs and schedule appointments.\n\n`;
     text += `**Actionable Next Steps:**\n`;
-    text += `1. Navigate to Price Quotes and generate a formal proposal document for ${leadName}.\n`;
-    text += `2. Send a review link to the prospect to initialize signature and invoice.`;
+    text += `1. Alex, I'll log the full proposal details in the "Price Quotes" page.\n`;
+    text += `2. Sophia, let's plan the post-proposal call script to walk them through the ROI.`;
+  } else if (agentKey === 'sales' || lowercaseMsg.includes('sales') || lowercaseMsg.includes('close') || lowercaseMsg.includes('convert')) {
+    text += `**Sophia (Sales Agent)**: Hey everyone! I've laid out the sales and conversion playbook for our current prospects:\n\n`;
+    text += `1. **Focus Angle**: Frame the AI Receptionist not as a cost, but as an extra receptionist who works 24/7 without taking breaks or asking for salary.\n`;
+    text += `2. **Objection Buster**: When they say "It's too expensive," point out that saving just 2 bounced leads per month fully pays for the retainer and setup fees.\n\n`;
+    text += `**Actionable Next Steps:**\n`;
+    text += `1. Emma, let's use the 'receptionist math' hook in our DMs.\n`;
+    text += `2. Alex, let's set up a calendar event to call the warm leads on Friday.`;
+  } else if (agentKey === 'followup' || lowercaseMsg.includes('follow') || lowercaseMsg.includes('reminder')) {
+    text += `**Lucas (Follow-up Agent)**: Lucas here. I'm keeping a close eye on the pipeline. Here's my plan:\n\n`;
+    text += `- **Follow-up Sequence**: We'll deploy a soft Day 3 check-in, a Day 7 value injection (sending them a stats report), and a Day 14 break-up message.\n`;
+    text += `- **Current Action**: Preparing follow-up drafts for contacted prospects who haven't replied yet.\n\n`;
+    text += `**Actionable Next Steps:**\n`;
+    text += `1. Emma, let's align on who has replied so I can take over the sequence.\n`;
+    text += `2. Leo, please log the response status updates in the system notes.`;
+  } else if (agentKey === 'content' || lowercaseMsg.includes('content') || lowercaseMsg.includes('post') || lowercaseMsg.includes('linkedin')) {
+    text += `**Ryan (Content Agent)**: What's up team! Ryan here. I've got some high-performing content ideas to build authority on LinkedIn and Instagram:\n\n`;
+    text += `- **Idea 1**: "How a local clinic lost $3,200 in 1 weekend by not answering their phone" (Hook + Case study).\n`;
+    text += `- **Idea 2**: Carousel detailing the difference between standard form builders and interactive AI booking widgets.\n\n`;
+    text += `**Actionable Next Steps:**\n`;
+    text += `1. Mia, please review the graphics workflow checkmarks.\n`;
+    text += `2. Alex, I'll save these drafts to the Social Writer page.`;
+  } else if (agentKey === 'delivery' || lowercaseMsg.includes('project') || lowercaseMsg.includes('deliver') || lowercaseMsg.includes('checklist')) {
+    text += `**Mia (Delivery Manager Agent)**: Mia here. Standard onboarding and project delivery are running smoothly. Here's our baseline roadmap:\n\n`;
+    text += `1. Onboarding & Assets Collection (Day 1-2)\n`;
+    text += `2. Layout & Wireframes Review (Day 3-5)\n`;
+    text += `3. AI Custom Training & FAQs Ingestion (Day 6-8)\n`;
+    text += `4. Mobile testing & launch checklist (Day 9-12)\n\n`;
+    text += `**Actionable Next Steps:**\n`;
+    text += `1. Marcus, let's ensure the upfront invoice is paid before kickoff.\n`;
+    text += `2. Leo, please tag client preferences in our central memory database.`;
+  } else if (agentKey === 'memory' || lowercaseMsg.includes('memory') || lowercaseMsg.includes('remember') || lowercaseMsg.includes('notes')) {
+    text += `**Leo (Memory Manager Agent)**: Leo reporting in. I've archived our business memories and preferences:\n\n`;
+    text += `- Central preference updated: We prioritize local service clinics, dental offices, and health spas.\n`;
+    text += `- Tech stack tag: Next.js + Supabase + Gemini API.\n\n`;
+    text += `**Actionable Next Steps:**\n`;
+    text += `1. Alex, let's keep details updated on the Memories tab to refine context.\n`;
+    text += `2. Daniel, I've linked the new lead files to our historical target tags.`;
   } else {
-    text += `Let's work together to reach the $6,000/month milestone. Here is the current overview of our Veltrix Command dashboard:\n\n`;
+    text += `**Alex (CEO Agent)**: Hey team, Alex here. Let's work together to reach our $6,000/month milestone. Here is the current status of the dashboard:\n\n`;
     text += `- **Closed Earnings**: $${closedRevenue.toLocaleString()} / $${targetRevenue.toLocaleString()} (Gap: $${revenueGap.toLocaleString()})\n`;
     text += `- **Active Leads in CRM**: ${leadCount}\n`;
     text += `- **Ongoing Projects**: ${taskList.filter(t => t.status !== 'Completed').length} tasks pending\n\n`;
@@ -235,19 +299,19 @@ export async function generateSimulatedResponse(
     text += `**Priority Actions to Close the Revenue Gap:**\n`;
     if (leadList.length > 0) {
       const topLead = leadList[0];
-      text += `- **Outreach**: Reach out to **${topLead.business_name}** (${topLead.industry || 'Local Business'}) with a personalized AI booking assistant pitch.\n`;
+      text += `- **Daniel & Emma**: Let's qualify and reach out to **${topLead.business_name}** (${topLead.industry || 'Local Business'}) with a personalized AI booking assistant pitch.\n`;
     } else {
       text += `- **Lead Generation**: Add local service businesses (dentists, medical clinics, home services) to the Potential Clients CRM list.\n`;
     }
 
     const pendingTasks = taskList.filter(t => t.status !== 'Completed').slice(0, 2);
     if (pendingTasks.length > 0) {
-      text += `- **Delivery**: Address pending tasks: ${pendingTasks.map(t => `"${t.title}"`).join(', ')}.\n`;
+      text += `- **Mia**: Please check on the progress of these tasks: ${pendingTasks.map(t => `"${t.title}"`).join(', ')}.\n`;
     }
 
     text += `\n**Actionable Next Steps:**\n`;
-    text += `1. Select a suggestion pill below or ask for specific outreach drafts or lead scores.\n`;
-    text += `2. Ensure your Supabase and Gemini environment variables are correctly configured if you want to connect live AI models.`;
+    text += `1. Daniel, let's qualification score our active leads.\n`;
+    text += `2. Ensure your Supabase and Gemini environment variables are correctly configured for live mode.`;
   }
 
   return {
@@ -280,9 +344,21 @@ export async function executeAgent(
       cleanUserMessage = prefixMatch[1];
     }
 
+    // Retrieve semantically matching memories using pgvector
+    let memorySnippet = '';
+    try {
+      const memories = await db.searchMemories(cleanUserMessage, 6);
+      if (memories && memories.length > 0) {
+        memorySnippet = `\n=== RETRIEVED BUSINESS MEMORIES (VECTOR SEARCH) ===\n` + 
+          memories.map(m => `- [${m.source || 'Memory'}] ${m.content}`).join('\n') + `\n`;
+      }
+    } catch (memErr) {
+      console.warn('Failed to retrieve vector memories for agent:', memErr);
+    }
+
     const systemInstruction = `
 ${agent.systemPrompt}
-
+${memorySnippet}
 Below is the real-time business workspace data compiled from Supabase:
 ${contextString}
 
@@ -308,3 +384,4 @@ Provide your professional guidance. Address the user directly, keep your formatt
     return generateSimulatedResponse(agentKey, userMessage, error.message || 'AI request failed');
   }
 }
+

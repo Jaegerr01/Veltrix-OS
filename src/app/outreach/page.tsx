@@ -30,7 +30,7 @@ export default function OutreachCenter() {
       setMessages(msgs);
       setLeads(lds);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load outreach messages or leads data:', e);
     } finally {
       setLoading(false);
     }
@@ -42,25 +42,26 @@ export default function OutreachCenter() {
 
   const handleApproveAndSend = async (msgId: string) => {
     try {
-      await db.updateOutreachMessage(msgId, {
-        approval_status: 'Approved',
-        status: 'Sent',
-        sent_at: new Date().toISOString()
+      const res = await fetch('/api/outreach/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: msgId }),
       });
-      // Automatically complete related tasks if they exist
-      const tks = await db.getTasks();
-      const task = tks.find(t => t.related_lead_id === messages.find(m => m.id === msgId)?.lead_id && t.title.toLowerCase().includes('outreach'));
-      if (task) {
-        await db.updateTask(task.id, { status: 'Completed', result: 'Outreach approved and marked as sent.' });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Failed to send message.');
+        return;
       }
 
       await loadData();
-      if (activeMessage?.id === msgId) {
-        setActiveMessage(null);
-      }
-      alert('Message approved and marked as Sent!');
+      if (activeMessage?.id === msgId) setActiveMessage(null);
+
+      const notice = data.emailDelivered
+        ? `Email dispatched! ${data.note}`
+        : `Marked as Sent. ${data.note}`;
+      alert(notice);
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to approve and send outreach message:', err);
     }
   };
 
@@ -101,7 +102,7 @@ export default function OutreachCenter() {
         alert(data.error || 'Failed to generate outreach');
       }
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to generate outreach message draft:', err);
     } finally {
       setGenerating(false);
     }
@@ -263,7 +264,7 @@ export default function OutreachCenter() {
                   onClick={() => handleApproveAndSend(activeMessage.id)}
                   className="flex-1 py-2 bg-neon-green hover:bg-neon-green/80 text-white rounded font-mono font-bold text-[10px] uppercase transition cursor-pointer"
                 >
-                  Approve & Mark Sent
+                  Approve & Send
                 </button>
                 <button
                   onClick={() => handleReject(activeMessage.id)}

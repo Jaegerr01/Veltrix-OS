@@ -1,5 +1,11 @@
 // Types definition for VELTRIX COMMAND OS
 
+export interface User {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
 export interface BusinessProfile {
   id: string;
   business_name: string;
@@ -10,12 +16,16 @@ export interface BusinessProfile {
   primary_offer: string;
   secondary_offer: string;
   target_markets: string[];
+  autopilot: boolean;
   created_at: string;
   updated_at: string;
 }
 
+export type Profile = BusinessProfile;
+
 export interface Goal {
   id: string;
+  user_id?: string;
   title: string;
   description: string;
   target_amount?: number;
@@ -29,6 +39,7 @@ export interface Goal {
 
 export interface Offer {
   id: string;
+  user_id?: string;
   name: string;
   description: string;
   target_customer: string;
@@ -44,6 +55,7 @@ export interface Offer {
 
 export interface Lead {
   id: string;
+  user_id?: string;
   business_name: string;
   contact_name?: string;
   industry?: string;
@@ -73,6 +85,7 @@ export interface Lead {
 
 export interface LeadScore {
   id: string;
+  user_id?: string;
   lead_id: string;
   website_score: number; // 1-10
   branding_score: number; // 1-10
@@ -86,6 +99,7 @@ export interface LeadScore {
 
 export interface OutreachMessage {
   id: string;
+  user_id?: string;
   lead_id: string;
   channel: 'Email' | 'LinkedIn' | 'Instagram' | 'WhatsApp' | 'Facebook';
   message: string;
@@ -97,6 +111,7 @@ export interface OutreachMessage {
 
 export interface Followup {
   id: string;
+  user_id?: string;
   lead_id: string;
   followup_date: string;
   followup_type: string; // Soft Reminder, Value-based, Final Check-in, Re-engagement
@@ -108,6 +123,7 @@ export interface Followup {
 
 export interface Call {
   id: string;
+  user_id?: string;
   lead_id: string;
   scheduled_date: string;
   call_status: 'Scheduled' | 'Completed' | 'No Show' | 'Rescheduled' | 'Cancelled';
@@ -122,6 +138,7 @@ export interface Call {
 
 export interface Proposal {
   id: string;
+  user_id?: string;
   lead_id?: string;
   client_id?: string;
   title: string;
@@ -138,6 +155,7 @@ export interface Proposal {
 
 export interface Client {
   id: string;
+  user_id?: string;
   business_name: string;
   contact_name?: string;
   email?: string;
@@ -153,6 +171,7 @@ export interface Client {
 
 export interface Project {
   id: string;
+  user_id?: string;
   client_id: string;
   project_name: string;
   service_type: string;
@@ -176,6 +195,7 @@ export interface Project {
 
 export interface Task {
   id: string;
+  user_id?: string;
   agent_name: string;
   title: string;
   description?: string;
@@ -192,6 +212,7 @@ export interface Task {
 
 export interface Revenue {
   id: string;
+  user_id?: string;
   client_id?: string;
   proposal_id?: string;
   amount: number;
@@ -205,6 +226,7 @@ export interface Revenue {
 
 export interface Expense {
   id: string;
+  user_id?: string;
   title: string;
   amount: number;
   category: 'Software' | 'Marketing' | 'Contractors' | 'Legal' | 'Other';
@@ -215,49 +237,69 @@ export interface Expense {
 
 export interface Memory {
   id: string;
+  user_id?: string;
   type:
     | 'Business'
     | 'Client'
     | 'Lead'
     | 'Project'
-    | 'Sales'
-    | 'Offer'
     | 'Strategy'
-    | 'Personal Preference'
+    | 'Offer'
     | 'Decision'
-    | 'Lesson';
+    | 'Lesson'
+    | 'Personal Preference'
+    | 'Sales';
   content: string;
   tags: string[];
-  importance: number; // 1-10
-  embedding?: number[];
+  importance: number;
   source: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface AgentLog {
+export interface Note {
   id: string;
-  agent_name: string;
-  action: string;
-  input?: string;
-  output?: string;
-  status: 'Success' | 'Failure' | 'Pending Approval';
+  user_id?: string;
+  title?: string;
+  content: string;
+  tags: string[];
+  importance: number;
+  source?: string;
   created_at: string;
+  updated_at: string;
 }
 
-export interface ToolLog {
+export interface AgentMemory {
   id: string;
-  tool_name: string;
+  user_id?: string;
+  key: string;
+  value: any;
+  tags?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Activity {
+  id: string;
+  user_id?: string;
+  type: 'agent' | 'tool' | 'system';
+  actor?: string;
+  agent_name?: string;
+  tool_name?: string;
   action: string;
   input?: string;
   output?: string;
-  status: 'Success' | 'Failure';
+  status?: string;
   error?: string;
   created_at: string;
 }
 
+export type AgentLog = Activity;
+export type ToolLog = Activity;
+
 export interface DailyReport {
   id: string;
+  user_id?: string;
   report_date: string;
   revenue_target: number;
   closed_revenue: number;
@@ -273,6 +315,7 @@ export interface DailyReport {
 
 export interface ContentIdea {
   id: string;
+  user_id?: string;
   platform: 'LinkedIn' | 'Instagram' | 'YouTube' | 'TikTok' | 'Twitter';
   title: string;
   hook?: string;
@@ -285,6 +328,7 @@ export interface ContentIdea {
 
 export interface ChatMessage {
   id: string;
+  user_id?: string;
   sender: 'user' | 'ai';
   agentName?: string;
   message: string;
@@ -293,6 +337,7 @@ export interface ChatMessage {
 
 export interface AdCampaign {
   id: string;
+  user_id?: string;
   name: string;
   platform?: string;
   status: 'Active' | 'Paused' | 'Completed' | 'Draft';
@@ -307,6 +352,7 @@ export interface AdCampaign {
 
 export interface CommunityMetric {
   id: string;
+  user_id?: string;
   name: string;
   platform?: string;
   value: number | string;
@@ -314,4 +360,5 @@ export interface CommunityMetric {
   trend?: 'up' | 'down' | 'neutral';
   created_at?: string;
 }
+
 

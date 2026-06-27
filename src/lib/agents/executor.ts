@@ -1,4 +1,4 @@
-import { db } from '../db';
+﻿import { db } from '../db';
 import { gemini } from '../gemini';
 import { AGENTS } from './agents';
 import { generateSimulatedResponse } from './router';
@@ -52,7 +52,7 @@ export async function runAgentLogic(
               memories
             );
           } catch (err: any) {
-            reportText = `VELTRIX Daily Command Report\n\nRevenue Target:\n$${profile.target_monthly_revenue}\n\nClosed Revenue:\n$${profile.current_monthly_revenue}\n\nPipeline Value:\n$${pipelineValue}\n\nRevenue Gap:\n$${profile.target_monthly_revenue - profile.current_monthly_revenue}\n\nToday’s Top Priority:\nReview warm leads and prepare proposals.\n\nLeads to Contact:\n${activeLeads.slice(0, 3).map((l, i) => `${i+1}. ${l.business_name}`).join('\n')}\n\nFollow-ups Due:\nNone\n\nContent to Post:\nDeploy an AI Receptionist to prevent after-hour appointment leaks.\n\nRecommended Action:\nContact active warm leads.\n\nRisk / Blocker:\nGemini API unavailable. Local fallback generated.\n\nNext Step:\nOpen Potential Clients page.`;
+            reportText = `VELTRIX Daily Command Report\n\nRevenue Target:\n$${profile.target_monthly_revenue}\n\nClosed Revenue:\n$${profile.current_monthly_revenue}\n\nPipeline Value:\n$${pipelineValue}\n\nRevenue Gap:\n$${profile.target_monthly_revenue - profile.current_monthly_revenue}\n\nToday's Top Priority:\nReview warm leads and prepare proposals.\n\nLeads to Contact:\n${activeLeads.slice(0, 3).map((l, i) => `${i+1}. ${l.business_name}`).join('\n')}\n\nFollow-ups Due:\nNone\n\nContent to Post:\nDeploy an AI Receptionist to prevent after-hour appointment leaks.\n\nRecommended Action:\nContact active warm leads.\n\nRisk / Blocker:\nGemini API unavailable. Local fallback generated.\n\nNext Step:\nOpen Potential Clients page.`;
           }
 
           const lines = reportText.split('\n');
@@ -65,7 +65,7 @@ export async function runAgentLogic(
           let section = '';
           lines.forEach(line => {
             const trimLine = line.trim();
-            if (trimLine.startsWith('Today’s Top Priority:')) {
+            if (trimLine.startsWith("Today's Top Priority:")) {
               section = 'priority';
             } else if (trimLine.startsWith('Leads to Contact:')) {
               section = 'leads';
@@ -123,7 +123,7 @@ export async function runAgentLogic(
           });
         }
 
-        resultText = `CEO Agent has successfully compiled today's Daily Action Plan:\n\n**Top Priority:** ${report.top_priority}\n\n**Recommended Action:** ${report.recommended_action}\n\nCheck the "Daily Summaries" page for the full layout.`;
+        resultText = `Hey team, Alex here. I've successfully compiled today's Daily Action Plan:\n\n**Top Priority:** ${report.top_priority}\n\n**Recommended Action:** ${report.recommended_action}\n\nLet's get to work! Check the "Daily Summaries" page for the full layout.`;
         if (autonomous) {
           resultText += `\n\n[AUTONOMOUS OPERATION COMMITTED]: Recommended action task has been automatically executed and marked completed.`;
         }
@@ -142,22 +142,41 @@ export async function runAgentLogic(
 
         const gap = Math.max(0, profile.target_monthly_revenue - closedRevenue);
 
-        const prompt = `
+        const websites = params?.websites || 0;
+        const receptionists = params?.receptionists || 0;
+
+        let prompt = `
 Analyze the following financial statistics for VELTRIX:
 - Monthly Target: $${profile.target_monthly_revenue}
 - Closed Earnings: $${closedRevenue}
 - Earnings Gap: $${gap}
 - Active Clients: ${clients.length}
 - Active Proposals: ${proposals.length}
+`;
 
+        if (websites > 0 || receptionists > 0) {
+          prompt += `
+The user is simulating closing the following deals:
+- ${websites} AI Website Refresh(es) ($1,200/each)
+- ${receptionists} AI Receptionist Setup(s) ($1,000/each + $250/mo retainer)
+
+Provide a tactical sales execution playbook explaining how to close these specific deals. Which industries or prospects in our CRM should we target first? What objections will they raise and how do we handle them? Keep it highly structured and actionable.
+`;
+        } else {
+          prompt += `
 Provide a short, grounded financial report. Highlight the exact gap math. Calculate how many projects are needed to close the gap:
 - Website refresh projects (average $1,200 each)
 - AI Receptionist retainers (average $250/month each)
+`;
+        }
 
+        prompt += `
+Respond in character as Marcus, the Revenue Agent. Speak in a precise, helpful, and analytical conversational tone, addressed to Alex and the team naturally.
 Output in a concise layout with next actions.
 `;
-        resultText = await gemini.callRawLLM(prompt, agent.systemPrompt);
-        logPayload = { closedRevenue, gap };
+        const generated = await gemini.callRawLLM(prompt, agent.systemPrompt);
+        resultText = `**Marcus (Revenue Agent)**: ${generated}`;
+        logPayload = { closedRevenue, gap, simulatedWebsites: websites, simulatedReceptionists: receptionists };
         break;
       }
 
@@ -184,8 +203,11 @@ Draft a sales pitch recommendation. Outline:
 1. Which VELTRIX service fits best (AI Website, AI Receptionist, or Growth Package) and why.
 2. The exact pitch angle (time-saved, revenue capture, or aesthetics reboot).
 3. Objections handling guide for this client.
+
+Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuasive, and highly professional conversational tone, addressed to Alex and the team naturally.
 `;
-        resultText = await gemini.callRawLLM(prompt, agent.systemPrompt);
+        const generated = await gemini.callRawLLM(prompt, agent.systemPrompt);
+        resultText = `**Sophia (Sales Agent)**: ${generated}`;
         logPayload = { leadId, businessName: lead.business_name };
         break;
       }
@@ -234,7 +256,10 @@ Draft a sales pitch recommendation. Outline:
           source: 'Lead Research Agent'
         });
 
-        if (autonomous) {
+        const profile = await db.getBusinessProfile();
+        const isAuto = autonomous || profile.autopilot;
+
+        if (isAuto) {
           await db.addTask({
             agent_name: 'Lead Research Agent',
             title: `Autonomous research completed for ${lead.business_name}`,
@@ -243,11 +268,21 @@ Draft a sales pitch recommendation. Outline:
             status: 'Completed',
             related_lead_id: leadId
           });
+
+          // Trigger Outreach automatically on autopilot if qualified
+          if (scoreResult.total_score >= 7) {
+            const isChatbot = lead.pain_point?.toLowerCase().includes('receptionist') || lead.pain_point?.toLowerCase().includes('call') || lead.industry === 'Dental';
+            const offer = isChatbot ? 'AI Receptionist / Lead Booking Agent' : 'AI Website + Brand System';
+            runAgentLogic('outreach', { leadId, offerName: offer, channel: 'Email' }, true);
+          }
         }
 
-        resultText = `Lead Research Agent completed qualifying score for lead ${lead.business_name}.\n\n**Total Score:** ${scoreResult.total_score}/10\n\n**Reasoning:** ${scoreResult.reasoning}`;
-        if (autonomous) {
+        resultText = `**Daniel (Lead Research Agent)**: Hey Alex, I completed qualifying scoring for lead **${lead.business_name}**.\n\n**Total Score:** ${scoreResult.total_score}/10\n\n**Reasoning:** ${scoreResult.reasoning}`;
+        if (isAuto) {
           resultText += `\n\n[AUTONOMOUS OPERATION COMMITTED]: Lead status updated to "${nextStatus}". Research task logged as Completed.`;
+          if (scoreResult.total_score >= 7) {
+            resultText += ` Outreach drafting automatically triggered.`;
+          }
         }
         break;
       }
@@ -277,16 +312,19 @@ Draft a sales pitch recommendation. Outline:
           }
         }
 
+        const profile = await db.getBusinessProfile();
+        const isAuto = autonomous || profile.autopilot;
+
         await db.addOutreachMessage({
           lead_id: leadId,
           channel: channel as any,
           message: messageText,
-          status: autonomous ? 'Sent' : 'Draft',
-          approval_status: autonomous ? 'Approved' : 'Pending Approval',
-          sent_at: autonomous ? new Date().toISOString() : undefined
+          status: isAuto ? 'Sent' : 'Draft',
+          approval_status: isAuto ? 'Approved' : 'Pending Approval',
+          sent_at: isAuto ? new Date().toISOString() : undefined
         });
 
-        if (autonomous) {
+        if (isAuto) {
           await db.updateLead(leadId, {
             status: 'Contacted'
           });
@@ -294,20 +332,20 @@ Draft a sales pitch recommendation. Outline:
 
         await db.addTask({
           agent_name: 'Outreach Agent',
-          title: autonomous 
+          title: isAuto 
             ? `Autonomous outreach sent to ${lead.business_name}`
             : `Review and approve outreach message for ${lead.business_name}`,
-          description: autonomous 
+          description: isAuto 
             ? `Automatically sent outreach for ${lead.business_name} using channel: ${channel}.`
             : `Drafted outreach for ${lead.business_name} using channel: ${channel}. Click Approve to mark sent.`,
           priority: 'High',
-          status: autonomous ? 'Completed' : 'Pending',
+          status: isAuto ? 'Completed' : 'Pending',
           related_lead_id: leadId
         });
 
-        resultText = autonomous 
-          ? `Outreach Agent autonomously generated and sent outreach message to lead ${lead.business_name}.\n\nMessage content has been marked as "Sent" in your Outbox.\n\nLead status updated to "Contacted".`
-          : `Outreach Agent generated outreach draft message for lead ${lead.business_name}.\n\nMessage content has been loaded into your Outbox page under "Pending Approval".`;
+        resultText = isAuto 
+          ? `**Emma (Outreach Agent)**: Hey Alex! I've autonomously generated and sent the outreach message to **${lead.business_name}** via ${channel}.\n\nI updated their lead status to "Contacted" and marked the message as "Sent" in the Outbox.`
+          : `**Emma (Outreach Agent)**: Hey Alex! I've generated the outreach draft message for **${lead.business_name}** via ${channel}.\n\nYou can review it in the Outbox under "Pending Approval". Let me know if you want any edits!`;
         break;
       }
 
@@ -324,30 +362,33 @@ Draft a sales pitch recommendation. Outline:
 
         const msgText = await gemini.generateFollowup(lead, Number(sequenceDay));
 
+        const profile = await db.getBusinessProfile();
+        const isAuto = autonomous || profile.autopilot;
+
         const newFup = await db.addFollowup({
           lead_id: leadId,
           followup_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], // in 2 days
           followup_type: `Day ${sequenceDay} Follow-up`,
           message: msgText,
-          status: autonomous ? 'Sent' : 'Pending'
+          status: isAuto ? 'Sent' : 'Pending'
         });
 
         await db.addTask({
           agent_name: 'Follow-up Agent',
-          title: autonomous
+          title: isAuto
             ? `Autonomous Day ${sequenceDay} follow-up sent to ${lead.business_name}`
             : `Send Day ${sequenceDay} follow-up to ${lead.business_name}`,
-          description: autonomous
+          description: isAuto
             ? `Automatically generated and sent Day ${sequenceDay} follow-up to ${lead.business_name}.`
             : `Follow-up draft is saved. Channel: Check client calendar reminders.`,
           priority: 'Medium',
-          status: autonomous ? 'Completed' : 'Pending',
+          status: isAuto ? 'Completed' : 'Pending',
           related_lead_id: leadId
         });
 
-        resultText = autonomous
-          ? `Follow-up Agent autonomously generated and sent the message for Day ${sequenceDay} Check-in to ${lead.business_name}.\n\nFollow-up logged as "Sent" in CRM database. Task marked "Completed".`
-          : `Follow-up Agent drafted the message for Day ${sequenceDay} Check-in:\n\n---\n\n${msgText}\n\n---\n\nFollow-up logged in CRM database. Task created to execute reminder.`;
+        resultText = isAuto
+          ? `**Lucas (Follow-up Agent)**: Hi Alex, I've autonomously generated and sent the Day ${sequenceDay} follow-up check-in to **${lead.business_name}**.\n\nEverything is logged in the CRM and the task is marked "Completed".`
+          : `**Lucas (Follow-up Agent)**: Hi Alex, I've drafted the Day ${sequenceDay} follow-up check-in message for **${lead.business_name}**:\n\n---\n\n${msgText}\n\n---\n\nI've logged it in the CRM and set up a task for when we're ready to send.`;
         break;
       }
 
@@ -405,8 +446,8 @@ Draft a sales pitch recommendation. Outline:
         });
 
         resultText = autonomous
-          ? `Proposal Agent autonomously generated and sent proposal draft for ${offerName} ($${price}) to ${lead.business_name}.\n\nProposal status marked as "Sent". Lead status updated to "Proposal Sent". Task marked "Completed".`
-          : `Proposal Agent generated proposal draft for ${offerName} ($${price}).\n\nFull proposal is editable on the "Price Quotes" page.`;
+          ? `**Olivia (Proposal Agent)**: Hey Alex, I've autonomously generated and sent the proposal for **${offerName}** ($${price}) to **${lead.business_name}**.\n\nI've moved the proposal to "Sent", updated the lead status to "Proposal Sent", and marked the task "Completed".`
+          : `**Olivia (Proposal Agent)**: Hey Alex, I've drafted the proposal for **${offerName}** ($${price}) for **${lead.business_name}**.\n\nYou can review and finalize the proposal on the Price Quotes page whenever you're ready.`;
         break;
       }
 
@@ -428,9 +469,9 @@ Draft a sales pitch recommendation. Outline:
           });
         }
 
-        resultText = `Content Agent successfully generated ${ideas.length} authority content ideas on the topic "${topic}":\n\n` + 
+        resultText = `**Ryan (Content Agent)**: Hey team! Ryan here. I've successfully generated ${ideas.length} fresh authority content ideas on the topic "${topic}":\n\n` + 
           ideas.map((idea, i) => `${i+1}. **${idea.title}** (${idea.platform})\n*Hook:* ${idea.hook}`).join('\n\n') +
-          `\n\nThese drafts are saved to the "Social Writer" dashboard page.`;
+          `\n\nI've saved these drafts directly to the Social Writer page for you.`;
         break;
       }
 
@@ -452,9 +493,11 @@ Service Type: ${project.service_type}
 Status: ${project.status}
 Requirements: ${project.requirements}
 
+Respond in character as Mia, the Delivery Manager Agent. Speak in an organized, clear, and reassuring project-management conversational tone. Address your coordinator Alex and the team naturally.
 Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery database.
 `;
-        resultText = await gemini.callRawLLM(prompt, agent.systemPrompt);
+        const generated = await gemini.callRawLLM(prompt, agent.systemPrompt);
+        resultText = `**Mia (Delivery Manager Agent)**: ${generated}`;
         break;
       }
 
@@ -464,9 +507,9 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
           return { success: false, error: 'query is required for Memory Manager Agent' };
         }
         const memories = await db.searchMemories(query);
-        resultText = `Memory Manager Agent searched the database for "${query}" and found ${memories.length} relevant entries:\n\n` +
+        resultText = `**Leo (Memory Manager Agent)**: Hello Alex. I've searched our core database for "${query}" and recovered ${memories.length} relevant log entries:\n\n` +
           (memories.length === 0 
-            ? 'No matching notes found.' 
+            ? 'No matching memories or tags found.' 
             : memories.map((m, i) => `${i+1}. **[${m.type}]** ${m.content} (Importance: ${m.importance}/10)`).join('\n\n'));
         break;
       }

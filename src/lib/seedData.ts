@@ -22,6 +22,7 @@ export const defaultBusinessProfile: BusinessProfile = {
   primary_offer: 'AI Receptionist / Lead Booking Agent',
   secondary_offer: 'AI Website + Brand System',
   target_markets: ['Local service businesses', 'Dental clinics', 'Salons', 'Restaurants', 'Coaches', 'Consultants', 'Real estate agents', 'Small e-commerce stores'],
+  autopilot: false,
   created_at: new Date('2026-05-01').toISOString(),
   updated_at: new Date().toISOString()
 };

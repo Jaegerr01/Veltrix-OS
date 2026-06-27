@@ -2,11 +2,25 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { gemini } from '@/lib/ai/gemini';
 import { AGENTS } from '@/lib/agents/agents';
+import { requireUser } from '@/lib/auth/requireUser';
+import { checkRateLimit } from '@/lib/auth/rateLimit';
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ agent: string }> }
 ) {
+  const auth = await requireUser(req);
+  if (auth.response) return auth.response;
+  const rl = checkRateLimit(auth.user.id);
+  if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
+
+  // Thread auth header through to any internal sub-route fetches
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const internalHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(authHeader ? { Authorization: authHeader } : {}),
+  };
+
   let agentKey = '';
   let reqParameters: any = {};
   try {
@@ -25,10 +39,10 @@ export async function POST(
     switch (agentKey) {
       case 'ceo': {
         // Runs Daily Action Plan Report
-        const reportRes = await fetch(`${new URL(req.url).origin}/api/ai/report`, { method: 'POST' });
+        const reportRes = await fetch(`${new URL(req.url).origin}/api/ai/report`, { method: 'POST', headers: internalHeaders });
         const reportData = await reportRes.json();
         if (reportData.success) {
-          resultText = `CEO Agent has successfully compiled today's Daily Action Plan:\n\n**Top Priority:** ${reportData.report.top_priority}\n\n**Recommended Action:** ${reportData.report.recommended_action}\n\nCheck the "Daily Summaries" page for the full layout.`;
+          resultText = `Hey team, Alex here. I've successfully compiled today's Daily Action Plan:\n\n**Top Priority:** ${reportData.report.top_priority}\n\n**Recommended Action:** ${reportData.report.recommended_action}\n\nLet's get to work! Check the "Daily Summaries" page for the full layout.`;
         } else {
           throw new Error(reportData.error || 'Failed to generate Daily Report');
         }
@@ -59,9 +73,11 @@ Provide a short, grounded financial report. Highlight the exact gap math. Calcul
 - Website refresh projects (average $1,200 each)
 - AI Receptionist retainers (average $250/month each)
 
+Respond in character as Marcus, the Revenue Agent. Speak in a precise, helpful, and analytical conversational tone, addressed to Alex and the team naturally.
 Output in a concise layout with next actions.
 `;
-        resultText = await gemini.callRawLLM(prompt, agentConfig.systemPrompt);
+        const generated = await gemini.callRawLLM(prompt, agentConfig.systemPrompt);
+        resultText = `**Marcus (Revenue Agent)**: ${generated}`;
         logPayload = { closedRevenue, gap };
         break;
       }
@@ -89,8 +105,11 @@ Draft a sales pitch recommendation. Outline:
 1. Which VELTRIX service fits best (AI Website, AI Receptionist, or Growth Package) and why.
 2. The exact pitch angle (time-saved, revenue capture, or aesthetics reboot).
 3. Objections handling guide for this client.
+
+Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuasive, and highly professional conversational tone, addressed to Alex and the team naturally.
 `;
-        resultText = await gemini.callRawLLM(prompt, agentConfig.systemPrompt);
+        const generated = await gemini.callRawLLM(prompt, agentConfig.systemPrompt);
+        resultText = `**Sophia (Sales Agent)**: ${generated}`;
         logPayload = { leadId, businessName: lead.business_name };
         break;
       }
@@ -102,12 +121,12 @@ Draft a sales pitch recommendation. Outline:
         }
         const scoreRes = await fetch(`${new URL(req.url).origin}/api/ai/score`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: internalHeaders,
           body: JSON.stringify({ leadId })
         });
         const scoreData = await scoreRes.json();
         if (scoreData.success) {
-          resultText = `Lead Research Agent completed qualifying score for lead ID ${leadId}.\n\n**Total Score:** ${scoreData.score.total_score}/10\n\n**Reasoning:** ${scoreData.score.reasoning}`;
+          resultText = `**Daniel (Lead Research Agent)**: Hey Alex, I completed qualifying scoring for lead ID **${leadId}**.\n\n**Total Score:** ${scoreData.score.total_score}/10\n\n**Reasoning:** ${scoreData.score.reasoning}`;
         } else {
           throw new Error(scoreData.error || 'Failed to score lead');
         }
@@ -121,12 +140,12 @@ Draft a sales pitch recommendation. Outline:
         }
         const outreachRes = await fetch(`${new URL(req.url).origin}/api/ai/outreach`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: internalHeaders,
           body: JSON.stringify({ leadId, offerName, channel })
         });
         const outreachData = await outreachRes.json();
         if (outreachData.success) {
-          resultText = `Outreach Agent generated outreach draft message for lead ID ${leadId}.\n\nMessage content has been loaded into your Outbox page under "Pending Approval".`;
+          resultText = `**Emma (Outreach Agent)**: Hey Alex! I've generated the outreach draft message for lead ID **${leadId}** via ${channel}.\n\nYou can review it in the Outbox under "Pending Approval".`;
         } else {
           throw new Error(outreachData.error || 'Failed to draft outreach');
         }
@@ -163,7 +182,7 @@ Draft a sales pitch recommendation. Outline:
           related_lead_id: leadId
         });
 
-        resultText = `Follow-up Agent drafted the message for Day ${sequenceDay} Check-in:\n\n---\n\n${msgText}\n\n---\n\nFollow-up logged in CRM database. Task created to execute reminder.`;
+        resultText = `**Lucas (Follow-up Agent)**: Hi Alex, I've drafted the Day ${sequenceDay} follow-up check-in message for **${lead.business_name}**:\n\n---\n\n${msgText}\n\n---\n\nI've logged it in the CRM and set up a task for when we're ready to send.`;
         logPayload = { leadId, sequenceDay, followupId: newFup.id };
         break;
       }
@@ -175,12 +194,12 @@ Draft a sales pitch recommendation. Outline:
         }
         const propRes = await fetch(`${new URL(req.url).origin}/api/ai/proposal`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: internalHeaders,
           body: JSON.stringify({ leadId, offerName, price })
         });
         const propData = await propRes.json();
         if (propData.success) {
-          resultText = `Proposal Agent generated proposal draft for ${offerName} ($${price}).\n\nFull proposal is editable on the "Price Quotes" page.`;
+          resultText = `**Olivia (Proposal Agent)**: Hey Alex, I've drafted the proposal for **${offerName}** ($${price}) for lead ID **${leadId}**.\n\nYou can review and finalize it on the Price Quotes page.`;
         } else {
           throw new Error(propData.error || 'Failed to draft proposal');
         }
@@ -205,9 +224,9 @@ Draft a sales pitch recommendation. Outline:
           });
         }
 
-        resultText = `Content Agent successfully generated ${ideas.length} authority content ideas on the topic "${topic}":\n\n` + 
+        resultText = `**Ryan (Content Agent)**: Hey team! Ryan here. I've successfully generated ${ideas.length} fresh authority content ideas on the topic "${topic}":\n\n` + 
           ideas.map((idea, i) => `${i+1}. **${idea.title}** (${idea.platform})\n*Hook:* ${idea.hook}`).join('\n\n') +
-          `\n\nThese drafts are saved to the "Social Writer" dashboard page.`;
+          `\n\nI've saved these drafts directly to the Social Writer page for you.`;
         logPayload = { topic, count: ideas.length };
         break;
       }
@@ -230,9 +249,11 @@ Service Type: ${project.service_type}
 Status: ${project.status}
 Requirements: ${project.requirements}
 
+Respond in character as Mia, the Delivery Manager Agent. Speak in an organized, clear, and reassuring project-management conversational tone. Address your coordinator Alex and the team naturally.
 Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery database.
 `;
-        resultText = await gemini.callRawLLM(prompt, agentConfig.systemPrompt);
+        const generated = await gemini.callRawLLM(prompt, agentConfig.systemPrompt);
+        resultText = `**Mia (Delivery Manager Agent)**: ${generated}`;
         logPayload = { projectId, projectName: project.project_name };
         break;
       }
@@ -243,9 +264,9 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
           return NextResponse.json({ success: false, error: 'query is required for Memory Manager Agent' }, { status: 400 });
         }
         const memories = await db.searchMemories(query);
-        resultText = `Memory Manager Agent searched the database for "${query}" and found ${memories.length} relevant entries:\n\n` +
+        resultText = `**Leo (Memory Manager Agent)**: Hello Alex. I've searched our core database for "${query}" and recovered ${memories.length} relevant log entries:\n\n` +
           (memories.length === 0 
-            ? 'No matching notes found.' 
+            ? 'No matching memories or tags found.' 
             : memories.map((m, i) => `${i+1}. **[${m.type}]** ${m.content} (Importance: ${m.importance}/10)`).join('\n\n'));
         logPayload = { query, matches: memories.length };
         break;
@@ -269,7 +290,7 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
     console.error('Error running agent via dynamic route:', error);
     try {
       if (agentKey && AGENTS[agentKey]) {
-        const { generateSimulatedResponse } = require('@/lib/agents/router');
+        const { generateSimulatedResponse } = await import('@/lib/agents/router');
         const simulated = await generateSimulatedResponse(
           agentKey,
           `Dynamic Route Direct Run: ${JSON.stringify(reqParameters)}`,

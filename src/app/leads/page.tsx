@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
+import { useRealtime } from '@/hooks/useRealtime';
 import { Lead } from '@/lib/types';
 import LeadTable from '@/components/LeadTable';
 import LoadingState from '@/components/LoadingState';
 import EmptyState from '@/components/EmptyState';
+import AddLeadForm from '@/components/AddLeadForm';
 import { Users, Plus, Filter } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -21,20 +23,7 @@ export default function LeadsCRM() {
   const [draftingMap, setDraftingMap] = useState<Record<string, boolean>>({});
   const [proposalMap, setProposalMap] = useState<Record<string, boolean>>({});
 
-  // Add lead form states
   const [showAddForm, setShowAddForm] = useState(false);
-  const [businessName, setBusinessName] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [industry, setIndustry] = useState('');
-  const [website, setWebsite] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [socialLink, setSocialLink] = useState('');
-  const [location, setLocation] = useState('');
-  const [painPoint, setPainPoint] = useState('');
-  const [source, setSource] = useState('Cold Research');
-  const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
   async function loadLeads() {
     try {
@@ -46,17 +35,19 @@ export default function LeadsCRM() {
         throw new Error(json.error || 'Failed to fetch leads');
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load leads from API:', e);
       try {
         const lds = await db.getLeads();
         setLeads(lds);
       } catch (err) {
-        console.error(err);
+        console.warn('Failed to load leads from DB:', err);
       }
     } finally {
       setLoading(false);
     }
   }
+
+  useRealtime('leads', loadLeads);
 
   useEffect(() => {
     loadLeads();
@@ -78,7 +69,7 @@ export default function LeadsCRM() {
         alert(data.error || 'Failed to score lead');
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Error scoring lead:', e);
       alert('Error triggering AI lead scoring');
     } finally {
       setScoringMap(prev => ({ ...prev, [leadId]: false }));
@@ -106,7 +97,7 @@ export default function LeadsCRM() {
         alert(data.error || 'Failed to draft outreach');
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to draft outreach via AI:', e);
     } finally {
       setDraftingMap(prev => ({ ...prev, [leadId]: false }));
     }
@@ -134,7 +125,7 @@ export default function LeadsCRM() {
         alert(data.error || 'Failed to draft proposal');
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to draft proposal via AI:', e);
     } finally {
       setProposalMap(prev => ({ ...prev, [leadId]: false }));
     }
@@ -160,7 +151,7 @@ export default function LeadsCRM() {
         alert(data.error || 'Failed to create follow-up');
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to create followup via AI:', e);
     } finally {
       setScoringMap(prev => ({ ...prev, [leadId]: false }));
     }
@@ -172,7 +163,7 @@ export default function LeadsCRM() {
       await db.updateLead(leadId, { status });
       await loadLeads();
     } catch (err) {
-      console.error(err);
+      console.warn('Failed to update lead status:', err);
       alert('Failed to update lead status');
     }
   };
@@ -182,58 +173,6 @@ export default function LeadsCRM() {
     if (confirm('Are you sure you want to remove this lead?')) {
       const deleted = await db.deleteLead(leadId);
       if (deleted) loadLeads();
-    }
-  };
-
-  // 7. Create Manual Lead
-  const handleAddLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!businessName || submitting) return;
-
-    setSubmitting(true);
-    try {
-      const res = await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          business_name: businessName,
-          contact_name: contactName || null,
-          industry: industry || null,
-          website: website || null,
-          email: email || null,
-          phone: phone || null,
-          social_link: socialLink || null,
-          location: location || null,
-          pain_point: painPoint || null,
-          lead_score: 0.0,
-          status: 'New',
-          source: source,
-          notes: notes || null
-        })
-      });
-
-      const json = await res.json();
-      if (json.success) {
-        setBusinessName('');
-        setContactName('');
-        setIndustry('');
-        setWebsite('');
-        setEmail('');
-        setPhone('');
-        setSocialLink('');
-        setLocation('');
-        setPainPoint('');
-        setNotes('');
-        setShowAddForm(false);
-        await loadLeads();
-      } else {
-        alert('Failed to add lead: ' + json.error);
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert('Error adding lead: ' + err.message);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -273,155 +212,10 @@ export default function LeadsCRM() {
 
       {/* Add Lead Form Modal Overlay */}
       {showAddForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cyber-bg/85 backdrop-blur-md animate-fade-in">
-          <div className="glass-panel p-6 border border-neon-cyan/40 rounded-xl bg-cyber-bg/95 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[0_0_50px_rgba(6,182,212,0.25)] space-y-4">
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <h4 className="text-sm font-mono font-bold text-neon-cyan uppercase tracking-wider">
-                Add a Potential Client (Lead)
-              </h4>
-              <button 
-                onClick={() => setShowAddForm(false)}
-                className="text-muted-foreground hover:text-neon-pink font-mono text-xs cursor-pointer"
-              >
-                [CLOSE]
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddLead} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Company Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="Radiant Smiles Dental Clinic"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Contact Person Name</label>
-                <input
-                  type="text"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="e.g. Dr. Sarah Jenkins"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Industry</label>
-                <input
-                  type="text"
-                  value={industry}
-                  onChange={(e) => setIndustry(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="Dental"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Website URL</label>
-                <input
-                  type="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="http://example.com"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Contact Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="info@radiant.com"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="555-0120"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Social URL (IG/LinkedIn)</label>
-                <input
-                  type="text"
-                  value={socialLink}
-                  onChange={(e) => setSocialLink(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="instagram.com/radiant"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Physical Location</label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="Austin, TX"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">How we found them</label>
-                <select
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition font-mono"
-                >
-                  <option value="Cold Research">Cold Research</option>
-                  <option value="LinkedIn">LinkedIn</option>
-                  <option value="Instagram">Instagram DM</option>
-                  <option value="Inbound">Inbound Site Request</option>
-                  <option value="Referral">Client Referral</option>
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Problems we noticed (Pain Points)</label>
-                <textarea
-                  value={painPoint}
-                  onChange={(e) => setPainPoint(e.target.value)}
-                  rows={2}
-                  className="w-full bg-white/5 border border-white/10 rounded p-3 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="e.g. Website is slow, no online booking form, no chat assistants..."
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Administrative Notes / Context</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  className="w-full bg-white/5 border border-white/10 rounded p-3 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                  placeholder="e.g. Key decision maker is Sarah. Spoke briefly on IG, highly interested in automation."
-                />
-              </div>
-              <div className="md:col-span-2 flex justify-end space-x-2 pt-2 border-t border-white/5">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 border border-white/10 rounded text-muted-foreground hover:bg-white/5 transition cursor-pointer font-mono"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-neon-cyan hover:bg-neon-cyan/80 text-black rounded font-mono font-bold transition cursor-pointer disabled:opacity-50"
-                >
-                  {submitting ? 'SAVING...' : 'SAVE LEAD'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddLeadForm
+          onClose={() => setShowAddForm(false)}
+          onLeadAdded={loadLeads}
+        />
       )}
 
       {/* Filter panel */}

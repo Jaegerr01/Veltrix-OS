@@ -59,7 +59,7 @@ export async function buildBusinessContext(): Promise<BusinessContext> {
 
   // Expected/Pipeline revenue calculation from active proposals
   const pipelineValue = proposals
-    .filter(p => ['Draft', 'Sent', 'Accepted'].includes(p.status))
+    .filter(p => ['Draft', 'Sent'].includes(p.status))
     .reduce((acc, p) => acc + Number(p.price), 0);
 
   const targetRevenue = profile.target_monthly_revenue || 6000;

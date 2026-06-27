@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/db';
 import { DailyReport, Lead, Client, Project, BusinessProfile } from '@/lib/types';
 import AIChatBox from '@/components/AIChatBox';
 import DailyReportCard from '@/components/DailyReportCard';
 import LoadingState from '@/components/LoadingState';
-import { ClipboardList, Sparkles, Brain, Plus, Cpu, Play, Terminal, HelpCircle } from 'lucide-react';
+import { ClipboardList, Sparkles, Cpu, Play, Terminal, Zap } from 'lucide-react';
 import { AGENTS } from '@/lib/agents/agents';
 
 export default function CommandCenter() {
@@ -22,11 +23,6 @@ export default function CommandCenter() {
 
   // Navigation tab
   const [activeTab, setActiveTab] = useState<'chat' | 'agents'>('chat');
-
-  // Manual memories form states
-  const [newMemory, setNewMemory] = useState('');
-  const [memCategory, setMemCategory] = useState<any>('Business');
-  const [savingMemory, setSavingMemory] = useState(false);
 
   // Agent execution controls
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
@@ -53,7 +49,7 @@ export default function CommandCenter() {
       const prof = await db.getBusinessProfile();
       setProfile(prof);
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to load command center data:', e);
     } finally {
       setLoading(false);
     }
@@ -96,32 +92,10 @@ export default function CommandCenter() {
         alert(data.error || 'Failed to generate report');
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Failed to generate daily report via AI:', e);
       alert('Network error generating report');
     } finally {
       setLoadingReport(false);
-    }
-  };
-
-  const handleSaveMemory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMemory.trim()) return;
-
-    setSavingMemory(true);
-    try {
-      await db.addMemory({
-        type: memCategory,
-        content: newMemory,
-        tags: [memCategory.toLowerCase(), 'command-center-added'],
-        importance: 7,
-        source: 'Manual'
-      });
-      setNewMemory('');
-      alert('Fact successfully recorded in Saved Notes!');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingMemory(false);
     }
   };
 
@@ -240,7 +214,7 @@ export default function CommandCenter() {
         alert(data.error || 'Agent execution failed');
       }
     } catch (e: any) {
-      console.error(e);
+      console.warn('Failed to execute AI agent:', e);
       alert(`Error: ${e.message}`);
     } finally {
       setExecutingAgent(null);
@@ -447,122 +421,89 @@ export default function CommandCenter() {
 
   return (
     <div className="space-y-6">
-      {/* Tab Switcher */}
-      <div className="flex space-x-1 p-1 bg-white/5 border border-white/10 rounded-lg max-w-sm mb-4 font-mono text-[10px] sm:text-xs">
-        <button
-          onClick={() => setActiveTab('chat')}
-          className={`flex-1 py-2 px-3 rounded text-center transition cursor-pointer font-bold ${
-            activeTab === 'chat'
-              ? 'bg-neon-purple text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          CHAT & ACTION PLAN
-        </button>
-        <button
-          onClick={() => setActiveTab('agents')}
-          className={`flex-1 py-2 px-3 rounded text-center transition cursor-pointer font-bold ${
-            activeTab === 'agents'
-              ? 'bg-neon-purple text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          AI BUSINESS AGENTS
-        </button>
+      {/* Tab Switcher — centered, animated pill */}
+      <div className="flex justify-center mb-4">
+      <div className="flex space-x-1 p-1 bg-[rgba(12,12,20,0.6)] backdrop-blur-xl border border-white/[0.08] rounded-xl font-mono text-[10px] sm:text-xs relative"
+        style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.06), 0 4px 16px rgba(0,0,0,0.35)' }}
+      >
+        {(['chat', 'agents'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="relative flex-1 py-2 px-3 rounded-lg text-center cursor-pointer font-bold z-10 transition-colors duration-200"
+            style={{ color: activeTab === tab ? '#fff' : 'rgba(148,163,184,0.75)' }}
+          >
+            {activeTab === tab && (
+              <motion.div
+                layoutId="tabActiveBg"
+                className="absolute inset-0 rounded-lg"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(168,85,247,0.9) 0%, rgba(139,92,246,0.85) 100%)',
+                  boxShadow: '0 0 16px rgba(168,85,247,0.45), 0 2px 8px rgba(0,0,0,0.3)',
+                }}
+                transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+              />
+            )}
+            <span className="relative z-10">
+              {tab === 'chat' ? 'CHAT & ACTION PLAN' : 'AI BUSINESS AGENTS'}
+            </span>
+          </button>
+        ))}
+      </div>
       </div>
 
       {activeTab === 'chat' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 font-sans">
           {/* Left Column: Interactive Chat Loop */}
-          <div className="lg:col-span-7 space-y-6">
-            <AIChatBox 
-              onReportGenerated={loadData} 
-              onLeadScored={() => {}} 
+          <div className="lg:col-span-7 space-y-5">
+            <AIChatBox
+              onReportGenerated={loadData}
+              onLeadScored={() => {}}
             />
 
-            {/* Memory Injection quick form */}
-            <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30">
-              <div className="flex items-center space-x-2 text-neon-purple mb-4">
-                <Brain size={18} />
-                <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-                  Tell the AI Facts to Remember
-                </h3>
-              </div>
-              <form onSubmit={handleSaveMemory} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={memCategory}
-                    onChange={(e) => setMemCategory(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-xs text-foreground focus:outline-none focus:border-neon-purple transition font-mono"
-                  >
-                    <option value="Business" className="bg-cyber-bg">Business Detail (Services, Offers)</option>
-                    <option value="Strategy" className="bg-cyber-bg">Strategic Focus (Target Markets)</option>
-                    <option value="Personal Preference" className="bg-cyber-bg">Founder Personal Style</option>
-                    <option value="Lesson" className="bg-cyber-bg">Lesson Learnt / Experiment Results</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">
-                    Fact Details
-                  </label>
-                  <textarea
-                    value={newMemory}
-                    onChange={(e) => setNewMemory(e.target.value)}
-                    rows={3}
-                    placeholder="Type details here (e.g. 'VELTRIX is focusing on selling AI voice assistants to dental clinics this month.')"
-                    className="w-full bg-white/5 border border-white/10 rounded p-3 text-xs text-foreground focus:outline-none focus:border-neon-purple transition"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={savingMemory || !newMemory.trim()}
-                  className="px-4 py-2 bg-neon-purple hover:bg-neon-purple/80 text-white rounded text-xs transition font-mono font-bold flex items-center space-x-1 cursor-pointer disabled:opacity-50"
-                >
-                  <Plus size={14} />
-                  <span>SAVE THIS FACT</span>
-                </button>
-              </form>
-            </div>
           </div>
 
-          {/* Right Column: Daily Command Reports & Actions */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Actions panel */}
-            <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30">
-              <div className="flex items-center space-x-2 text-neon-purple mb-4">
-                <Sparkles size={18} />
-                <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-                  Daily Action Plan
-                </h3>
-              </div>
-              <p className="text-xs text-muted-foreground mb-4">
-                Get a daily summary compiled by the AI. The report automatically analyzes your potential deals and updates your target checklist.
-              </p>
-              <button
-                onClick={handleGenerateReport}
-                disabled={loadingReport}
-                className="w-full py-3 bg-neon-purple hover:bg-neon-purple/80 text-white rounded font-mono font-bold text-xs tracking-wider transition uppercase shadow-[0_0_15px_rgba(168,85,247,0.2)] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
-              >
-                <ClipboardList size={16} className={loadingReport ? 'animate-pulse' : ''} />
-                <span>{loadingReport ? 'CREATING SUMMARY...' : 'CREATE DAILY ACTION PLAN'}</span>
-              </button>
-            </div>
-
-            {/* Latest report preview */}
+          {/* Right Column: Reports only */}
+          <div className="lg:col-span-5 flex flex-col gap-5">
             {latestReport ? (
-              <div>
-                <h3 className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-3">
-                  LATEST DAILY ACTION PLAN
-                </h3>
+              <>
+                <p className="font-mono text-[9px] text-white/25 uppercase tracking-[0.22em] px-1">
+                  LATEST REPORT
+                </p>
                 <DailyReportCard report={latestReport} />
-              </div>
+              </>
             ) : (
-              <div className="p-8 border border-dashed border-white/5 rounded-xl text-center text-muted-foreground font-mono">
-                <span className="text-xs uppercase">No summaries created today. Click the button above.</span>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-card p-10 text-center relative overflow-hidden flex-1 flex flex-col items-center justify-center"
+              >
+                <div className="absolute top-0 left-[12%] right-[12%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(168,85,247,0.45), transparent)' }} />
+                <div className="absolute inset-0 bg-gradient-to-br from-neon-purple/[0.04] to-transparent pointer-events-none rounded-2xl" />
+                <div className="relative z-10 flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-neon-purple/10 border border-neon-purple/20 flex items-center justify-center">
+                    <ClipboardList size={20} className="text-neon-purple/50" />
+                  </div>
+                  <div>
+                    <p className="font-mono text-[11px] uppercase tracking-widest text-white/30 mb-1">
+                      No summaries created today
+                    </p>
+                    <p className="font-mono text-[10px] text-white/18">
+                      Click the button above to generate
+                    </p>
+                  </div>
+                  <motion.button
+                    onClick={handleGenerateReport}
+                    disabled={loadingReport}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="shimmer-hover mt-2 px-6 py-2.5 bg-gradient-to-r from-neon-purple to-violet-600 text-white rounded-xl font-mono font-bold text-[10px] tracking-widest uppercase flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_32px_rgba(168,85,247,0.5)]"
+                  >
+                    {loadingReport ? <Zap size={13} className="animate-pulse" /> : <ClipboardList size={13} />}
+                    <span>{loadingReport ? 'GENERATING...' : 'CREATE DAILY ACTION PLAN'}</span>
+                  </motion.button>
+                </div>
+              </motion.div>
             )}
           </div>
         </div>
@@ -572,7 +513,13 @@ export default function CommandCenter() {
           {/* Futuristic Visualizer Telemetry Core */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Pulsing Concentric Visual Core */}
-            <div className="lg:col-span-7 glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6">
+            <motion.div
+              whileHover={{ y: -2 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+              className="lg:col-span-7 glass-card p-6 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6"
+            >
+              {/* Cyan top accent line */}
+              <div className="absolute top-0 left-[12%] right-[12%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.65), transparent)' }} />
               {/* Rotating Concentric Rings */}
               <div className="relative w-48 h-48 flex items-center justify-center shrink-0">
                 {/* Ring 1: Slow Rotate */}
@@ -630,10 +577,15 @@ export default function CommandCenter() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Neural Autonomy Control Panel */}
-            <div className="lg:col-span-5 glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 flex flex-col justify-between gap-4">
+            <motion.div
+              whileHover={{ y: -2 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+              className="lg:col-span-5 glass-card p-6 relative overflow-hidden flex flex-col justify-between gap-4"
+            >
+              <div className="absolute top-0 left-[12%] right-[12%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(168,85,247,0.6), transparent)' }} />
               <div className="space-y-2">
                 <div className="flex items-center space-x-2 text-neon-purple">
                   <Sparkles size={16} />
@@ -667,23 +619,30 @@ export default function CommandCenter() {
                   />
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* AI Business Agents Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 font-sans">
             {Object.keys(AGENTS).map(key => {
               const agent = AGENTS[key];
               const isExpanded = expandedAgent === key;
               const isRunning = executingAgent === key;
 
               return (
-                <div 
-                  key={key} 
-                  className={`glass-panel p-6 border rounded-xl bg-cyber-bg/30 flex flex-col justify-between transition-all duration-300 ${
-                    isExpanded ? 'border-neon-purple shadow-[0_0_15px_rgba(168,85,247,0.15)] col-span-1 md:col-span-2 lg:col-span-3' : 'border-white/5 hover:border-white/10'
+                <motion.div
+                  key={key}
+                  whileHover={!isExpanded ? { y: -4 } : {}}
+                  transition={{ type: 'spring', stiffness: 400, damping: 24 }}
+                  className={`relative glass-card p-6 flex flex-col justify-between overflow-hidden transition-all duration-300 ${
+                    isExpanded
+                      ? 'col-span-1 md:col-span-2 lg:col-span-3 border-neon-purple/35 shadow-[0_0_32px_rgba(168,85,247,0.18),0_0_0_1px_rgba(168,85,247,0.2)]'
+                      : 'hover:border-neon-purple/20 hover:shadow-[0_16px_48px_rgba(0,0,0,0.5),0_0_24px_rgba(168,85,247,0.1)]'
                   }`}
+                  style={isExpanded ? { borderColor: 'rgba(168,85,247,0.35)' } : {}}
                 >
+                  {/* Top accent line on each agent card */}
+                  <div className="absolute top-0 left-[15%] right-[15%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(168,85,247,0.45), transparent)' }} />
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2 text-neon-purple">
@@ -787,7 +746,7 @@ export default function CommandCenter() {
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
