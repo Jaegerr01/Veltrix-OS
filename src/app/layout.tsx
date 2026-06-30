@@ -4,6 +4,7 @@ import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import VoiceAssistant from '@/components/VoiceAssistant';
 import AuthGate from '@/components/AuthGate';
+import SetupBanner from '@/components/SetupBanner';
 import Link from 'next/link';
 
 export const viewport: Viewport = {
@@ -36,6 +37,7 @@ export default function RootLayout({
             {/* Page Routing Contents */}
             <main className="flex-1 pt-16 p-8 overflow-y-auto bg-transparent flex flex-col justify-between">
               <div className="max-w-7xl mx-auto space-y-6 w-full mb-auto">
+                <SetupBanner />
                 {children}
               </div>
               
