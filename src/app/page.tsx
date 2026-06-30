@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import CommandDeck from '@/components/CommandDeck';
 import SystemVitals from '@/components/SystemVitals';
+import { AutonomyStatus } from '@/components/AutonomyStatus';
 import CircularProgress from '@/components/CircularProgress';
 import Sparkline from '@/components/Sparkline';
 import PendingCard from '@/components/PendingCard';
@@ -547,6 +548,11 @@ export default function Dashboard() {
           <CommandDeck />
         </motion.div>
       </div>
+
+      {/* ── ROW 6b: Autonomous Agency Status ──────────────────────────────── */}
+      <motion.div variants={item}>
+        <AutonomyStatus />
+      </motion.div>
 
       {/* ── ROW 7: Hot Leads + Activity Feed ──────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">

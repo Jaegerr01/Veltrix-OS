@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { db, isSupabaseConfigured } from '@/lib/db';
+import { authFetch } from '@/lib/authFetch';
 import { isGeminiConfigured } from '@/lib/gemini';
 import { BusinessProfile } from '@/lib/types';
 import LoadingState from '@/components/LoadingState';
@@ -19,11 +20,9 @@ export default function SettingsPage() {
   const [secondaryOffer, setSecondaryOffer] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // ElevenLabs Voice states
-  const [elevenLabsEnabled, setElevenLabsEnabled] = useState(false);
-  const [elevenLabsApiKey, setElevenLabsApiKey] = useState('');
-  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState('');
-  const [elevenLabsAgentId, setElevenLabsAgentId] = useState('');
+  // ARIA Voice (Voicebox) status
+  const [ariaStatus, setAriaStatus] = useState<{ ok: boolean; kokoro?: { downloaded: boolean; loaded: boolean }; profileId?: string | null; error?: string } | null>(null);
+  const [ariaChecking, setAriaChecking] = useState(false);
 
   // Selected permission
   const [permission, setPermission] = useState(() => {
@@ -78,40 +77,27 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadProfile();
+    // Clear stale ElevenLabs localStorage keys — ARIA now uses Voicebox/Kokoro exclusively
     if (typeof window !== 'undefined') {
-      const storedEnabled = localStorage.getItem('elevenlabs_enabled');
-      const envKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
-      const envAgentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || '';
-      
-      if (storedEnabled === null) {
-        setElevenLabsEnabled(!!envKey);
-      } else {
-        setElevenLabsEnabled(storedEnabled === 'true');
-      }
-      
-      setElevenLabsApiKey(localStorage.getItem('elevenlabs_api_key') || envKey);
-      const storedVoiceId = localStorage.getItem('elevenlabs_voice_id');
-      if (storedVoiceId === '21m0aTcmKKvq9ZOq5XO2') {
-        setElevenLabsVoiceId('EXAVITQu4vr4xnSDxMaL');
-        localStorage.setItem('elevenlabs_voice_id', 'EXAVITQu4vr4xnSDxMaL');
-      } else {
-        setElevenLabsVoiceId(storedVoiceId || 'EXAVITQu4vr4xnSDxMaL');
-      }
-      setElevenLabsAgentId(localStorage.getItem('elevenlabs_agent_id') || envAgentId);
+      localStorage.removeItem('elevenlabs_enabled');
+      localStorage.removeItem('elevenlabs_api_key');
+      localStorage.removeItem('elevenlabs_voice_id');
+      localStorage.removeItem('elevenlabs_agent_id');
     }
+    // Check ARIA Voice status on load
+    checkAriaStatus();
   }, []);
 
-  const handleSaveElevenLabs = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('elevenlabs_enabled', elevenLabsEnabled.toString());
-      localStorage.setItem('elevenlabs_api_key', elevenLabsApiKey);
-      localStorage.setItem('elevenlabs_voice_id', elevenLabsVoiceId);
-      localStorage.setItem('elevenlabs_agent_id', elevenLabsAgentId);
-      alert('ElevenLabs voice settings saved successfully!');
-      
-      // Dispatch custom event to notify components (like VoiceAssistant)
-      window.dispatchEvent(new CustomEvent('elevenlabs-settings-updated'));
+  const checkAriaStatus = async () => {
+    setAriaChecking(true);
+    try {
+      const res = await authFetch('/api/voice/tts', { signal: AbortSignal.timeout(6000) });
+      const data = await res.json();
+      setAriaStatus(data);
+    } catch {
+      setAriaStatus({ ok: false, error: 'Could not reach Voicebox. Make sure it is running.' });
+    } finally {
+      setAriaChecking(false);
     }
   };
 
@@ -395,71 +381,59 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* ElevenLabs Voice Agent Config */}
+        {/* ARIA Voice — Voicebox/Kokoro Status */}
         <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 space-y-4">
-          <div className="flex items-center space-x-2 text-neon-purple">
-            <Volume2 size={18} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-              ElevenLabs Voice Integration
-            </h3>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-neon-cyan">
+              <Volume2 size={18} />
+              <h3 className="font-mono text-sm font-bold uppercase tracking-wider">ARIA Voice — Voicebox / Kokoro</h3>
+            </div>
+            <button
+              onClick={checkAriaStatus}
+              disabled={ariaChecking}
+              className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-neon-cyan/40 rounded text-[10px] font-mono font-bold text-muted-foreground hover:text-neon-cyan transition cursor-pointer disabled:opacity-40"
+            >
+              {ariaChecking ? 'CHECKING...' : 'CHECK STATUS'}
+            </button>
           </div>
 
-          <form onSubmit={handleSaveElevenLabs} className="space-y-4 text-xs">
-            <div className="flex items-center justify-between p-2 rounded bg-white/2 border border-white/5">
-              <span className="font-semibold text-foreground">Enable ElevenLabs Voice (TTS)</span>
-              <input
-                type="checkbox"
-                checked={elevenLabsEnabled}
-                onChange={(e) => setElevenLabsEnabled(e.target.checked)}
-                className="accent-neon-purple w-4 h-4 cursor-pointer"
-              />
-            </div>
+          <div className="space-y-2 text-xs">
+            {ariaStatus ? (
+              <>
+                <div className={`flex items-center justify-between p-2.5 rounded border ${ariaStatus.ok ? 'border-neon-cyan/20 bg-neon-cyan/5' : 'border-neon-pink/20 bg-neon-pink/5'}`}>
+                  <span className="font-semibold text-foreground">Voicebox Server</span>
+                  <span className={`font-mono font-bold text-[10px] ${ariaStatus.ok ? 'text-neon-cyan' : 'text-neon-pink'}`}>
+                    {ariaStatus.ok ? 'ONLINE' : 'OFFLINE'}
+                  </span>
+                </div>
+                {ariaStatus.kokoro && (
+                  <div className={`flex items-center justify-between p-2.5 rounded border ${ariaStatus.kokoro.loaded ? 'border-neon-cyan/20 bg-neon-cyan/5' : 'border-yellow-500/20 bg-yellow-500/5'}`}>
+                    <span className="font-semibold text-foreground">Kokoro 82M Model</span>
+                    <span className={`font-mono font-bold text-[10px] ${ariaStatus.kokoro.loaded ? 'text-neon-cyan' : 'text-yellow-400'}`}>
+                      {ariaStatus.kokoro.loaded ? 'LOADED' : ariaStatus.kokoro.downloaded ? 'DOWNLOADED' : 'NOT DOWNLOADED'}
+                    </span>
+                  </div>
+                )}
+                {ariaStatus.profileId && (
+                  <div className="flex items-center justify-between p-2.5 rounded border border-white/5 bg-white/2">
+                    <span className="text-muted-foreground">Voice Profile</span>
+                    <span className="font-mono text-[9px] text-neon-purple truncate max-w-[180px]">{ariaStatus.profileId}</span>
+                  </div>
+                )}
+                {ariaStatus.error && (
+                  <p className="text-neon-pink text-[10px] font-mono">{ariaStatus.error}</p>
+                )}
+              </>
+            ) : (
+              <p className="text-muted-foreground/60 text-[10px] font-mono">Click &quot;Check Status&quot; to verify ARIA voice is operational.</p>
+            )}
 
-            <div>
-              <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">ElevenLabs API Key</label>
-              <input
-                type="password"
-                placeholder="xi-api-key"
-                value={elevenLabsApiKey}
-                onChange={(e) => setElevenLabsApiKey(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-purple transition"
-              />
+            <div className="pt-2 border-t border-white/5 text-[9px] text-muted-foreground/60 leading-relaxed space-y-1 font-mono">
+              <p>ARIA uses <span className="text-neon-cyan">Voicebox + Kokoro 82M</span> for natural local TTS.</p>
+              <p>Local: start <span className="text-white">voicebox-server.exe</span> before using voice features.</p>
+              <p>Production: set <span className="text-white">VOICEBOX_URL</span> to your Railway deployment URL in Vercel.</p>
             </div>
-
-            <div>
-              <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Voice ID (for Agentic Output)</label>
-              <input
-                type="text"
-                placeholder="e.g. 21m0aTcmKKvq9ZOq5XO2"
-                value={elevenLabsVoiceId}
-                onChange={(e) => setElevenLabsVoiceId(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-purple transition"
-              />
-              <span className="text-[9px] text-muted-foreground mt-1 block">Default: Sarah (EXAVITQu4vr4xnSDxMaL)</span>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Agent ID (for Interactive Call Widget)</label>
-              <input
-                type="text"
-                placeholder="e.g. agent-id-from-elevenlabs"
-                value={elevenLabsAgentId}
-                onChange={(e) => setElevenLabsAgentId(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-purple transition"
-              />
-              <span className="text-[9px] text-muted-foreground mt-1 block">If supplied, embeds ElevenLabs Voice Agent call orb widget.</span>
-            </div>
-
-            <div className="flex justify-end pt-1">
-              <button
-                type="submit"
-                className="px-3 py-2 bg-neon-purple hover:bg-neon-purple/80 text-white rounded font-mono font-bold flex items-center space-x-1.5 transition cursor-pointer"
-              >
-                <Save size={12} />
-                <span>SAVE VOICE SETTINGS</span>
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
 
         {/* AI & Database Connections */}

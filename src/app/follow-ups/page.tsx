@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
 import { Followup, Lead } from '@/lib/types';
+import { authFetch } from '@/lib/authFetch';
 import LoadingState from '@/components/LoadingState';
 import StatusBadge from '@/components/StatusBadge';
 import { Calendar, RefreshCw, Send, Eye, Check, X, ShieldAlert } from 'lucide-react';
@@ -74,7 +75,7 @@ export default function FollowupCenter() {
 
     setGenerating(true);
     try {
-      const res = await fetch('/api/ai/followup', {
+      const res = await authFetch('/api/ai/followup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leadId: selectedLeadId, sequenceDay })

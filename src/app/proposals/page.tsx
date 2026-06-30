@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
 import { Proposal, Lead } from '@/lib/types';
+import { authFetch } from '@/lib/authFetch';
 import ProposalCard from '@/components/ProposalCard';
 import LoadingState from '@/components/LoadingState';
 import EmptyState from '@/components/EmptyState';
@@ -65,7 +66,7 @@ export default function ProposalsCenter() {
 
     setGenerating(true);
     try {
-      const res = await fetch('/api/ai/proposal', {
+      const res = await authFetch('/api/ai/proposal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

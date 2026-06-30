@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
 import { useRealtime } from '@/hooks/useRealtime';
+import { authFetch } from '@/lib/authFetch';
 import { Revenue, BusinessProfile, Client } from '@/lib/types';
 import LoadingState from '@/components/LoadingState';
 import StatusBadge from '@/components/StatusBadge';
@@ -225,7 +226,7 @@ export default function RevenueTracker() {
               onClick={async () => {
                 setGeneratingPlaybook(true);
                 try {
-                  const res = await fetch('/api/ai/agent/run', {
+                  const res = await authFetch('/api/ai/agent/run', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

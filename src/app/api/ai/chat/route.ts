@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
 
   try {
-    const { message } = await req.json();
+    const { message, voiceMode } = await req.json();
     if (!message) {
       return NextResponse.json({ success: false, error: 'message is required' }, { status: 400 });
     }
@@ -33,8 +33,18 @@ export async function POST(req: Request) {
     // Classify user message to determine target agent
     const agentKey = await classifyRequest(message);
 
+    const voiceHint = voiceMode
+      ? `VOICE MODE — ARIA IDENTITY: You are ARIA, the sharp and quietly witty personal AI for VELTRIX. Your voice output rules are absolute:
+1. Respond in exactly 1-2 short spoken sentences — never more.
+2. Write the way a sharp professional actually speaks: contractions (I've, it's, we're, that's), natural rhythm, no jargon dumps.
+3. Zero markdown. No asterisks, no bullet points, no headers, no dashes, no numbered lists. Plain spoken English only.
+4. Lead with the answer — don't start with filler like "Sure!" or "Great question!" or "Of course."
+5. Numbers spoken out: "$6,000" becomes "six thousand dollars", "429" becomes "four twenty nine".
+6. Keep it under 25 words if you can. Punchy. Confident. Human.`
+      : undefined;
+
     // Call dynamic agent execution
-    const aiResponse = await executeAgent(agentKey, message, recentMessages);
+    const aiResponse = await executeAgent(agentKey, message, recentMessages, voiceHint);
 
     let updatedText = aiResponse.text;
     const runAgentRegex = /\[RUN_AGENT:\s*(\w+),\s*({[^\]]+})\]/g;

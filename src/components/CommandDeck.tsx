@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { authFetch } from '@/lib/authFetch';
 import {
   Sun, Mail, TrendingUp, CalendarCheck, BarChart2,
   X, Loader2, ChevronRight, BookOpen, RefreshCw,
@@ -40,7 +41,7 @@ export default function CommandDeck() {
     setLoading(id);
     setResult(null);
     try {
-      const res = await fetch('/api/ai/command-deck', {
+      const res = await authFetch('/api/ai/command-deck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command: id }),
@@ -57,7 +58,7 @@ export default function CommandDeck() {
   async function syncObsidian() {
     setObsidian({ syncing: true, result: null });
     try {
-      const res = await fetch('/api/obsidian/sync', { method: 'POST' });
+      const res = await authFetch('/api/obsidian/sync', { method: 'POST' });
       const data = await res.json();
       setObsidian({
         syncing: false,

@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase/client';
+import { authFetch } from '@/lib/authFetch';
 import { useRealtime } from '@/hooks/useRealtime';
 import { Lead } from '@/lib/types';
 import LeadTable from '@/components/LeadTable';
@@ -27,7 +29,11 @@ export default function LeadsCRM() {
 
   async function loadLeads() {
     try {
-      const res = await fetch('/api/leads');
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const res = await authFetch('/api/leads', { headers });
       const json = await res.json();
       if (json.success) {
         setLeads(json.data || []);
@@ -57,7 +63,7 @@ export default function LeadsCRM() {
   const handleScoreLead = async (leadId: string) => {
     setScoringMap(prev => ({ ...prev, [leadId]: true }));
     try {
-      const res = await fetch('/api/ai/score', {
+      const res = await authFetch('/api/ai/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leadId })
@@ -84,7 +90,7 @@ export default function LeadsCRM() {
       const isChatbot = lead?.pain_point?.toLowerCase().includes('receptionist') || lead?.pain_point?.toLowerCase().includes('call') || lead?.industry === 'Dental';
       const offer = isChatbot ? 'AI Receptionist / Lead Booking Agent' : 'AI Website + Brand System';
 
-      const res = await fetch('/api/ai/outreach', {
+      const res = await authFetch('/api/ai/outreach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leadId, offerName: offer, channel: 'Email' })
@@ -112,7 +118,7 @@ export default function LeadsCRM() {
       const offer = isChatbot ? 'AI Receptionist' : 'Website + Brand System';
       const price = isChatbot ? 1000 : 1500;
 
-      const res = await fetch('/api/ai/proposal', {
+      const res = await authFetch('/api/ai/proposal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leadId, offerName: offer, price })
@@ -135,7 +141,7 @@ export default function LeadsCRM() {
   const handleCreateFollowup = async (leadId: string) => {
     setScoringMap(prev => ({ ...prev, [leadId]: true }));
     try {
-      const res = await fetch('/api/ai/agent/run', {
+      const res = await authFetch('/api/ai/agent/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

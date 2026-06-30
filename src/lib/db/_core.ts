@@ -19,11 +19,29 @@ export const getUserId = async (): Promise<string> => {
       const token = authHeader?.split(' ')[1];
       if (token) {
         const { supabaseAdmin } = await import('../supabase/admin');
-        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-        if (user) return user.id;
+        // Skip CRON_SECRET tokens — those are not user JWTs
+        const cronSecret = process.env.CRON_SECRET;
+        if (!cronSecret || token !== cronSecret) {
+          const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+          if (user) return user.id;
+        }
       }
     } catch (e) {
       // Ignore errors during build / non-request paths
+    }
+
+    // Server-side with no user JWT (cron jobs, pipeline, autopilot)
+    // Fall back to the account owner identified by NOTIFY_EMAIL
+    try {
+      const ownerEmail = process.env.NOTIFY_EMAIL;
+      if (ownerEmail) {
+        const { supabaseAdmin } = await import('../supabase/admin');
+        const { data } = await supabaseAdmin.auth.admin.listUsers({ perPage: 50 });
+        const owner = data?.users?.find((u: any) => u.email === ownerEmail) ?? data?.users?.[0];
+        if (owner?.id) return owner.id;
+      }
+    } catch (e) {
+      // Admin lookup failed — fall through to session check
     }
   }
 

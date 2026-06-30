@@ -1,0 +1,3 @@
+module.exports=[17301,e=>{"use strict";var s=e.i(24389);let t=(()=>{let e="https://sxueyuqpqeqvzuzhrhxo.supabase.co";if(e.includes("supabase.com/dashboard/project/")){let s=e.split("/"),t=s[s.length-1];e=`https://${t}.supabase.co`}return e})(),u=process.env.SUPABASE_SERVICE_ROLE_KEY||"",a=t&&u&&"undefined"!==t&&"undefined"!==u?(0,s.createClient)(t,u,{auth:{persistSession:!1,autoRefreshToken:!1}}):null;e.s(["supabaseAdmin",0,a])}];
+
+//# sourceMappingURL=src_lib_supabase_admin_ts_072isxd._.js.map

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { supabase } from '@/lib/supabase/client';
+import { authFetch } from '@/lib/authFetch';
 
 interface Props {
   onClose: () => void;
@@ -27,9 +29,13 @@ export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/leads', {
+      const { data: { session } } = await supabase.auth.getSession();
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+
+      const res = await authFetch('/api/leads', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           business_name: businessName,
           contact_name: contactName || null,

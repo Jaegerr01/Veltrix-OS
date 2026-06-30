@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Client } from '@/lib/types';
+import { authFetch } from '@/lib/authFetch';
 import StatusBadge from './StatusBadge';
 import RoiReportModal from './RoiReportModal';
 import { Briefcase, Mail, Phone, ExternalLink, DollarSign, TrendingUp, Loader2 } from 'lucide-react';
@@ -18,7 +19,7 @@ export default function ClientCard({ client }: ClientCardProps) {
     if (loadingReport) return;
     setLoadingReport(true);
     try {
-      const res = await fetch('/api/ai/roi-report', {
+      const res = await authFetch('/api/ai/roi-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId: client.id }),
@@ -38,7 +39,7 @@ export default function ClientCard({ client }: ClientCardProps) {
   };
 
   const handleSendEmail = async () => {
-    const res = await fetch('/api/ai/roi-report', {
+    const res = await authFetch('/api/ai/roi-report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clientId: client.id, sendEmail: true }),

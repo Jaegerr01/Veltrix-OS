@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/db';
+import { authFetch } from '@/lib/authFetch';
 import { DailyReport, Lead, Client, Project, BusinessProfile } from '@/lib/types';
 import AIChatBox from '@/components/AIChatBox';
 import DailyReportCard from '@/components/DailyReportCard';
@@ -84,7 +85,7 @@ export default function CommandCenter() {
   const handleGenerateReport = async () => {
     setLoadingReport(true);
     try {
-      const res = await fetch('/api/ai/report', { method: 'POST' });
+      const res = await authFetch('/api/ai/report', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         await loadData();
@@ -201,7 +202,7 @@ export default function CommandCenter() {
 
     // 3. Make the actual API call
     try {
-      const res = await fetch('/api/ai/agent/run', {
+      const res = await authFetch('/api/ai/agent/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentKey, params: agentParams, autonomous })

@@ -6,7 +6,8 @@ import { Memory } from '@/lib/types';
 import MemoryCard from '@/components/MemoryCard';
 import LoadingState from '@/components/LoadingState';
 import EmptyState from '@/components/EmptyState';
-import { Brain, Search, Plus, Filter, Upload, CheckCircle, XCircle, X } from 'lucide-react';
+import { Brain, Search, Plus, Filter, Upload, CheckCircle, XCircle, X, RefreshCw } from 'lucide-react';
+import { authFetch } from '@/lib/authFetch';
 
 // ── Obsidian Upload Panel ──────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ function ObsidianUploadPanel({ onClose, onDone }: { onClose: () => void; onDone:
     files.forEach(f => formData.append('files', f));
 
     try {
-      const res  = await fetch('/api/obsidian/upload', { method: 'POST', body: formData });
+      const res  = await authFetch('/api/obsidian/upload', { method: 'POST', body: formData });
       const data = await res.json();
       setResult({ synced: data.synced ?? 0, total: data.total ?? files.length, errors: data.errors ?? [] });
       if (data.success) onDone();
@@ -154,12 +155,34 @@ export default function MemoryVault() {
   const [filterType, setFilterType] = useState('All');
   const [showObsidian, setShowObsidian] = useState(false);
   const [showAddForm, setShowAddForm]   = useState(false);
+  const [syncing, setSyncing]           = useState(false);
+  const [syncMsg, setSyncMsg]           = useState<string | null>(null);
 
   const [content, setContent]       = useState('');
   const [memType, setMemType]       = useState<any>('Business');
   const [tags, setTags]             = useState('');
   const [importance, setImportance] = useState(5);
   const [submitting, setSubmitting] = useState(false);
+
+  async function syncVault() {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await authFetch('/api/obsidian/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setSyncMsg(`Synced ${data.synced}/${data.total} notes from ${data.mode} vault`);
+        await loadMemories();
+      } else {
+        setSyncMsg(data.error || 'Sync failed');
+      }
+    } catch {
+      setSyncMsg('Sync failed — check console');
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMsg(null), 5000);
+    }
+  }
 
   async function loadMemories() {
     try {
@@ -209,6 +232,18 @@ export default function MemoryVault() {
           <span className="font-mono text-sm font-bold uppercase tracking-wider">Saved Business Notes</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={syncVault}
+            disabled={syncing}
+            title="Sync notes from your Obsidian vault (GitHub or local)"
+            className="px-4 py-2 border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded text-xs font-mono font-bold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+            <span>{syncing ? 'SYNCING…' : 'SYNC VAULT'}</span>
+          </button>
+          {syncMsg && (
+            <span className="text-[10px] font-mono text-cyan-400/80">{syncMsg}</span>
+          )}
           <button
             onClick={() => { setShowObsidian(!showObsidian); setShowAddForm(false); }}
             className={`px-4 py-2 border rounded text-xs font-mono font-bold flex items-center gap-1.5 transition cursor-pointer ${

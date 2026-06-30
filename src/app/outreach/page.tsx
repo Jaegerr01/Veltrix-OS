@@ -8,6 +8,7 @@ import EmptyState from '@/components/EmptyState';
 import ApprovalBadge from '@/components/ApprovalBadge';
 import StatusBadge from '@/components/StatusBadge';
 import { Send, Eye, Check, X, Mail, Linkedin, Instagram, RefreshCcw } from 'lucide-react';
+import { authFetch } from '@/lib/authFetch';
 
 export default function OutreachCenter() {
   const [messages, setMessages] = useState<OutreachMessage[]>([]);
@@ -42,7 +43,7 @@ export default function OutreachCenter() {
 
   const handleApproveAndSend = async (msgId: string) => {
     try {
-      const res = await fetch('/api/outreach/send', {
+      const res = await authFetch('/api/outreach/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId: msgId }),
@@ -84,7 +85,7 @@ export default function OutreachCenter() {
 
     setGenerating(true);
     try {
-      const res = await fetch('/api/ai/outreach', {
+      const res = await authFetch('/api/ai/outreach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

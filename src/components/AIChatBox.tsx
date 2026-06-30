@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '@/lib/db';
 import { ChatMessage } from '@/lib/types';
+import { authFetch } from '@/lib/authFetch';
 import { Send, Terminal, Trash2, Cpu, Sparkles, BrainCircuit } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
@@ -58,7 +59,7 @@ export default function AIChatBox({ onReportGenerated, onLeadScored }: AIChatBox
 
     try {
       // Call API
-      const res = await fetch('/api/ai/chat', {
+      const res = await authFetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: textToSend })

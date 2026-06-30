@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
 import { ContentIdea } from '@/lib/types';
+import { authFetch } from '@/lib/authFetch';
 import ContentIdeaCard from '@/components/ContentIdeaCard';
 import LoadingState from '@/components/LoadingState';
 import EmptyState from '@/components/EmptyState';
@@ -47,7 +48,7 @@ export default function ContentStudio() {
 
     setGenerating(true);
     try {
-      const res = await fetch('/api/ai/content', {
+      const res = await authFetch('/api/ai/content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic })

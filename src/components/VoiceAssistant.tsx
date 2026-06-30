@@ -1,103 +1,96 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  VolumeX, 
-  X, 
-  Sparkles, 
-  Terminal, 
-  Volume,
-  Compass,
-  Cpu,
-  ChevronRight,
-  AlertTriangle,
-  HelpCircle
-} from 'lucide-react';
+import { authFetch } from '@/lib/authFetch';
+import { Mic, MicOff, Volume2, VolumeX, X, Volume, ChevronRight, AlertTriangle, HelpCircle } from 'lucide-react';
 
-interface CustomStatusEvent extends Event {
-  detail?: {
-    isListening: boolean;
-    isSpeaking: boolean;
-  };
+// Convert AI text output to clean spoken English
+function toSpoken(text: string): string {
+  return text
+    // Remove markdown formatting
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*+•]\s+/gm, '')
+    .replace(/^\d+\.\s+/gm, '')
+    // Remove emojis
+    .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')
+    .replace(/[⚠️💡📊💰🎯✍️👥🔑✅❌📝🚀]/g, '')
+    // Remove "Offline Simulator Mode" banner — read just the spoken part
+    .replace(/⚠️?\s*\*?\*?Offline Simulator Mode\*?\*?\s*\([^)]*\)\s*/gi, '')
+    // Expand numbers to spoken form for natural TTS
+    .replace(/\$(\d{1,3}(?:,\d{3})*(?:\.\d+)?)/g, (_, n) => {
+      const num = parseFloat(n.replace(/,/g, ''));
+      if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)} million dollars`;
+      if (num >= 1_000) return `${(num / 1_000).toFixed(0)} thousand dollars`;
+      return `${num} dollars`;
+    })
+    // Expand common abbreviations
+    .replace(/\bDMs?\b/g, 'direct messages')
+    .replace(/\bCRM\b/g, 'CRM')
+    .replace(/\bAI\b/g, 'AI')
+    .replace(/\bCEO\b/g, 'CEO')
+    // Collapse whitespace and line breaks
+    .replace(/\n{2,}/g, ' ')
+    .replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    // Trim filler agent prefixes like "Alex (CEO Agent):"
+    .replace(/^\*?\*?[A-Za-z]+ \([^)]+\)\*?\*?:\s*/m, '')
+    .trim();
 }
 
 export default function VoiceAssistant() {
   const router = useRouter();
-  
-  // UI states
+
   const [isOpen, setIsOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // Dialog log
   const [transcript, setTranscript] = useState('');
   const [agentResponse, setAgentResponse] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
-  const [elevenLabsAgentId, setElevenLabsAgentId] = useState('');
 
-  // Speech Recognition and Synthesis references
   const recognitionRef = useRef<any>(null);
   const isListeningActiveRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const shouldResumeRef = useRef(false);
   const isActuallyRunningRef = useRef(false);
   const selectedVoiceNameRef = useRef<string | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingCommandRef = useRef(false);
 
-  // Sync state refs to avoid closure stale state in callbacks
-  useEffect(() => {
-    isListeningActiveRef.current = isListening;
-  }, [isListening]);
+  useEffect(() => { isListeningActiveRef.current = isListening; }, [isListening]);
+  useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
 
   useEffect(() => {
-    isSpeakingRef.current = isSpeaking;
-  }, [isSpeaking]);
-
-  // Dispatch state updates to Topbar
-  useEffect(() => {
-    const event = new CustomEvent('veltrix-voice-status', {
-      detail: { isListening, isSpeaking }
-    });
-    window.dispatchEvent(event);
+    window.dispatchEvent(new CustomEvent('veltrix-voice-status', { detail: { isListening, isSpeaking } }));
   }, [isListening, isSpeaking]);
 
-  // Sync ElevenLabs settings from localStorage dynamically
-  useEffect(() => {
-    const checkElevenLabsAgent = () => {
-      if (typeof window !== 'undefined') {
-        const id = localStorage.getItem('elevenlabs_agent_id') || process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || '';
-        setElevenLabsAgentId(id);
-        
-        if (id && !document.getElementById('elevenlabs-convai-script')) {
-          const script = document.createElement('script');
-          script.id = 'elevenlabs-convai-script';
-          script.src = 'https://elevenlabs.io/convai-widget/index.js';
-          script.async = true;
-          script.type = 'text/javascript';
-          document.body.appendChild(script);
-        }
-      }
-    };
-    checkElevenLabsAgent();
-    window.addEventListener('elevenlabs-settings-updated', checkElevenLabsAgent);
-    return () => {
-      window.removeEventListener('elevenlabs-settings-updated', checkElevenLabsAgent);
-    };
+  // Cancel any audio currently playing (Voicebox or browser TTS)
+  const cancelCurrentAudio = useCallback(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.onended = null;
+      currentAudioRef.current.onerror = null;
+      currentAudioRef.current = null;
+    }
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    isSpeakingRef.current = false;
   }, []);
 
-  // Initialize SpeechRecognition on mount (client-side only)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setErrorMsg('Web Speech API is not supported in this browser. Please use Chrome, Edge, or Safari.');
+      setErrorMsg('Web Speech API not supported. Use Chrome, Edge, or Safari.');
       return;
     }
 
@@ -107,10 +100,7 @@ export default function VoiceAssistant() {
     rec.lang = 'en-US';
     rec.maxAlternatives = 1;
 
-    rec.onstart = () => {
-      setErrorMsg(null);
-      isActuallyRunningRef.current = true;
-    };
+    rec.onstart = () => { setErrorMsg(null); isActuallyRunningRef.current = true; };
 
     rec.onresult = async (event: any) => {
       const speechToText = event.results[0][0].transcript;
@@ -122,81 +112,50 @@ export default function VoiceAssistant() {
     rec.onerror = (event: any) => {
       console.warn('Speech recognition error:', event.error);
       if (event.error === 'not-allowed') {
-        setErrorMsg('Microphone permission blocked. Please check your browser privacy settings.');
+        setErrorMsg('Microphone permission blocked. Check browser privacy settings.');
         setIsListening(false);
-      } else if (event.error === 'no-speech') {
-        // Silent timeout, we can ignore this since onend will restart it if active
-      } else {
+      } else if (event.error !== 'no-speech') {
         setErrorMsg(`Voice input error: ${event.error}`);
       }
     };
 
     rec.onend = () => {
       isActuallyRunningRef.current = false;
-      // Loop: restart if we are still active and NOT currently speaking output
-      if (isListeningActiveRef.current && !isSpeakingRef.current) {
-        try {
-          if (!isActuallyRunningRef.current) {
-            rec.start();
-          }
-        } catch (e) {
-          console.error('Failed to restart recognition:', e);
-        }
+      if (isListeningActiveRef.current && !shouldResumeRef.current) {
+        try { rec.start(); } catch (e) { console.error('Failed to restart recognition:', e); }
       }
     };
 
     recognitionRef.current = rec;
 
-    // Handle global toggle event from Topbar
     const handleGlobalToggle = () => {
-      if (isListeningActiveRef.current) {
-        stopListening();
-      } else {
-        startListening();
-      }
+      if (isListeningActiveRef.current) stopListening();
+      else startListening();
     };
-
     window.addEventListener('veltrix-toggle-voice', handleGlobalToggle);
-
-    // Warm up TTS voices loading
-    if (window.speechSynthesis) {
-      window.speechSynthesis.getVoices();
-    }
+    if (window.speechSynthesis) window.speechSynthesis.getVoices();
 
     return () => {
       window.removeEventListener('veltrix-toggle-voice', handleGlobalToggle);
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch (e) {}
-      }
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+      try { recognitionRef.current?.abort(); } catch {}
+      cancelCurrentAudio();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startListening = () => {
     if (!recognitionRef.current) return;
     setIsListening(true);
-    setIsOpen(true); // Open the HUD to show active status
+    setIsOpen(true);
     setErrorMsg(null);
     try {
-      if (!isActuallyRunningRef.current) {
-        recognitionRef.current.start();
-      }
-    } catch (e) {
-      console.error('Error starting recognition:', e);
-    }
+      if (!isActuallyRunningRef.current) recognitionRef.current.start();
+    } catch (e) { console.error('Error starting recognition:', e); }
   };
 
   const stopListening = () => {
     setIsListening(false);
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-    }
+    try { recognitionRef.current?.stop(); } catch {}
   };
 
   const resumeListeningIfNeeded = () => {
@@ -204,290 +163,196 @@ export default function VoiceAssistant() {
       shouldResumeRef.current = false;
       if (isListeningActiveRef.current && recognitionRef.current) {
         try {
-          if (!isActuallyRunningRef.current) {
-            recognitionRef.current.start();
-          }
-        } catch (e) {
-          console.error('Failed to resume voice listening:', e);
-        }
+          if (!isActuallyRunningRef.current) recognitionRef.current.start();
+        } catch (e) { console.error('Failed to resume voice listening:', e); }
       }
     }
   };
 
-  const speakBrowserTTS = (cleanedText: string) => {
+  const speakBrowserTTS = (spokenText: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       resumeListeningIfNeeded();
       return;
     }
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(cleanedText);
+    const utterance = new SpeechSynthesisUtterance(spokenText);
     const voices = window.speechSynthesis.getVoices();
-    let voice = null;
-    
+
+    let voice: SpeechSynthesisVoice | null = null;
     if (selectedVoiceNameRef.current) {
-      voice = voices.find(v => v.name === selectedVoiceNameRef.current);
+      voice = voices.find(v => v.name === selectedVoiceNameRef.current) || null;
     }
-    
     if (!voice) {
-      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
-      voice = 
-        // 1. Edge Natural Online Female voices (Jenny, Aria, etc.)
-        englishVoices.find(v => v.name.includes('Natural') && (v.name.includes('Jenny') || v.name.includes('Aria') || v.name.includes('Female'))) ||
-        // 2. Google US/UK English (usually high-quality female)
-        englishVoices.find(v => v.name.includes('Google US English') || v.name.includes('Google UK English Female')) ||
-        // 3. Apple Samantha (macOS default natural-ish female)
-        englishVoices.find(v => v.name.includes('Samantha')) ||
-        // 4. Microsoft Zira (Windows default offline female)
-        englishVoices.find(v => v.name.includes('Zira')) ||
-        // 5. Any voice explicitly stating "female"
-        englishVoices.find(v => v.name.toLowerCase().includes('female')) ||
-        // 6. Fallback to any online voice (which sounds natural) that is not male
-        englishVoices.find(v => v.name.includes('Google') || v.name.includes('Online') && !v.name.toLowerCase().includes('male')) ||
-        // 7. Fallback to any English voice that is not Microsoft David (male)
-        englishVoices.find(v => !v.name.includes('David') && !v.name.toLowerCase().includes('male')) ||
-        // 8. Hard fallback
-        englishVoices[0] || 
-        voices[0];
-        
-      if (voice) {
-        selectedVoiceNameRef.current = voice.name;
-      }
+      const en = voices.filter(v => v.lang.startsWith('en'));
+      voice =
+        en.find(v => /natural/i.test(v.name) && /jenny|aria|female/i.test(v.name)) ||
+        en.find(v => /Google US English|Google UK English Female/i.test(v.name)) ||
+        en.find(v => /Samantha|Zira/i.test(v.name)) ||
+        en.find(v => /female/i.test(v.name)) ||
+        en[0] || voices[0];
+      if (voice) selectedVoiceNameRef.current = voice.name;
     }
-
-    if (voice) {
-      utterance.voice = voice;
-    }
-
+    if (voice) utterance.voice = voice;
     utterance.rate = 1.0;
-    utterance.pitch = 1.05; // Friendly, natural female pitch
-
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-    };
-
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      resumeListeningIfNeeded();
-    };
-
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      resumeListeningIfNeeded();
-    };
-
+    utterance.pitch = 1.05;
+    utterance.onstart = () => { setIsSpeaking(true); isSpeakingRef.current = true; };
+    utterance.onend = () => { setIsSpeaking(false); isSpeakingRef.current = false; resumeListeningIfNeeded(); };
+    utterance.onerror = () => { setIsSpeaking(false); isSpeakingRef.current = false; resumeListeningIfNeeded(); };
     window.speechSynthesis.speak(utterance);
   };
 
-  // Text-To-Speech Output (Hybrid ElevenLabs + Browser fallback)
   const speakText = async (text: string) => {
     if (typeof window === 'undefined' || isMuted) return;
 
-    // Retrieve ElevenLabs settings from localStorage or fallback to environment variables
-    const storedEnabled = localStorage.getItem('elevenlabs_enabled');
-    const envKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
-    
-    const elEnabled = storedEnabled === null ? !!envKey : storedEnabled === 'true';
-    const elApiKey = localStorage.getItem('elevenlabs_api_key') || envKey;
-    const elVoiceId = localStorage.getItem('elevenlabs_voice_id') || 'EXAVITQu4vr4xnSDxMaL';
+    // Stop anything currently playing before starting new speech
+    cancelCurrentAudio();
 
-    // Pause recognition to prevent mic picking up system audio feedback loop
+    // Gate the mic so rec.onend won't restart it while we're speaking
     if (recognitionRef.current && isListeningActiveRef.current) {
       shouldResumeRef.current = true;
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
+      try { recognitionRef.current.stop(); } catch {}
     }
 
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+    const spokenText = toSpoken(text);
+    if (!spokenText) { resumeListeningIfNeeded(); return; }
 
-    // Clean markdown structures from AI outputs for natural spoken word
-    const cleanedText = text
-      .replace(/\*+/g, '')
-      .replace(/#+/g, '')
-      .replace(/`+/g, '')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/[-*+]\s+/g, '')
-      .replace(/⚠️|💡|📊|💰|🎯|✍️/g, '');
-
-    if (elEnabled && elApiKey && elVoiceId) {
+    try {
       setIsSpeaking(true);
-      try {
-        let activeVoiceId = elVoiceId;
-        // Upgrade legacy Rachel voice ID automatically if it's currently requested
-        if (activeVoiceId === '21m0aTcmKKvq9ZOq5XO2') {
-          activeVoiceId = 'EXAVITQu4vr4xnSDxMaL';
-        }
+      isSpeakingRef.current = true;
 
-        let response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${activeVoiceId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'xi-api-key': elApiKey
-          },
-          body: JSON.stringify({
-            text: cleanedText,
-            model_id: 'eleven_monolingual_v1',
-            voice_settings: {
-              stability: 0.5,
-              similarity_boost: 0.75
-            }
-          })
-        });
+      const res = await authFetch('/api/voice/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: spokenText }),
+        signal: AbortSignal.timeout(25000),
+      });
 
-        // Dynamic 404 Fallback: if voice not found, query user's available voices and use the first one
-        if (response.status === 404) {
-          console.warn(`ElevenLabs voice ID ${activeVoiceId} not found (404). Fetching alternative voices...`);
-          try {
-            const voicesRes = await fetch('https://api.elevenlabs.io/v1/voices', {
-              headers: { 'xi-api-key': elApiKey }
-            });
-            if (voicesRes.ok) {
-              const voicesData = await voicesRes.json();
-              if (voicesData.voices && voicesData.voices.length > 0) {
-                const fallbackVoiceId = voicesData.voices[0].voice_id;
-                console.log(`Retrying with fallback voice ID: ${fallbackVoiceId} (${voicesData.voices[0].name})`);
-                response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${fallbackVoiceId}`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'xi-api-key': elApiKey
-                  },
-                  body: JSON.stringify({
-                    text: cleanedText,
-                    model_id: 'eleven_monolingual_v1',
-                    voice_settings: {
-                      stability: 0.5,
-                      similarity_boost: 0.75
-                    }
-                  })
-                });
-              }
-            }
-          } catch (fetchErr) {
-            console.warn('Failed to fetch available voices for fallback:', fetchErr);
-          }
-        }
-
-        if (!response.ok) {
-          console.warn(`ElevenLabs returned status ${response.status}. Falling back to browser TTS.`);
-          if (response.status === 401) {
-            console.warn('ElevenLabs API key is unauthorized (401). Clearing invalid localStorage key.');
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('elevenlabs_api_key');
-            }
-          }
-          speakBrowserTTS(cleanedText);
-          setIsSpeaking(false);
-          resumeListeningIfNeeded();
-          return;
-        }
-
-        const blob = await response.blob();
+      if (res.ok) {
+        const blob = await res.blob();
         const audioUrl = URL.createObjectURL(blob);
         const audio = new Audio(audioUrl);
+        currentAudioRef.current = audio;
 
         audio.onended = () => {
           setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          currentAudioRef.current = null;
           URL.revokeObjectURL(audioUrl);
           resumeListeningIfNeeded();
         };
-
-        audio.onerror = (e) => {
-          console.warn('ElevenLabs Audio playback error:', e);
+        audio.onerror = () => {
           setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          currentAudioRef.current = null;
           URL.revokeObjectURL(audioUrl);
-          speakBrowserTTS(cleanedText);
+          speakBrowserTTS(spokenText);
         };
 
         await audio.play();
         return;
-      } catch (err) {
-        console.warn('ElevenLabs TTS call failed, falling back to browser TTS:', err);
-        speakBrowserTTS(cleanedText);
-        setIsSpeaking(false);
-        resumeListeningIfNeeded();
-        return;
       }
+
+      // Proxy unavailable — log and fall through to browser TTS
+      const errData = await res.json().catch(() => ({}));
+      console.warn('[ARIA] TTS proxy unavailable:', errData.error || res.status);
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+    } catch (err: any) {
+      const isAbort = err?.name === 'AbortError' || err?.name === 'TimeoutError';
+      if (!isAbort) console.warn('[ARIA] TTS fetch failed:', err?.message);
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
     }
 
-    // Default Browser TTS fallback
-    speakBrowserTTS(cleanedText);
+    // Browser TTS fallback (Voicebox offline)
+    speakBrowserTTS(spokenText);
   };
 
-  // Parse Voice Commands
   const handleVoiceCommand = async (command: string) => {
+    // Prevent double-processing overlapping recognitions
+    if (pendingCommandRef.current) return;
+    pendingCommandRef.current = true;
+
     const text = command.toLowerCase().trim();
 
-    // 1. System status check
-    if (text.includes('system status') || text.includes('system checklist') || text.includes('status report')) {
-      const msg = 'FRIDAY command center status is optimal. Local databases are online. All operations check out.';
+    // System status shortcut
+    if (text.includes('system status') || text.includes('status report')) {
+      const msg = "All systems are online. Agents are ready. What do you need?";
       setAgentResponse(msg);
-      speakText(msg);
+      await speakText(msg);
+      pendingCommandRef.current = false;
       return;
     }
 
-    // 2. Navigation Commands matching
+    // Navigation shortcuts
     const navRoutes = [
-      { keys: ['potential client', 'leads', 'lead list'], path: '/leads', reply: 'Opening potential clients and leads directory.' },
-      { keys: ['money', 'revenue', 'earnings', 'cash', 'finance'], path: '/revenue', reply: 'Loading monthly earnings and financial tracker.' },
-      { keys: ['outbox', 'outreach', 'messages', 'email', 'send message'], path: '/outreach', reply: 'Opening sent outreach history.' },
-      { keys: ['reminder', 'follow up', 'followup'], path: '/follow-ups', reply: 'Loading follow-up reminders list.' },
-      { keys: ['proposal', 'quote', 'estimate', 'price'], path: '/proposals', reply: 'Opening clients proposals and pricing quotes.' },
-      { keys: ['client list', 'my client', 'customers'], path: '/clients', reply: 'Navigating to client directory.' },
-      { keys: ['project checklist', 'projects', 'milestone'], path: '/projects', reply: 'Loading active project milestones.' },
-      { keys: ['to do list', 'todo', 'tasks', 'task list'], path: '/tasks', reply: 'Opening tasks execution board.' },
-      { keys: ['notes', 'memory', 'brain', 'vault', 'saved notes'], path: '/memory', reply: 'Opening memory vault and saved business facts.' },
-      { keys: ['writer', 'social writer', 'content', 'posts'], path: '/content', reply: 'Accessing AI social content writer.' },
-      { keys: ['reports', 'summaries', 'daily summary'], path: '/reports', reply: 'Navigating to daily executive summaries.' },
-      { keys: ['settings', 'option', 'config', 'keys'], path: '/settings', reply: 'Opening system settings console.' },
-      { keys: ['chat with ai', 'assistant', 'chat box', 'command center'], path: '/command-center', reply: 'Connecting to AI Chat terminal.' },
-      { keys: ['dashboard', 'home', 'main page'], path: '/', reply: 'Returning to core command dashboard.' }
+      { keys: ['potential client', 'leads', 'lead list'], path: '/leads', reply: "Opening your leads directory now." },
+      { keys: ['money', 'revenue', 'earnings', 'finance'], path: '/revenue', reply: "Loading your revenue tracker." },
+      { keys: ['outreach', 'outbox', 'messages', 'email'], path: '/outreach', reply: "Opening sent outreach." },
+      { keys: ['reminder', 'follow up', 'followup'], path: '/follow-ups', reply: "Loading your follow-up reminders." },
+      { keys: ['proposal', 'quote', 'estimate', 'price'], path: '/proposals', reply: "Opening proposals and quotes." },
+      { keys: ['client list', 'my client', 'customers'], path: '/clients', reply: "Navigating to clients." },
+      { keys: ['project', 'milestone'], path: '/projects', reply: "Loading active projects." },
+      { keys: ['to do', 'todo', 'tasks', 'task list'], path: '/tasks', reply: "Opening tasks board." },
+      { keys: ['notes', 'memory', 'brain', 'vault'], path: '/memory', reply: "Opening memory vault." },
+      { keys: ['writer', 'content', 'posts', 'social'], path: '/content', reply: "Opening the content writer." },
+      { keys: ['report', 'summaries', 'daily summary'], path: '/reports', reply: "Loading your reports." },
+      { keys: ['settings', 'config', 'keys'], path: '/settings', reply: "Opening settings." },
+      { keys: ['chat', 'command center', 'terminal'], path: '/command-center', reply: "Connecting to the AI command center." },
+      { keys: ['dashboard', 'home', 'main page'], path: '/', reply: "Going home." },
     ];
 
     for (const route of navRoutes) {
       if (route.keys.some(key => text.includes(key))) {
         setAgentResponse(route.reply);
-        speakText(route.reply);
+        await speakText(route.reply);
         router.push(route.path);
+        pendingCommandRef.current = false;
         return;
       }
     }
 
-    // 3. Fallback: Query autonomous AI chat
+    // AI agent query
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/chat', {
+      const res = await authFetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: command })
+        body: JSON.stringify({ message: command, voiceMode: true }),
       });
+
+      if (res.status === 429) {
+        const fallback = "I'm handling too many requests right now. Give me a moment and try again.";
+        setAgentResponse(fallback);
+        await speakText(fallback);
+        pendingCommandRef.current = false;
+        setLoading(false);
+        return;
+      }
+
       const data = await res.json();
       if (data.success) {
-        const reply = data.message.message;
+        const reply = data.message?.message || data.message;
         setAgentResponse(reply);
-        speakText(reply);
+        await speakText(reply);
       } else {
         throw new Error(data.error || 'Server returned failure');
       }
     } catch (e: any) {
-      console.error('Error fetching voice assistant reply:', e);
-      const errText = 'Connection failed. I am unable to query your active AI agents right now.';
-      setAgentResponse(errText);
-      speakText(errText);
+      console.error('[ARIA] Chat API error:', e);
+      const fallback = "Lost contact with the agents for a moment. Try again.";
+      setAgentResponse(fallback);
+      await speakText(fallback);
     } finally {
       setLoading(false);
+      pendingCommandRef.current = false;
     }
   };
 
   const toggleMute = () => {
     const newMuted = !isMuted;
     setIsMuted(newMuted);
-    if (newMuted && typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
+    if (newMuted) cancelCurrentAudio();
   };
 
   const triggerManualSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -497,154 +362,105 @@ export default function VoiceAssistant() {
     handleVoiceCommand(transcript);
   };
 
-  const suggestions = [
-    'Go to potential clients',
-    'Show money',
-    'Open to-do list',
-    'Open saved notes',
-    'System status',
-    'What should I do today to reach $6k?'
-  ];
-
   return (
     <>
-      {/* Floating Microphone Activation Orb */}
+      {/* Floating Mic Orb */}
       <div className="fixed bottom-6 right-6 z-50 flex items-center justify-center">
         {!isOpen && (
           <button
-            onClick={() => {
-              setIsOpen(true);
-              startListening();
-            }}
+            onClick={() => { setIsOpen(true); startListening(); }}
             className={`w-14 h-14 rounded-full flex items-center justify-center cursor-pointer border border-neon-purple/30 bg-cyber-bg/85 backdrop-blur-md transition-all duration-300 relative ${
               isListening ? 'animate-orb-pulse border-neon-cyan/80' : 'hover:scale-105 hover:border-neon-purple/70 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]'
             }`}
-            title="Open Jarvis Voice Console"
+            title="Open ARIA Voice Console"
           >
-            {/* Animated rotating outer rings for Jarvis feel */}
             {isListening && (
               <>
                 <div className="absolute inset-0 rounded-full border border-dashed border-neon-cyan/40 animate-spin-slow" />
                 <div className="absolute -inset-2 rounded-full border border-dotted border-neon-purple/30 animate-spin-reverse" />
               </>
             )}
-            
             <div className={`p-3 rounded-full relative z-10 ${isListening ? 'text-neon-cyan' : 'text-neon-purple'}`}>
               <Mic size={22} className={isListening ? 'animate-pulse' : ''} />
             </div>
-            
-            {/* Listening small ping */}
             {isListening && (
               <span className="absolute top-0 right-0 flex h-3.5 w-3.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-cyan opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-neon-cyan"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-cyan opacity-75" />
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-neon-cyan" />
               </span>
             )}
           </button>
         )}
       </div>
 
-      {/* Expanded Jarvis HUD Console Overlay */}
+      {/* ARIA HUD Console */}
       {isOpen && (
         <div className="fixed inset-y-0 right-0 w-[420px] bg-cyber-bg/95 border-l border-cyber-border z-40 shadow-2xl flex flex-col backdrop-blur-lg scanlines font-mono">
           {/* Header */}
           <div className="p-4 border-b border-cyber-border bg-white/5 flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
               <div className="w-2 h-2 rounded-full bg-neon-cyan animate-ping" />
-              <span className="text-xs font-bold uppercase tracking-widest text-neon-cyan">FRIDAY CORE ASSISTANT</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-neon-cyan">ARIA — VELTRIX ASSISTANT</span>
             </div>
-            
             <div className="flex items-center space-x-2">
-              {/* Voice Mute Toggle */}
               <button
                 onClick={toggleMute}
-                className={`p-1.5 rounded border transition-colors cursor-pointer ${
-                  isMuted 
-                    ? 'border-neon-pink/20 bg-neon-pink/10 text-neon-pink hover:bg-neon-pink/20' 
-                    : 'border-white/5 bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10'
-                }`}
-                title={isMuted ? 'Unmute voice feedback' : 'Mute voice feedback'}
+                className={`p-1.5 rounded border transition-colors cursor-pointer ${isMuted ? 'border-neon-pink/20 bg-neon-pink/10 text-neon-pink hover:bg-neon-pink/20' : 'border-white/5 bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10'}`}
+                title={isMuted ? 'Unmute ARIA' : 'Mute ARIA'}
               >
                 {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
               </button>
-
               <button
                 onClick={() => setIsOpen(false)}
                 className="p-1.5 rounded border border-white/5 bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
-                title="Minimize Console"
+                title="Minimize"
               >
                 <X size={15} />
               </button>
             </div>
           </div>
 
-          {/* Central Radial Visualization Sphere */}
+          {/* Orb Visualization */}
           <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-b from-white/3 to-transparent relative border-b border-white/5 overflow-hidden">
-            {/* Sci-Fi Background grid circles */}
             <div className="absolute w-64 h-64 rounded-full border border-white/[0.02]" />
             <div className="absolute w-48 h-48 rounded-full border border-white/[0.03]" />
-            
-            {/* Glowing Orb */}
-            <div 
+            <div
               onClick={isListening ? stopListening : startListening}
               className={`w-36 h-36 rounded-full flex flex-col items-center justify-center cursor-pointer relative transition-all duration-500 bg-black/60 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)] border ${
-                isSpeaking 
-                  ? 'border-neon-pink/50 shadow-[0_0_30px_rgba(236,72,153,0.3)]' 
-                  : isListening 
-                    ? 'border-neon-cyan/50 shadow-[0_0_35px_rgba(6,182,212,0.4)] animate-orb-pulse' 
+                isSpeaking
+                  ? 'border-neon-pink/50 shadow-[0_0_30px_rgba(236,72,153,0.3)]'
+                  : isListening
+                    ? 'border-neon-cyan/50 shadow-[0_0_35px_rgba(6,182,212,0.4)] animate-orb-pulse'
                     : 'border-neon-purple/30 hover:border-neon-purple/70 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)]'
               }`}
             >
-              {/* Outer spinning dash borders */}
-              <div className={`absolute inset-1.5 rounded-full border border-dashed animate-spin-slow ${
-                isSpeaking ? 'border-neon-pink/30' : isListening ? 'border-neon-cyan/30' : 'border-neon-purple/10'
-              }`} />
-              
-              <div className={`absolute inset-4 rounded-full border border-dotted animate-spin-reverse ${
-                isSpeaking ? 'border-neon-pink/20' : isListening ? 'border-neon-cyan/20' : 'border-neon-purple/10'
-              }`} />
-
-              <div className={`relative z-10 transition-colors duration-300 ${
-                isSpeaking ? 'text-neon-pink' : isListening ? 'text-neon-cyan' : 'text-neon-purple/60'
-              }`}>
-                {isListening ? (
-                  <Mic size={36} className="animate-pulse" />
-                ) : (
-                  <MicOff size={36} />
-                )}
+              <div className={`absolute inset-1.5 rounded-full border border-dashed animate-spin-slow ${isSpeaking ? 'border-neon-pink/30' : isListening ? 'border-neon-cyan/30' : 'border-neon-purple/10'}`} />
+              <div className={`absolute inset-4 rounded-full border border-dotted animate-spin-reverse ${isSpeaking ? 'border-neon-pink/20' : isListening ? 'border-neon-cyan/20' : 'border-neon-purple/10'}`} />
+              <div className={`relative z-10 transition-colors duration-300 ${isSpeaking ? 'text-neon-pink' : isListening ? 'text-neon-cyan' : 'text-neon-purple/60'}`}>
+                {isListening ? <Mic size={36} className="animate-pulse" /> : <MicOff size={36} />}
               </div>
-              
-              <span className={`text-[9px] mt-2 font-mono tracking-widest relative z-10 font-bold ${
-                isSpeaking ? 'text-neon-pink' : isListening ? 'text-neon-cyan' : 'text-neon-purple/55'
-              }`}>
-                {isSpeaking ? 'TALKING' : isListening ? 'LISTENING' : 'OFFLINE'}
+              <span className={`text-[9px] mt-2 font-mono tracking-widest relative z-10 font-bold ${isSpeaking ? 'text-neon-pink' : isListening ? 'text-neon-cyan' : 'text-neon-purple/55'}`}>
+                {isSpeaking ? 'ARIA SPEAKING' : isListening ? 'LISTENING' : 'STANDBY'}
               </span>
             </div>
 
-            {/* Live equalizer visualizer bars */}
             <div className="h-8 flex items-center justify-center mt-6">
               {isListening ? (
                 <div className="flex items-end h-6">
-                  <span className="sound-wave-bar" />
-                  <span className="sound-wave-bar" />
-                  <span className="sound-wave-bar" />
-                  <span className="sound-wave-bar" />
-                  <span className="sound-wave-bar" />
-                  <span className="sound-wave-bar" />
-                  <span className="sound-wave-bar" />
+                  {[...Array(7)].map((_, i) => <span key={i} className="sound-wave-bar" />)}
                 </div>
               ) : isSpeaking ? (
                 <div className="text-[10px] text-neon-pink animate-pulse tracking-widest font-bold flex items-center space-x-1.5">
                   <Volume size={13} />
-                  <span>TRANSMITTING VOCAL FEEDBACK...</span>
+                  <span>ARIA TRANSMITTING...</span>
                 </div>
               ) : (
-                <span className="text-[10px] text-muted-foreground/60 tracking-wider">TAP ORB TO START VOICE ACTIVATION</span>
+                <span className="text-[10px] text-muted-foreground/60 tracking-wider">TAP ORB TO ACTIVATE ARIA</span>
               )}
             </div>
           </div>
 
-          {/* Interactive Screen Display log */}
+          {/* Log Display */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             {errorMsg && (
               <div className="p-3.5 bg-neon-pink/10 border border-neon-pink/20 rounded-lg text-neon-pink text-xs flex items-start space-x-2.5">
@@ -653,25 +469,19 @@ export default function VoiceAssistant() {
               </div>
             )}
 
-            {/* Transcript (User speech input) */}
             <div className="space-y-1.5">
-              <span className="text-[9px] text-neon-cyan font-bold tracking-widest block uppercase">VOICE CAPTURED</span>
-              <div className="p-3 rounded bg-white/3 border border-white/5 min-h-[50px] text-xs leading-relaxed text-foreground/90 flex items-center">
-                {transcript ? (
-                  <span className="text-white select-text">"{transcript}"</span>
-                ) : (
-                  <span className="text-muted-foreground/50 italic">Speak a command (e.g. "go to potential clients" or ask a question)...</span>
-                )}
+              <span className="text-[9px] text-neon-cyan font-bold tracking-widest block uppercase">Voice Captured</span>
+              <div className="p-3 rounded bg-white/3 border border-white/5 min-h-[50px] text-xs leading-relaxed flex items-center">
+                {transcript
+                  ? <span className="text-white select-text">"{transcript}"</span>
+                  : <span className="text-muted-foreground/50 italic">Speak a command or ask ARIA a question...</span>}
               </div>
             </div>
 
-            {/* Reply Log (Agent responses) */}
             <div className="space-y-1.5 pt-1">
               <div className="flex items-center justify-between">
-                <span className="text-[9px] text-neon-purple font-bold tracking-widest block uppercase">JARVIS SYNTHESIS</span>
-                {loading && (
-                  <span className="text-[9px] text-neon-purple animate-pulse font-bold">COMPUTING RESPONSE...</span>
-                )}
+                <span className="text-[9px] text-neon-purple font-bold tracking-widest block uppercase">ARIA Response</span>
+                {loading && <span className="text-[9px] text-neon-purple animate-pulse font-bold">COMPUTING...</span>}
               </div>
               <div className="p-3.5 rounded bg-neon-purple/5 border border-neon-purple/10 min-h-[90px] text-xs leading-relaxed text-foreground select-text relative">
                 {loading ? (
@@ -683,22 +493,22 @@ export default function VoiceAssistant() {
                 ) : agentResponse ? (
                   <p className="whitespace-pre-wrap text-[13px]">{agentResponse}</p>
                 ) : (
-                  <span className="text-muted-foreground/50 italic">AI speech telemetry idle. Waiting for vocal trigger.</span>
+                  <span className="text-muted-foreground/50 italic">Waiting for vocal trigger...</span>
                 )}
               </div>
             </div>
 
-            {/* Manual voice box fallback */}
+            {/* Manual text fallback */}
             <form onSubmit={triggerManualSubmit} className="pt-2 flex items-center space-x-2">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
-                placeholder="Type command manual fallback..."
+                placeholder="Type command..."
                 className="flex-1 px-3 py-2 bg-white/3 border border-white/10 hover:border-neon-purple/30 focus:border-neon-purple rounded text-xs focus:outline-none text-foreground font-mono"
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loading || !transcript.trim()}
                 className="px-3 py-2 rounded bg-neon-purple hover:bg-neon-purple/80 text-white text-xs transition cursor-pointer disabled:opacity-50"
               >
@@ -707,20 +517,7 @@ export default function VoiceAssistant() {
             </form>
           </div>
 
-          {/* ElevenLabs Conversational Voice Agent Embedded Orb Widget */}
-          {elevenLabsAgentId && (
-            <div className="w-full p-4 border-t border-cyber-border bg-white/2 flex flex-col items-center space-y-2 select-none">
-              <span className="text-[9px] text-neon-purple font-bold tracking-widest uppercase">REAL-TIME AGENTIC VOICE CALL</span>
-              <p className="text-[10px] text-muted-foreground text-center leading-normal">
-                Start an interactive, direct voice conversation with your AI Business Agent:
-              </p>
-              <div className="py-2 scale-90 origin-center flex justify-center items-center min-h-[60px]">
-                <elevenlabs-convai agent-id={elevenLabsAgentId}></elevenlabs-convai>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Vocal Commands Reference trigger */}
+          {/* Quick Commands */}
           <div className="border-t border-cyber-border bg-white/2">
             <button
               onClick={() => setShowGuide(!showGuide)}
@@ -732,32 +529,25 @@ export default function VoiceAssistant() {
               </span>
               <ChevronRight size={14} className={`transition-transform duration-200 ${showGuide ? 'rotate-90 text-neon-cyan' : ''}`} />
             </button>
-            
+
             {showGuide && (
               <div className="px-5 pb-4 pt-1 space-y-2.5 max-h-48 overflow-y-auto border-t border-white/5 bg-black/40">
-                <div className="text-[10px] text-muted-foreground/80 leading-normal mb-2">
-                  Say these phrases directly when microphone is activated:
-                </div>
+                <div className="text-[10px] text-muted-foreground/80 leading-normal mb-2">Say these phrases when the mic is active:</div>
                 <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <div className="p-1.5 rounded bg-white/3 border border-white/5">
-                    <span className="text-neon-cyan block font-bold">"Go to leads"</span>
-                    <span className="text-muted-foreground text-[9px]">Potential Clients</span>
-                  </div>
-                  <div className="p-1.5 rounded bg-white/3 border border-white/5">
-                    <span className="text-neon-cyan block font-bold">"Show money"</span>
-                    <span className="text-muted-foreground text-[9px]">Earnings & Revenue</span>
-                  </div>
-                  <div className="p-1.5 rounded bg-white/3 border border-white/5">
-                    <span className="text-neon-cyan block font-bold">"Open tasks"</span>
-                    <span className="text-muted-foreground text-[9px]">To-Do List</span>
-                  </div>
-                  <div className="p-1.5 rounded bg-white/3 border border-white/5">
-                    <span className="text-neon-cyan block font-bold">"Show notes"</span>
-                    <span className="text-muted-foreground text-[9px]">Memory Vault</span>
-                  </div>
+                  {[
+                    { cmd: '"Go to leads"', desc: 'Potential Clients' },
+                    { cmd: '"Show revenue"', desc: 'Earnings & Finance' },
+                    { cmd: '"Open tasks"', desc: 'To-Do List' },
+                    { cmd: '"Show notes"', desc: 'Memory Vault' },
+                  ].map(({ cmd, desc }) => (
+                    <div key={cmd} className="p-1.5 rounded bg-white/3 border border-white/5">
+                      <span className="text-neon-cyan block font-bold">{cmd}</span>
+                      <span className="text-muted-foreground text-[9px]">{desc}</span>
+                    </div>
+                  ))}
                   <div className="p-1.5 rounded bg-white/3 border border-white/5 col-span-2">
-                    <span className="text-neon-purple block font-bold">Any general business question</span>
-                    <span className="text-muted-foreground text-[9px]">Calls AI Agent (e.g. "Draft proposal for dentist")</span>
+                    <span className="text-neon-purple block font-bold">Any business question</span>
+                    <span className="text-muted-foreground text-[9px]">ARIA routes to the right agent — e.g. "Draft a proposal for a dentist"</span>
                   </div>
                 </div>
               </div>
