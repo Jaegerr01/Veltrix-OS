@@ -95,3 +95,16 @@ curl -X POST https://YOUR-SITE/api/autopilot/run \
 - **"Agents do nothing"** → `GEMINI_API_KEY` missing → leads never leave `New`. Check `/health`.
 - **Leads don't load** → Supabase keys missing or `supabase_schema.sql` not run.
 - **Pipeline never runs on its own** → `CRON_SECRET` not set, or the site hasn't been redeployed since adding env vars.
+
+---
+
+## 7. Voice agent (ARIA) — important architecture note 🎙️
+
+`/api/voice/tts` proxies to a **"Voicebox"** server via `VOICEBOX_URL` (default `http://127.0.0.1:8000`). Voicebox is a **local Python app** (the `Voicebox` folder). This means:
+
+- **On your own machine** (`npm run dev`): start `voicebox-server.exe` first, create a voice profile, and voice works.
+- **In production (Netlify)**: `127.0.0.1` points at Netlify's server, not yours — so **voice cannot work in production as-is.** You have two options:
+  1. **Host Voicebox publicly** (e.g. Railway) and set `VOICEBOX_URL` to that URL (+ optional `VOICEBOX_PROFILE_ID`).
+  2. **Switch to a cloud TTS** like ElevenLabs (already in your stack) — a small change to `/api/voice/tts`. Tell Claude to do this if you'd rather not self-host.
+
+Quick check: visit `/api/voice/tts` (GET) — it returns Voicebox connectivity status.
