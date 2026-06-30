@@ -1,7 +1,7 @@
 /**
  * VELTRIX Autonomous Agency Pipeline
  *
- * This is the master orchestrator. It runs on a schedule (every 30 min via Vercel Cron)
+ * This is the master orchestrator. It runs on a schedule (every 30 min via Netlify Scheduled Functions)
  * and processes ALL leads through the full sales lifecycle with zero human input.
  *
  * Lead State Machine:
@@ -129,6 +129,12 @@ async function processQualifiedLeads(actions: string[], errors: string[]): Promi
               } catch (mailErr: any) {
                 errors.push(`[Emma] Email delivery failed for ${lead.email}: ${mailErr.message}`);
               }
+            } else {
+              errors.push(
+                `[Emma] Email NOT delivered to ${lead.email} — RESEND_API_KEY is not configured. ` +
+                `The message was drafted and logged but never actually sent. ` +
+                `Set RESEND_API_KEY (and verify a domain + RESEND_FROM_EMAIL) in Netlify to enable real delivery.`
+              );
             }
           }
         }
