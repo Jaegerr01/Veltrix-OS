@@ -1,6 +1,14 @@
-import { supabase as supabaseInstance } from '../supabase/client';
+import { supabase as anonInstance } from '../supabase/client';
+import { supabaseAdmin } from '../supabase/admin';
 
-export const supabase = supabaseInstance;
+// Pick the right client for the execution context:
+//  • Browser (dashboard): anon client + the logged-in user's session → RLS shows their rows.
+//  • Server (API routes, cron, autopilot pipeline): NO session exists, so the anon client
+//    would be blocked by RLS and see 0 rows. Use the service-role client to bypass RLS.
+//    Every query is still explicitly scoped by `.eq('user_id', userId)` (userId comes from
+//    a validated JWT or the NOTIFY_EMAIL owner lookup), so this stays secure per-user.
+const isServer = typeof window === 'undefined';
+export const supabase = (isServer && supabaseAdmin) ? supabaseAdmin : anonInstance;
 export const isSupabaseConfigured = !!supabase;
 
 // Mutable shared state for schema validity — read via db.isSchemaInvalid getter
