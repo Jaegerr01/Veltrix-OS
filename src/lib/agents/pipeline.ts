@@ -16,6 +16,11 @@ import { getResendClient, FROM_EMAIL } from '../email/resend';
 const BARRY_EMAIL = process.env.NOTIFY_EMAIL || 'tahakh5510@gmail.com';
 const MONTHLY_TARGET = 6000;
 
+// Serverless functions time out (~26s). Each lead makes an LLM call, so we can only
+// process a handful per invocation. Cap every stage to a small batch; the scheduled
+// cron chips away at any backlog across runs instead of timing out on a huge list.
+const MAX_PER_RUN = 2;
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface PipelineRun {
@@ -59,7 +64,7 @@ async function logAction(action: string, detail: string) {
 
 async function processNewLeads(actions: string[], errors: string[]): Promise<number> {
   const leads = await db.getLeads();
-  const newLeads = leads.filter(l => l.status === 'New');
+  const newLeads = leads.filter(l => l.status === 'New').slice(0, MAX_PER_RUN);
   let count = 0;
 
   for (const lead of newLeads) {
@@ -73,7 +78,7 @@ async function processNewLeads(actions: string[], errors: string[]): Promise<num
       errors.push(`[Daniel] Failed to research ${lead.business_name}: ${err.message}`);
     }
     // Small delay to avoid rate limits
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 300));
   }
   return count;
 }
@@ -82,7 +87,7 @@ async function processNewLeads(actions: string[], errors: string[]): Promise<num
 
 async function processQualifiedLeads(actions: string[], errors: string[]): Promise<number> {
   const leads = await db.getLeads();
-  const qualifiedLeads = leads.filter(l => l.status === 'Qualified' && (l.lead_score ?? 0) >= 7);
+  const qualifiedLeads = leads.filter(l => l.status === 'Qualified' && (l.lead_score ?? 0) >= 7).slice(0, MAX_PER_RUN);
   let count = 0;
 
   for (const lead of qualifiedLeads) {
@@ -142,7 +147,7 @@ async function processQualifiedLeads(actions: string[], errors: string[]): Promi
     } catch (err: any) {
       errors.push(`[Emma] Outreach failed for ${lead.business_name}: ${err.message}`);
     }
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 300));
   }
   return count;
 }
@@ -153,7 +158,7 @@ async function processFollowups(actions: string[], errors: string[]): Promise<nu
   const leads = await db.getLeads();
   const contactedLeads = leads.filter(l =>
     ['Contacted'].includes(l.status)
-  );
+  ).slice(0, MAX_PER_RUN);
   let count = 0;
 
   for (const lead of contactedLeads) {
@@ -186,7 +191,7 @@ async function processFollowups(actions: string[], errors: string[]): Promise<nu
     } catch (err: any) {
       errors.push(`[Lucas] Follow-up failed for ${lead.business_name}: ${err.message}`);
     }
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 300));
   }
   return count;
 }
@@ -195,7 +200,7 @@ async function processFollowups(actions: string[], errors: string[]): Promise<nu
 
 async function processRepliedLeads(actions: string[], errors: string[]): Promise<number> {
   const leads = await db.getLeads();
-  const repliedLeads = leads.filter(l => l.status === 'Replied');
+  const repliedLeads = leads.filter(l => l.status === 'Replied').slice(0, MAX_PER_RUN);
   let count = 0;
 
   for (const lead of repliedLeads) {
@@ -227,7 +232,7 @@ async function processRepliedLeads(actions: string[], errors: string[]): Promise
     } catch (err: any) {
       errors.push(`[Olivia] Proposal failed for ${lead.business_name}: ${err.message}`);
     }
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 300));
   }
   return count;
 }
@@ -335,7 +340,7 @@ Keep it sharp, actionable, and under 600 words. Barry needs to be able to read t
 
 async function processCallBookedLeads(actions: string[], errors: string[]): Promise<number> {
   const leads = await db.getLeads();
-  const callLeads = leads.filter(l => l.status === 'Call Booked');
+  const callLeads = leads.filter(l => l.status === 'Call Booked').slice(0, MAX_PER_RUN);
   let count = 0;
 
   for (const lead of callLeads) {
@@ -355,7 +360,7 @@ async function processCallBookedLeads(actions: string[], errors: string[]): Prom
     } catch (err: any) {
       errors.push(`[Alex] Pre-call brief failed for ${lead.business_name}: ${err.message}`);
     }
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 300));
   }
   return count;
 }
@@ -364,7 +369,7 @@ async function processCallBookedLeads(actions: string[], errors: string[]): Prom
 
 async function processProposalSentLeads(actions: string[], errors: string[]): Promise<number> {
   const leads = await db.getLeads();
-  const proposalLeads = leads.filter(l => l.status === 'Proposal Sent');
+  const proposalLeads = leads.filter(l => l.status === 'Proposal Sent').slice(0, MAX_PER_RUN);
   let count = 0;
 
   for (const lead of proposalLeads) {
@@ -409,7 +414,7 @@ async function processProposalSentLeads(actions: string[], errors: string[]): Pr
     } catch (err: any) {
       errors.push(`[Lucas] Proposal follow-up failed for ${lead.business_name}: ${err.message}`);
     }
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 300));
   }
   return count;
 }
