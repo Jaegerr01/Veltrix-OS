@@ -1,4 +1,4 @@
-﻿import { db } from '../db';
+import { db } from '../db';
 import { gemini } from '../gemini';
 import { AGENTS } from './agents';
 import { generateSimulatedResponse } from './router';
@@ -511,6 +511,27 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
           (memories.length === 0 
             ? 'No matching memories or tags found.' 
             : memories.map((m, i) => `${i+1}. **[${m.type}]** ${m.content} (Importance: ${m.importance}/10)`).join('\n\n'));
+        break;
+      }
+
+      case 'support': {
+        const { query } = params;
+        if (!query) {
+          return { success: false, error: 'query is required for Support Agent' };
+        }
+        const memories = await db.searchMemories(query);
+        const docsContext = memories.map(m => m.content).join('\n');
+
+        const prompt = `
+User Question: "${query}"
+
+Here are the relevant documentation snippets retrieved from the company database:
+${docsContext || 'No relevant documentation found.'}
+
+Answer the user's question accurately using only the retrieved documentation above. If the answer cannot be found in the documentation, state that clearly and suggest adding it.
+`;
+        const generated = await gemini.callRawLLM(prompt, agent.systemPrompt);
+        resultText = `**Harper (Support Agent)**: ${generated}`;
         break;
       }
 

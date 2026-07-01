@@ -183,6 +183,15 @@ export default function CommandCenter() {
         `⚡ Autonomous mode: ${autonomous ? 'Auto-marking proposal SENT & updating lead status' : 'Saving draft'}`,
         '✅ Proposal compiled successfully.'
       );
+    } else if (agentKey === 'support') {
+      logs.push(
+        '⚙️ Booting Documentation Support Agent...',
+        `🔍 Searching vector store for: "${agentParams.query || 'docs'}"...`,
+        '🧠 Retrieving relevant documentation snippets...',
+        '🤖 Formulating answers based on verified sources...',
+        `💾 Writing log to agent_logs...`,
+        '✅ Question answered successfully.'
+      );
     } else {
       logs.push(
         '⚙️ Booting Agent Core...',
@@ -408,6 +417,20 @@ export default function CommandCenter() {
             <input
               type="text"
               placeholder="e.g. dental"
+              value={agentParams.query || ''}
+              onChange={(e) => setAgentParams({ ...agentParams, query: e.target.value })}
+              className="w-full bg-white/5 border border-white/10 rounded px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-neon-purple font-mono"
+            />
+          </div>
+        );
+
+      case 'support':
+        return (
+          <div>
+            <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Doc Search Query *</label>
+            <input
+              type="text"
+              placeholder="e.g. how do we handle after-hour booking leaks?"
               value={agentParams.query || ''}
               onChange={(e) => setAgentParams({ ...agentParams, query: e.target.value })}
               className="w-full bg-white/5 border border-white/10 rounded px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-neon-purple font-mono"

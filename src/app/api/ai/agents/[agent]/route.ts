@@ -272,6 +272,28 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
         break;
       }
 
+      case 'support': {
+        const { query } = reqParameters;
+        if (!query) {
+          return NextResponse.json({ success: false, error: 'query is required for Support Agent' }, { status: 400 });
+        }
+        const memories = await db.searchMemories(query);
+        const docsContext = memories.map(m => m.content).join('\n');
+
+        const prompt = `
+User Question: "${query}"
+
+Here are the relevant documentation snippets retrieved from the company database:
+${docsContext || 'No relevant documentation found.'}
+
+Answer the user's question accurately using only the retrieved documentation above. If the answer cannot be found in the documentation, state that clearly and suggest adding it.
+`;
+        const generated = await gemini.callRawLLM(prompt, agentConfig.systemPrompt);
+        resultText = `**Harper (Support Agent)**: ${generated}`;
+        logPayload = { query, docsFound: memories.length };
+        break;
+      }
+
       default:
         return NextResponse.json({ success: false, error: `Agent action handler not found for: ${agent}` }, { status: 500 });
     }

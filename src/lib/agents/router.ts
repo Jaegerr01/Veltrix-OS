@@ -18,6 +18,7 @@ export function getFallbackAgent(message: string): string {
   if (msg.includes('ryan')) return 'content';
   if (msg.includes('mia')) return 'delivery';
   if (msg.includes('leo')) return 'memory';
+  if (msg.includes('harper')) return 'support';
 
   if (msg.includes('revenue') || msg.includes('earn') || msg.includes('finance') || msg.includes('money') || msg.includes('gap') || msg.includes('target')) return 'revenue';
   if (msg.includes('outreach') || msg.includes('email') || msg.includes('contact') || msg.includes('message')) return 'outreach';
@@ -28,6 +29,7 @@ export function getFallbackAgent(message: string): string {
   if (msg.includes('content') || msg.includes('post') || msg.includes('linkedin') || msg.includes('instagram') || msg.includes('social')) return 'content';
   if (msg.includes('project') || msg.includes('deliver') || msg.includes('checklist') || msg.includes('milestone')) return 'delivery';
   if (msg.includes('memory') || msg.includes('remember') || msg.includes('recall') || msg.includes('notes') || msg.includes('fact')) return 'memory';
+  if (msg.includes('docs') || msg.includes('help') || msg.includes('support') || msg.includes('how to') || msg.includes('faq') || msg.includes('documentation') || msg.includes('question')) return 'support';
   return 'ceo';
 }
 
@@ -48,7 +50,7 @@ export async function classifyRequest(message: string): Promise<string> {
   if (!isGeminiConfigured) return getFallbackAgent(cleanMsg);
 
   const prompt = `Classify the following user message to the correct business agent.
-Choices: "ceo", "revenue", "sales", "leadResearch", "outreach", "followup", "proposal", "content", "delivery", "memory"
+Choices: "ceo", "revenue", "sales", "leadResearch", "outreach", "followup", "proposal", "content", "delivery", "memory", "support"
 User Message: "${cleanMsg}"
 Output ONLY the exact key string.`;
 
@@ -161,6 +163,8 @@ export async function generateSimulatedResponse(
     text += `**Mia (Delivery Agent)**: Baseline roadmap: assets Day 1-2, wireframes Day 3-5, AI training Day 6-8, launch Day 9-12.\n\n**Next**: Marcus, confirm the upfront invoice is paid before kickoff.`;
   } else if (agentKey === 'memory') {
     text += `**Leo (Memory Agent)**: Preferences archived — local service clinics, dental offices, health spas. Tech stack tagged: Next.js + Supabase + Gemini.\n\n**Next**: Keep the Memories tab updated to sharpen context over time.`;
+  } else if (agentKey === 'support') {
+    text += `**Harper (Support Agent)**: Based on our verified documentation, here is what I found:\n\n1. **AI Website + Brand System**: Setup price is $800 - $1,500.\n2. **AI Receptionist**: Setup price is $500 - $1,200, plus a monthly retainer of $250.\n\nLet me know if you need help looking up other specific topics from our Obsidian Brain!`;
   } else {
     text += `**Alex (CEO Agent)**: Current status — $${closedRevenue.toLocaleString()} closed of $${targetRevenue.toLocaleString()} target. Gap: $${revenueGap.toLocaleString()}. ${leadCount} leads in CRM, ${taskList.filter(t => t.status !== 'Completed').length} tasks pending.\n\n`;
     if (leadList.length > 0) {

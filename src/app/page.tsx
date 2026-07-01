@@ -13,7 +13,7 @@ import {
   TrendingUp, Users, Trophy, Clock, Sparkles, CheckSquare,
   ArrowRight, Plus, Cpu, DollarSign, Target, Terminal, Play,
   FileText, RefreshCw, Send, Check,
-  BrainCircuit, FileCode, Search, Briefcase,
+  BrainCircuit, FileCode, Search, Briefcase, HelpCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import CommandDeck from '@/components/CommandDeck';
@@ -35,6 +35,7 @@ const agentIcons: Record<string, React.ReactNode> = {
   content:      <FileCode  size={15} />,
   delivery:     <Briefcase size={15} />,
   memory:       <BrainCircuit size={15} />,
+  support:      <HelpCircle size={15} />,
 };
 
 // ─── Animation presets ────────────────────────────────────────────────────────
