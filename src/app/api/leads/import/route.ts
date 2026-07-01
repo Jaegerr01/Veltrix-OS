@@ -7,6 +7,7 @@ import { checkRateLimit } from '@/lib/auth/rateLimit';
 interface ScrapedLead {
   name: string;
   phone?: string;
+  email?: string;
   website?: string;
   address?: string;
   vertical?: string;
@@ -96,6 +97,7 @@ export async function POST(req: Request) {
       const lead = await db.addLead({
         business_name: businessName,
         phone: item.phone?.trim() || undefined,
+        email: item.email?.trim() || undefined,
         website: item.website?.trim() || undefined,
         industry: item.vertical?.trim() || undefined,
         location: location || undefined,
