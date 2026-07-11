@@ -7,7 +7,12 @@ export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
-  // Allow: valid cron secret OR local dev (no secret set)
+  // SECURITY: fail closed in production. Previously, a missing CRON_SECRET
+  // left this endpoint open to anyone — triggering full pipeline runs (Gemini
+  // spend + outbound emails). Local dev without a secret still works.
+  if (process.env.NODE_ENV === 'production' && !cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 });
+  }
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import {
   LayoutDashboard, Terminal, DollarSign, Users, Send, RefreshCw,
   FileText, Briefcase, FolderGit2, CheckSquare, BrainCircuit,
-  FileCode, ClipboardList, Settings, LogOut, Activity
+  FileCode, ClipboardList, Settings, LogOut, Activity, Radar
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -38,6 +38,7 @@ const NAV_GROUPS = [
       { label: 'Tasks',           icon: CheckSquare,     path: '/tasks'          },
       { label: 'Memory',          icon: BrainCircuit,    path: '/memory'         },
       { label: 'Content',         icon: FileCode,        path: '/content'        },
+      { label: 'Reel Intel',       icon: Radar,           path: '/reel-intel'     },
       { label: 'Reports',         icon: ClipboardList,   path: '/reports'        },
       { label: 'System Status',   icon: Activity,        path: '/health'         },
     ],

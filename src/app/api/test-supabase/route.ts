@@ -5,6 +5,11 @@ import { db } from '@/lib/db';
 import { gemini } from '@/lib/ai/gemini';
 
 export async function GET() {
+  // SECURITY: dev-only diagnostic. In production this endpoint created a user
+  // with a hardcoded password via the service-role key — must never be reachable.
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
   try {
     const email = 'test-vector-operator@veltrix.os';
     const password = 'VeltrixVectorPassword123!';

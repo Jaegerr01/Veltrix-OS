@@ -77,6 +77,7 @@ PAUL is the structured build workflow for this project. Use these commands when 
 | `content` | Ryan | Social media content |
 | `delivery` | Mia | Project delivery manager |
 | `memory` | Leo | Knowledge graph custodian |
+| `reelIntel` | Nova | Content intelligence — analyzes saved Instagram reels |
 
 **CEO Agent delegation syntax:** `[RUN_AGENT: agentKey, {"param": "value"}]`
 
@@ -101,9 +102,39 @@ src/
     Sidebar.tsx                 ← Navigation
     VoiceAssistant.tsx          ← ElevenLabs voice HUD
   lib/
-    agents/agents.ts            ← All 10 agent configs + prompts
+    agents/agents.ts            ← All 11 agent configs + prompts
     agents/router.ts            ← Agent routing logic
     db.ts                       ← Supabase data layer
     gemini.ts                   ← Gemini AI client
     types.ts                    ← All TypeScript interfaces
 ```
+
+### Reel Intel Feature
+
+Paste an Instagram reel URL → Nova (AI agent) analyzes the content → saves structured note to Obsidian vault + Supabase → shows actionable Intel Brief.
+
+```
+src/
+  app/
+    reel-intel/page.tsx          ← Reel Intel page (URL input + Intel Brief display + history)
+    api/reel-intel/route.ts      ← POST: analyze reel (oEmbed + Gemini + Supabase + Obsidian)
+    api/reel-intel/history/      ← GET: past analyzed reels
+```
+
+**Dedup:** Same reel shortcode won't be analyzed twice (409 returned).
+**Obsidian:** Writes to `E:\Vetrix-app\Veltrix\Reel Intel\` when running locally.
+
+---
+
+## Gotchas (from the 2026-07-03 audit)
+
+- `/api/test-supabase` intentionally 404s in production — dev-only diagnostic; don't "fix" it.
+- Autopilot endpoints fail CLOSED: production without `CRON_SECRET` returns 503 by design.
+- Service-role key is server-side only; RLS patched in commit 801c188 — never expose it client-side.
+- Full findings live in AUDIT_REPORT.md — read it before touching auth, autopilot, or the chat function.
+
+## Relationship to other VELTRIX repos
+
+- This is Barry's PERSONAL operator OS (single-user). The multi-tenant customer product
+  is `veltrix-nexus` (separate repo). Website is `Vortex Solutions MK2`. Don't merge their
+  concerns: features for customers → nexus; features for Barry → here.

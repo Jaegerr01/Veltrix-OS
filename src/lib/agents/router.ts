@@ -19,6 +19,7 @@ export function getFallbackAgent(message: string): string {
   if (msg.includes('mia')) return 'delivery';
   if (msg.includes('leo')) return 'memory';
   if (msg.includes('harper')) return 'support';
+  if (msg.includes('nova')) return 'reelIntel';
 
   if (msg.includes('revenue') || msg.includes('earn') || msg.includes('finance') || msg.includes('money') || msg.includes('gap') || msg.includes('target')) return 'revenue';
   if (msg.includes('outreach') || msg.includes('email') || msg.includes('contact') || msg.includes('message')) return 'outreach';
@@ -30,6 +31,7 @@ export function getFallbackAgent(message: string): string {
   if (msg.includes('project') || msg.includes('deliver') || msg.includes('checklist') || msg.includes('milestone')) return 'delivery';
   if (msg.includes('memory') || msg.includes('remember') || msg.includes('recall') || msg.includes('notes') || msg.includes('fact')) return 'memory';
   if (msg.includes('docs') || msg.includes('help') || msg.includes('support') || msg.includes('how to') || msg.includes('faq') || msg.includes('documentation') || msg.includes('question')) return 'support';
+  if (msg.includes('reel') || msg.includes('reel intel') || msg.includes('analyze reel') || msg.includes('saved reel')) return 'reelIntel';
   return 'ceo';
 }
 
@@ -50,7 +52,7 @@ export async function classifyRequest(message: string): Promise<string> {
   if (!isGeminiConfigured) return getFallbackAgent(cleanMsg);
 
   const prompt = `Classify the following user message to the correct business agent.
-Choices: "ceo", "revenue", "sales", "leadResearch", "outreach", "followup", "proposal", "content", "delivery", "memory", "support"
+Choices: "ceo", "revenue", "sales", "leadResearch", "outreach", "followup", "proposal", "content", "delivery", "memory", "support", "reelIntel"
 User Message: "${cleanMsg}"
 Output ONLY the exact key string.`;
 

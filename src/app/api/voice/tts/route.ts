@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireUser } from '@/lib/auth/requireUser';
 
 // VOICEBOX_URL: local dev → http://127.0.0.1:8000
 //               production → https://your-voicebox.railway.app (set in Vercel env vars)
@@ -38,6 +39,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  // Auth: TTS generation costs compute — only signed-in operators may use it.
+  const auth = await requireUser(req);
+  if (auth.response) return auth.response;
+
   try {
     const body = await req.json();
     const text: string = body?.text?.trim();
