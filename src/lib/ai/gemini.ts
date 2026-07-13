@@ -192,8 +192,60 @@ Output ONLY a raw JSON matching this structure:
     }
   },
 
+  // 2b. Research a lead from a live website snapshot
+  async researchLead(
+    lead: Lead,
+    website: { ok: boolean; title?: string; text?: string; error?: string }
+  ): Promise<{ summary: string; observations: string[]; opportunities: string[]; personalization_hooks: string[] }> {
+    const siteSection = website.ok
+      ? `Website title: ${website.title || 'n/a'}\nWebsite content (extracted text):\n${website.text || '(empty page)'}`
+      : `Their website could NOT be loaded (${website.error}). Treat this as a major finding — a broken or missing web presence is exactly what VELTRIX fixes.`;
+
+    const prompt = `
+You are Daniel, the Lead Research Agent. Research this prospect using their REAL website content below.
+
+Business: ${lead.business_name}
+Industry: ${lead.industry || 'Unknown'}
+Location: ${lead.location || 'Unknown'}
+Known pain point: ${lead.pain_point || 'None recorded'}
+Existing notes: ${lead.notes || 'None'}
+
+${siteSection}
+
+Produce a research brief. Observations must be SPECIFIC and verifiable from the content above (services they list, missing booking option, outdated copy, no chatbot, weak CTA, etc.) — never invent facts. Personalization hooks are one-line openers Emma (Outreach Agent) can use verbatim.
+
+Output ONLY raw JSON:
+{
+  "summary": "2-3 sentence overview of the business and its digital posture",
+  "observations": ["3-5 concrete facts from their site"],
+  "opportunities": ["2-4 things VELTRIX can sell them, most valuable first"],
+  "personalization_hooks": ["2-3 one-line openers referencing real details"]
+}
+`;
+    const resText = await generateText(prompt, 'You are Lead Research Agent. You output ONLY JSON.');
+    try {
+      const cleanJson = resText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      return {
+        summary: String(parsed.summary || ''),
+        observations: Array.isArray(parsed.observations) ? parsed.observations.map(String) : [],
+        opportunities: Array.isArray(parsed.opportunities) ? parsed.opportunities.map(String) : [],
+        personalization_hooks: Array.isArray(parsed.personalization_hooks) ? parsed.personalization_hooks.map(String) : [],
+      };
+    } catch {
+      return {
+        summary: website.ok
+          ? `Research parse failed; site was reachable (${website.title || 'no title'}).`
+          : `Website unreachable (${website.error}) — likely needs a full web presence rebuild.`,
+        observations: website.ok ? [] : ['Website could not be loaded during research.'],
+        opportunities: ['AI Website + Brand System'],
+        personalization_hooks: [],
+      };
+    }
+  },
+
   // 3. Generate Outreach Message
-  async generateOutreach(lead: Lead, offerName: string): Promise<string> {
+  async generateOutreach(lead: Lead, offerName: string, researchNotes?: string): Promise<string> {
     const prompt = `
 You are Outreach Agent. Draft a personalized outreach message for this lead:
 Lead Name: ${lead.business_name}
@@ -202,10 +254,10 @@ Website: ${lead.website || 'None'}
 Pain Points: ${lead.pain_point || 'Unknown website/booking leaks'}
 Notes: ${lead.notes || 'None'}
 Target Offer: ${offerName}
-
+${researchNotes ? `\nResearch brief from Daniel (Lead Research Agent) — reference these REAL findings:\n${researchNotes}\n` : ''}
 Follow these strict rules:
-1. Personalized opening referencing their industry/name.
-2. One specific observation (e.g. mobile speed, lack of booking chat).
+1. Personalized opening referencing their industry/name${researchNotes ? ' — use a personalization hook from the research brief if one fits' : ''}.
+2. One specific observation${researchNotes ? ' taken from the research brief (real, verifiable)' : ' (e.g. mobile speed, lack of booking chat)'}.
 3. One clear pain point solved.
 4. Soft CTA (e.g. "Can I send you a 2-minute video overview?").
 5. Keep it short (3-4 sentences, no long blocks).

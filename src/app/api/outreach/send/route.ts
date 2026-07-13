@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
-import { getResendClient, FROM_EMAIL } from '@/lib/email/resend';
+import { sendOutreachEmail } from '@/lib/email/send';
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
@@ -42,29 +42,23 @@ export async function POST(req: Request) {
     }
 
     let emailDelivered = false;
-    let resendId: string | undefined;
+    let deliveryDetail = '';
 
-    // Attempt real email delivery when channel is Email, lead has email, and Resend is configured
+    // Human-approved send → unified sender (Gmail first, Resend fallback).
+    // autonomous:false because a person explicitly clicked Approve — the
+    // daily cap / blacklist guardrails are for unsupervised sends.
     if (message.channel === 'Email' && lead.email) {
-      const resend = getResendClient();
-      if (resend) {
-        try {
-          const { data, error } = await resend.emails.send({
-            from: FROM_EMAIL,
-            to: [lead.email],
-            subject: `A quick note for ${lead.business_name}`,
-            text: message.message,
-          });
-          if (error) {
-            console.warn('Resend delivery error:', error);
-          } else {
-            emailDelivered = true;
-            resendId = data?.id;
-          }
-        } catch (sendErr) {
-          console.warn('Resend threw during send:', sendErr);
-        }
-      }
+      const result = await sendOutreachEmail({
+        to: lead.email,
+        subject: `A quick note for ${lead.business_name}`,
+        text: message.message,
+        autonomous: false,
+      });
+      emailDelivered = result.delivered;
+      deliveryDetail = result.delivered
+        ? `Delivered via ${result.provider}.`
+        : result.reason || 'Delivery failed.';
+      if (!result.delivered) console.warn('Outreach delivery failed:', result.reason);
     }
 
     const now = new Date().toISOString();
@@ -92,8 +86,8 @@ export async function POST(req: Request) {
         await db.updateTask(task.id, {
           status: 'Completed',
           result: emailDelivered
-            ? `Email delivered via Resend (id: ${resendId}).`
-            : 'Marked sent in CRM. Email not dispatched (no key or no lead email).',
+            ? `Email delivered. ${deliveryDetail}`
+            : `Marked sent in CRM. ${deliveryDetail || 'Email not dispatched (no lead email).'}`,
         });
       }
     } catch (taskErr) {
@@ -103,11 +97,11 @@ export async function POST(req: Request) {
     // Log action
     await db.logAgentAction(
       'Outreach Agent',
-      emailDelivered ? 'Send Email via Resend' : 'Approve & Mark Sent (no email dispatch)',
+      emailDelivered ? 'Send Email' : 'Approve & Mark Sent (no email dispatch)',
       `messageId=${messageId}, leadId=${lead.id}, channel=${message.channel}`,
       emailDelivered
-        ? `Email sent to ${lead.email} (resend id: ${resendId})`
-        : `Marked sent. Channel: ${message.channel}. Email dispatch skipped.`,
+        ? `Email sent to ${lead.email}. ${deliveryDetail}`
+        : `Marked sent. Channel: ${message.channel}. ${deliveryDetail || 'Email dispatch skipped.'}`,
       'Success'
     );
 
@@ -116,11 +110,11 @@ export async function POST(req: Request) {
       emailDelivered,
       channel: message.channel,
       note: emailDelivered
-        ? `Email dispatched to ${lead.email}.`
+        ? `Email dispatched to ${lead.email}. ${deliveryDetail}`
         : message.channel === 'Email' && !lead.email
         ? 'Lead has no email address on file — marked sent in CRM only.'
-        : message.channel === 'Email' && !process.env.RESEND_API_KEY
-        ? 'RESEND_API_KEY not configured — marked sent in CRM only.'
+        : message.channel === 'Email'
+        ? `Marked sent in CRM only — ${deliveryDetail || 'no email provider configured (set GMAIL_USER + GMAIL_APP_PASSWORD in .env.local)'}.`
         : `Channel ${message.channel} is manual — send via the platform and mark done here.`,
     });
   } catch (error: any) {

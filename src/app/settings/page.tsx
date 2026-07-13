@@ -1,556 +1,345 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { db, isSupabaseConfigured } from '@/lib/db';
-import { authFetch } from '@/lib/authFetch';
-import { isGeminiConfigured } from '@/lib/gemini';
-import { BusinessProfile } from '@/lib/types';
-import LoadingState from '@/components/LoadingState';
-import { Settings, Shield, Cpu, Key, HelpCircle, Save, Database, Trash2, Sparkles, CheckSquare, Volume2 } from 'lucide-react';
+import React from 'react';
+import Image from 'next/image';
+import { Button, Input, Switch, VxIcon, VeltrixSpinner, useAppearance } from '@/components/ds';
+import { db } from '@/lib/db';
+import { useToast } from '@/components/Toast';
+
+const settingsCard: React.CSSProperties = {
+  padding: 'var(--space-6)',
+  borderRadius: 'var(--radius-xl)',
+  background: 'var(--grad-panel)',
+  border: '1px solid var(--border-default)',
+  boxShadow: 'var(--shadow-lg), var(--sheen-top)',
+};
+
+const PRESETS: Record<string, { name: string; swatch: string; accent: string }> = {
+  violet: { name: 'Violet', swatch: 'linear-gradient(135deg,#8B5CF6,#4F6BFF)', accent: '#8B5CF6' },
+  cyan: { name: 'Cyan', swatch: 'linear-gradient(135deg,#22D3EE,#4F6BFF)', accent: '#22D3EE' },
+  emerald: { name: 'Emerald', swatch: 'linear-gradient(135deg,#2EE6A0,#22D3EE)', accent: '#2EE6A0' },
+  magenta: { name: 'Magenta', swatch: 'linear-gradient(135deg,#D946EF,#8B5CF6)', accent: '#D946EF' },
+};
+
+const PREF_DEFS = [
+  { key: 'desktop', name: 'Desktop Notifications', desc: 'Alerts for agent events & deals' },
+  { key: 'voice', name: 'Voice Commands', desc: 'CEO agent listens for wake word' },
+  { key: 'autopilot', name: 'Full Autopilot', desc: 'Agents act without approval' },
+  { key: 'weekly', name: 'Weekly Reports', desc: 'Emailed performance summary' },
+] as const;
 
 export default function SettingsPage() {
-  const [profile, setProfile] = useState<BusinessProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    theme,
+    accentColor,
+    backgroundColor,
+    avatar,
+    setTheme,
+    setAccentColor,
+    setBackgroundColor,
+    setAvatar,
+  } = useAppearance();
 
-  // Form states
-  const [businessName, setBusinessName] = useState('');
-  const [targetRevenue, setTargetRevenue] = useState('');
-  const [description, setDescription] = useState('');
-  const [primaryOffer, setPrimaryOffer] = useState('');
-  const [secondaryOffer, setSecondaryOffer] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
 
-  // ARIA Voice (Voicebox) status
-  const [ariaStatus, setAriaStatus] = useState<{ ok: boolean; kokoro?: { downloaded: boolean; loaded: boolean }; profileId?: string | null; error?: string } | null>(null);
-  const [ariaChecking, setAriaChecking] = useState(false);
-
-  // Selected permission
-  const [permission, setPermission] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('veltrix_permission') || 'level4';
-    }
-    return 'level4';
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [displayName, setDisplayName] = React.useState('Operator');
+  const [workspaceName, setWorkspaceName] = React.useState('Veltrix HQ');
+  const [prefs, setPrefs] = React.useState<Record<string, boolean>>({
+    desktop: true,
+    voice: true,
+    autopilot: false,
+    weekly: true,
   });
 
-  // Database stats
-  const [leadsCount, setLeadsCount] = useState(0);
-  const [revenueCount, setRevenueCount] = useState(0);
-  const [tasksCount, setTasksCount] = useState(0);
-  const [memoriesCount, setMemoriesCount] = useState(0);
-  const [reportsCount, setReportsCount] = useState(0);
-  const [outreachCount, setOutreachCount] = useState(0);
-  const [resetting, setResetting] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  async function loadProfile() {
-    try {
-      const bp = await db.getBusinessProfile();
-      setProfile(bp);
-      setBusinessName(bp.business_name);
-      setTargetRevenue(bp.target_monthly_revenue.toString());
-      setDescription(bp.description);
-      setPrimaryOffer(bp.primary_offer);
-      setSecondaryOffer(bp.secondary_offer);
+  // Load configuration on mount
+  React.useEffect(() => {
+    async function loadSettings() {
+      try {
+        const profile = await db.getBusinessProfile();
+        if (profile) {
+          setWorkspaceName(profile.business_name || 'Veltrix HQ');
+          setPrefs((prev) => ({
+            ...prev,
+            autopilot: !!profile.autopilot,
+          }));
+        }
+      } catch (err) {
+        console.warn('Failed to load profile settings:', err);
+      }
 
-      const lds = await db.getLeads();
-      setLeadsCount(lds.length);
+      const savedName = localStorage.getItem('vx_display_name') || 'Operator';
+      setDisplayName(savedName);
 
-      const rev = await db.getRevenue();
-      setRevenueCount(rev.length);
+      const savedPrefs = localStorage.getItem('vx_preferences');
+      if (savedPrefs) {
+        try {
+          setPrefs((prev) => ({
+            ...prev,
+            ...JSON.parse(savedPrefs),
+          }));
+        } catch {}
+      }
 
-      const tks = await db.getTasks();
-      setTasksCount(tks.length);
-
-      const mems = await db.getMemories();
-      setMemoriesCount(mems.length);
-
-      const rps = await db.getDailyReports();
-      setReportsCount(rps.length);
-
-      const out = await db.getOutreachMessages();
-      setOutreachCount(out.length);
-    } catch (e) {
-      console.warn('Failed to load settings data:', e);
-    } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadProfile();
-    // Clear stale ElevenLabs localStorage keys — ARIA now uses Voicebox/Kokoro exclusively
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('elevenlabs_enabled');
-      localStorage.removeItem('elevenlabs_api_key');
-      localStorage.removeItem('elevenlabs_voice_id');
-      localStorage.removeItem('elevenlabs_agent_id');
-    }
-    // Check ARIA Voice status on load
-    checkAriaStatus();
+    loadSettings();
   }, []);
 
-  const checkAriaStatus = async () => {
-    setAriaChecking(true);
-    try {
-      const res = await authFetch('/api/voice/tts', { signal: AbortSignal.timeout(6000) });
-      const data = await res.json();
-      setAriaStatus(data);
-    } catch {
-      setAriaStatus({ ok: false, error: 'Could not reach Voicebox. Make sure it is running.' });
-    } finally {
-      setAriaChecking(false);
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Image too large', 'Please select an image smaller than 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatar(reader.result as string);
+        toast.success('Photo Uploaded', 'Avatar preview updated. Click Save to persist.');
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handlePermissionChange = (level: string) => {
-    setPermission(level);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('veltrix_permission', level);
-    }
-  };
-
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!businessName || submitting) return;
-
-    setSubmitting(true);
+  const handleSaveSettings = async () => {
+    setSaving(true);
     try {
+      // Persist workspace name and autopilot direct to Supabase
       await db.updateBusinessProfile({
-        business_name: businessName,
-        target_monthly_revenue: Number(targetRevenue) || 6000,
-        description,
-        primary_offer: primaryOffer,
-        secondary_offer: secondaryOffer
+        business_name: workspaceName,
+        autopilot: prefs.autopilot,
       });
-      alert('Profile details updated successfully!');
-      await loadProfile();
-    } catch (err) {
-      console.warn('Failed to update business profile:', err);
+
+      // Persist displayName and prefs to localStorage
+      localStorage.setItem('vx_display_name', displayName);
+      localStorage.setItem('vx_preferences', JSON.stringify(prefs));
+
+      toast.success('Settings Saved', 'System profile and visual preferences updated successfully.');
+    } catch (err: any) {
+      toast.error('Save Failed', err.message || 'Could not save profile settings.');
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   };
 
-  const handleReset = async (mode: 'clean' | 'demo') => {
-    const confirmMsg = mode === 'clean'
-      ? 'Are you sure you want to clear all leads, tasks, transactions, and metrics from the database? This is recommended for production deployment.'
-      : 'Load demo data? This will overwrite your current workspace content with simulation leads, earnings history, and to-do lists.';
-      
-    if (!confirm(confirmMsg)) return;
-
-    setResetting(true);
-    try {
-      await db.resetDatabase(mode);
-      alert(mode === 'clean' ? 'Database reset to clean slate!' : 'Demo data loaded successfully!');
-      await loadProfile();
-    } catch (err) {
-      console.warn('Failed to reset database:', err);
-      alert('Failed to reset database.');
-    } finally {
-      setResetting(false);
-    }
-  };
-
-  const getPermissionLabel = (lvl: string) => {
-    switch (lvl) {
-      case 'level1': return 'Level 1: Look & Analyze';
-      case 'level2': return 'Level 2: Local Drafts';
-      case 'level3': return 'Level 3: Plan & Organize';
-      case 'level4': return 'Level 4: Review Before Send';
-      default: return 'Level 4: Review Before Send';
+  const triggerDecommission = async () => {
+    const confirm = await toast.confirm(
+      'Decommission Workspace?',
+      'This will permanently shut down all active agents and archive telemetry. This action is irreversible.'
+    );
+    if (confirm) {
+      toast.warning('Initiating shutdown...', 'Command OS workspace decommissioned.');
     }
   };
 
   if (loading) {
-    return <LoadingState message="LOADING SETTINGS..." />;
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <VeltrixSpinner message="Accessing secure core profile..." />
+      </div>
+    );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 font-sans">
-      {/* Left Column: Profile config */}
-      <div className="lg:col-span-8 space-y-6">
-        <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30">
-          <div className="flex items-center space-x-2 text-neon-cyan mb-6">
-            <Settings size={18} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-              Business Goals & Profile
-            </h3>
-          </div>
-
-          <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Company name *</label>
-                <input
-                  type="text"
-                  required
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Target Monthly Earnings (in Dollars) *</label>
-                <input
-                  type="number"
-                  required
-                  value={targetRevenue}
-                  onChange={(e) => setTargetRevenue(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Primary Veltrix Service / Offer</label>
-                <input
-                  type="text"
-                  value={primaryOffer}
-                  onChange={(e) => setPrimaryOffer(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Secondary Veltrix Service / Offer</label>
-                <input
-                  type="text"
-                  value={secondaryOffer}
-                  onChange={(e) => setSecondaryOffer(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">Business Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="w-full bg-white/5 border border-white/10 rounded p-3 text-foreground focus:outline-none focus:border-neon-cyan transition"
-              />
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-neon-cyan hover:bg-neon-cyan/80 text-black rounded font-mono font-bold flex items-center space-x-1.5 transition cursor-pointer"
-              >
-                <Save size={14} />
-                <span>{submitting ? 'SAVING...' : 'SAVE PROFILE & GOALS'}</span>
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Security / Permissions Gate */}
-        <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 space-y-4">
-          <div className="flex items-center space-x-2 text-neon-purple">
-            <Shield size={18} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-              AI Safety Gate & Approvals
-            </h3>
-          </div>
-
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Choose how much freedom the AI has when drafting and sending emails. (Level 4 is recommended for safety, so you can review emails before they are sent).
-          </p>
-
-          <div className="space-y-3 text-xs">
-            {/* Level 1 */}
-            <label className="flex items-start space-x-3 p-3 rounded bg-white/2 border border-white/5 cursor-pointer">
-              <input
-                type="radio"
-                name="perms"
-                value="level1"
-                checked={permission === 'level1'}
-                onChange={() => handlePermissionChange('level1')}
-                className="mt-0.5 accent-neon-purple"
-              />
-              <div>
-                <span className="font-bold text-foreground block">Level 1: Look & Analyze Only (No Drafts)</span>
-                <span className="text-muted-foreground text-[11px]">AI can view your checklist and leads but will not write any messages.</span>
-              </div>
-            </label>
-
-            {/* Level 2 */}
-            <label className="flex items-start space-x-3 p-3 rounded bg-white/2 border border-white/5 cursor-pointer">
-              <input
-                type="radio"
-                name="perms"
-                value="level2"
-                checked={permission === 'level2'}
-                onChange={() => handlePermissionChange('level2')}
-                className="mt-0.5 accent-neon-purple"
-              />
-              <div>
-                <span className="font-bold text-foreground block">Level 2: Local Drafts Only</span>
-                <span className="text-muted-foreground text-[11px]">AI can write test messages in the browser but won't save them to the database.</span>
-              </div>
-            </label>
-
-            {/* Level 3 */}
-            <label className="flex items-start space-x-3 p-3 rounded bg-white/2 border border-white/5 cursor-pointer">
-              <input
-                type="radio"
-                name="perms"
-                value="level3"
-                checked={permission === 'level3'}
-                onChange={() => handlePermissionChange('level3')}
-                className="mt-0.5 accent-neon-purple"
-              />
-              <div>
-                <span className="font-bold text-foreground block">Level 3: Plan & Organize (Save Tasks)</span>
-                <span className="text-muted-foreground text-[11px]">AI can create to-do checklists and update your client pipeline stages.</span>
-              </div>
-            </label>
-
-            {/* Level 4 */}
-            <label className="flex items-start space-x-3 p-3 rounded bg-neon-purple/5 border border-neon-purple/20 cursor-pointer">
-              <input
-                type="radio"
-                name="perms"
-                value="level4"
-                checked={permission === 'level4'}
-                onChange={() => handlePermissionChange('level4')}
-                className="mt-0.5 accent-neon-purple"
-              />
-              <div>
-                <span className="font-bold text-neon-purple block">Level 4: Review Before Sending (Default)</span>
-                <span className="text-muted-foreground text-[11px]">AI writes emails and proposals but blocks them in the Outbox until you click Send.</span>
-              </div>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Column: Key Diagnostic Statuses */}
-      <div className="lg:col-span-4 space-y-6">
-        {/* Setup Checklist */}
-        <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 space-y-4">
-          <div className="flex items-center space-x-2 text-neon-purple">
-            <CheckSquare size={18} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-              Setup & Seeding Checklist
-            </h3>
-          </div>
-
-          <div className="space-y-2 text-xs font-sans">
-            <div className="flex items-center space-x-2.5 p-2 rounded bg-white/2 border border-white/5">
-              <input type="checkbox" readOnly checked={isGeminiConfigured} className="accent-neon-purple" />
-              <span className={isGeminiConfigured ? 'line-through text-muted-foreground' : 'text-foreground'}>
-                1. Add Gemini API Key
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2.5 p-2 rounded bg-white/2 border border-white/5">
-              <input type="checkbox" readOnly checked={isSupabaseConfigured} className="accent-neon-purple" />
-              <span className={isSupabaseConfigured ? 'line-through text-muted-foreground' : 'text-foreground'}>
-                2. Connect Supabase Database
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2.5 p-2 rounded bg-white/2 border border-white/5">
-              <input type="checkbox" readOnly checked={!!profile} className="accent-neon-purple" />
-              <span className={profile ? 'line-through text-muted-foreground' : 'text-foreground'}>
-                3. Create Business Profile
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2.5 p-2 rounded bg-white/2 border border-white/5">
-              <input type="checkbox" readOnly checked={leadsCount > 0} className="accent-neon-purple" />
-              <span className={leadsCount > 0 ? 'line-through text-muted-foreground' : 'text-foreground'}>
-                4. Feed your first CRM Lead
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2.5 p-2 rounded bg-white/2 border border-white/5">
-              <input type="checkbox" readOnly checked={reportsCount > 0} className="accent-neon-purple" />
-              <span className={reportsCount > 0 ? 'line-through text-muted-foreground' : 'text-foreground'}>
-                5. Generate first Daily Summary
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2.5 p-2 rounded bg-white/2 border border-white/5">
-              <input type="checkbox" readOnly checked={outreachCount > 0} className="accent-neon-purple" />
-              <span className={outreachCount > 0 ? 'line-through text-muted-foreground' : 'text-foreground'}>
-                6. Generate first Outreach Draft
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ARIA Voice — Voicebox/Kokoro Status */}
-        <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-neon-cyan">
-              <Volume2 size={18} />
-              <h3 className="font-mono text-sm font-bold uppercase tracking-wider">ARIA Voice — Voicebox / Kokoro</h3>
-            </div>
-            <button
-              onClick={checkAriaStatus}
-              disabled={ariaChecking}
-              className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-neon-cyan/40 rounded text-[10px] font-mono font-bold text-muted-foreground hover:text-neon-cyan transition cursor-pointer disabled:opacity-40"
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
+      {/* Dynamic page card */}
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)', alignItems: 'stretch', maxWidth: 1200 }}>
+        {/* Operator Profile */}
+        <div style={settingsCard} className="vx-glass flex flex-col gap-6">
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Operator Profile</div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)' }}>
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                position: 'relative',
+                width: 88,
+                height: 88,
+                flex: '0 0 auto',
+                borderRadius: '50%',
+                boxShadow: 'var(--glow-violet)',
+                border: '2px solid var(--border-default)',
+                cursor: 'pointer',
+                overflow: 'hidden'
+              }}
             >
-              {ariaChecking ? 'CHECKING...' : 'CHECK STATUS'}
-            </button>
+              {avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'var(--ink-600)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', alignContent: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-display)', fontSize: 11 }}>Photo</div>
+              )}
+              <span style={{ position: 'absolute', right: 0, bottom: 0, width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', background: 'var(--grad-brand)', border: '2px solid var(--ink-800)', boxShadow: 'var(--glow-violet)' }}>
+                <VxIcon name="camera" size={12} color="#fff" />
+              </span>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAvatarChange}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+            </div>
+            
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, color: 'var(--text-strong)' }}>{displayName}</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>admin@veltrix.ai</div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 8 }}>Drop or click the avatar to change your photo.</div>
+            </div>
           </div>
 
-          <div className="space-y-2 text-xs">
-            {ariaStatus ? (
-              <>
-                <div className={`flex items-center justify-between p-2.5 rounded border ${ariaStatus.ok ? 'border-neon-cyan/20 bg-neon-cyan/5' : 'border-neon-pink/20 bg-neon-pink/5'}`}>
-                  <span className="font-semibold text-foreground">Voicebox Server</span>
-                  <span className={`font-mono font-bold text-[10px] ${ariaStatus.ok ? 'text-neon-cyan' : 'text-neon-pink'}`}>
-                    {ariaStatus.ok ? 'ONLINE' : 'OFFLINE'}
-                  </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <Input
+              label="Display Name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              size="md"
+              style={{ width: '100%' }}
+            />
+            <Input
+              label="Workspace Title"
+              value={workspaceName}
+              onChange={(e) => setWorkspaceName(e.target.value)}
+              size="md"
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+
+        {/* Preferences */}
+        <div style={settingsCard} className="vx-glass flex flex-col justify-between gap-6">
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 'var(--space-4)' }}>Preferences</div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {PREF_DEFS.map((p, i) => (
+                <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '14px 0', borderBottom: i < PREF_DEFS.length - 1 ? '1px solid var(--hairline)' : 'none' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600, color: 'var(--text-strong)' }}>{p.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{p.desc}</div>
+                  </div>
+                  <Switch checked={prefs[p.key]} onChange={(v) => setPrefs((s) => ({ ...s, [p.key]: v }))} />
                 </div>
-                {ariaStatus.kokoro && (
-                  <div className={`flex items-center justify-between p-2.5 rounded border ${ariaStatus.kokoro.loaded ? 'border-neon-cyan/20 bg-neon-cyan/5' : 'border-yellow-500/20 bg-yellow-500/5'}`}>
-                    <span className="font-semibold text-foreground">Kokoro 82M Model</span>
-                    <span className={`font-mono font-bold text-[10px] ${ariaStatus.kokoro.loaded ? 'text-neon-cyan' : 'text-yellow-400'}`}>
-                      {ariaStatus.kokoro.loaded ? 'LOADED' : ariaStatus.kokoro.downloaded ? 'DOWNLOADED' : 'NOT DOWNLOADED'}
-                    </span>
-                  </div>
-                )}
-                {ariaStatus.profileId && (
-                  <div className="flex items-center justify-between p-2.5 rounded border border-white/5 bg-white/2">
-                    <span className="text-muted-foreground">Voice Profile</span>
-                    <span className="font-mono text-[9px] text-neon-purple truncate max-w-[180px]">{ariaStatus.profileId}</span>
-                  </div>
-                )}
-                {ariaStatus.error && (
-                  <p className="text-neon-pink text-[10px] font-mono">{ariaStatus.error}</p>
-                )}
-              </>
-            ) : (
-              <p className="text-muted-foreground/60 text-[10px] font-mono">Click &quot;Check Status&quot; to verify ARIA voice is operational.</p>
-            )}
-
-            <div className="pt-2 border-t border-white/5 text-[9px] text-muted-foreground/60 leading-relaxed space-y-1 font-mono">
-              <p>ARIA uses <span className="text-neon-cyan">Voicebox + Kokoro 82M</span> for natural local TTS.</p>
-              <p>Local: start <span className="text-white">voicebox-server.exe</span> before using voice features.</p>
-              <p>Production: set <span className="text-white">VOICEBOX_URL</span> to your Railway deployment URL in Vercel.</p>
+              ))}
             </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.22)' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600, color: 'var(--danger-400)' }}>Decommission Workspace</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Permanently shut down all agents.</div>
+            </div>
+            <Button variant="danger" size="sm" onClick={triggerDecommission}>Decommission</Button>
           </div>
         </div>
 
-        {/* AI & Database Connections */}
-        <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 space-y-4">
-          <div className="flex items-center space-x-2 text-neon-cyan">
-            <Key size={18} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-              Connections Status
-            </h3>
+        {/* Appearance & Theme (Accent Palette & Background Color) */}
+        <div style={{ ...settingsCard, gridColumn: '1 / -1' }} className="vx-glass flex flex-col gap-6">
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Appearance &amp; Theme</div>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Customize the visual command environment</span>
           </div>
 
-          <div className="space-y-4 text-xs">
-            {/* Gemini Status */}
-            <div className="flex justify-between items-center py-2 border-b border-white/5">
-              <div>
-                <span className="font-semibold block text-foreground">Gemini AI Connection</span>
-                <span className="text-[10px] text-muted-foreground font-mono">GEMINI_API_KEY</span>
-              </div>
-              <span className={`px-2 py-0.5 rounded font-mono text-[9px] ${isGeminiConfigured ? 'bg-neon-green/10 text-neon-green border border-neon-green/20' : 'bg-neon-orange/10 text-neon-orange border border-neon-orange/20'}`}>
-                {isGeminiConfigured ? 'CONNECTED' : 'LOCAL SIMULATION'}
-              </span>
-            </div>
-
-            {/* Supabase Status */}
-            <div className="flex justify-between items-center py-2 border-b border-white/5">
-              <div>
-                <span className="font-semibold block text-foreground">Supabase Database</span>
-                <span className="text-[10px] text-muted-foreground font-mono">SUPABASE_ANON_KEY</span>
-              </div>
-              <span className={`px-2 py-0.5 rounded font-mono text-[9px] ${isSupabaseConfigured ? 'bg-neon-green/10 text-neon-green border border-neon-green/20' : 'bg-neon-orange/10 text-neon-orange border border-neon-orange/20'}`}>
-                {isSupabaseConfigured ? 'CONNECTED' : 'LOCAL STORAGE'}
-              </span>
-            </div>
-
-            {/* Profile Status */}
-            <div className="flex justify-between items-center py-2 border-b border-white/5">
-              <div>
-                <span className="font-semibold block text-foreground">Business Profile Status</span>
-                <span className="text-[10px] text-muted-foreground font-mono">VELTRIX CORE DATA</span>
-              </div>
-              <span className={`px-2 py-0.5 rounded font-mono text-[9px] ${profile ? 'bg-neon-green/10 text-neon-green border border-neon-green/20' : 'bg-neon-orange/10 text-neon-orange border border-neon-orange/20'}`}>
-                {profile ? 'INITIALIZED' : 'MISSING'}
-              </span>
-            </div>
-
-            {/* Current permission level */}
-            <div className="flex justify-between items-center py-2">
-              <div>
-                <span className="font-semibold block text-foreground">Auth Safety Level</span>
-                <span className="text-[10px] text-muted-foreground font-mono">VELTRIX_GATE</span>
-              </div>
-              <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-[9px] text-foreground uppercase">
-                {getPermissionLabel(permission).replace('Level ', 'LVL ')}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Workspace Data Management */}
-        <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 space-y-4">
-          <div className="flex items-center space-x-2 text-neon-cyan">
-            <Database size={18} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-              Workspace Data Management
-            </h3>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div className="p-3 bg-white/2 rounded border border-white/5 space-y-2">
-              <span className="font-mono text-[10px] text-muted-foreground uppercase block font-bold tracking-wider">
-                Current Data Slate
-              </span>
-              <div className="flex justify-between text-foreground">
-                <span>Leads Count:</span>
-                <span className="font-mono font-bold text-neon-cyan">{leadsCount}</span>
-              </div>
-              <div className="flex justify-between text-foreground">
-                <span>Invoiced Receipts:</span>
-                <span className="font-mono font-bold text-neon-green">{revenueCount}</span>
-              </div>
-              <div className="flex justify-between text-foreground">
-                <span>Task Items:</span>
-                <span className="font-mono font-bold text-neon-purple">{tasksCount}</span>
-              </div>
-              <div className="flex justify-between text-foreground">
-                <span>Saved Notes:</span>
-                <span className="font-mono font-bold text-foreground">{memoriesCount}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 'var(--space-8)', alignItems: 'start' }}>
+            {/* Presets */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>Accent Presets</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-3)' }}>
+                {Object.keys(PRESETS).map((k) => {
+                  const t = PRESETS[k];
+                  const active = theme === k;
+                  return (
+                    <div
+                      key={k}
+                      onClick={() => setTheme(k)}
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        cursor: 'pointer',
+                        padding: '12px',
+                        borderRadius: 'var(--radius-md)',
+                        background: active ? 'rgba(139,92,246,0.06)' : 'rgba(255,255,255,0.01)',
+                        border: `1px solid ${active ? 'var(--brand)' : 'var(--border-default)'}`,
+                        boxShadow: active ? `0 0 16px var(--brand)33` : 'none',
+                        transition: 'all var(--dur-base) var(--ease-out)',
+                      }}
+                    >
+                      <span style={{ height: 28, borderRadius: 'var(--radius-xs)', background: t.swatch, boxShadow: active ? `0 0 12px ${t.accent}44` : 'none' }} />
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, color: 'var(--text-strong)', textAlign: 'center' }}>{t.name}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            <p className="text-[11px] text-muted-foreground leading-normal">
-              Prepare this workspace for deployment by clearing all test data, or reload demo details to experiment with the interface.
-            </p>
+            {/* Custom Accent Color Wheel */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>Custom Accent</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-default)' }}>
+                <input
+                  type="color"
+                  value={accentColor}
+                  onChange={(e) => setAccentColor(e.target.value)}
+                  style={{
+                    width: 42,
+                    height: 42,
+                    padding: 0,
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                  }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Hex Color</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--text-strong)' }}>{accentColor.toUpperCase()}</span>
+                </div>
+              </div>
+            </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => handleReset('clean')}
-                disabled={resetting}
-                className="py-2 bg-neon-pink/10 hover:bg-neon-pink/20 text-neon-pink border border-neon-pink/30 hover:border-neon-pink/60 rounded font-mono font-bold text-[10px] uppercase flex items-center justify-center space-x-1 transition cursor-pointer"
-              >
-                <Trash2 size={12} />
-                <span>{resetting ? 'CLEARING...' : 'CLEAN SLATE'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleReset('demo')}
-                disabled={resetting}
-                className="py-2 bg-neon-cyan/15 hover:bg-neon-cyan/25 text-neon-cyan border border-neon-cyan/30 hover:border-neon-cyan/60 rounded font-mono font-bold text-[10px] uppercase flex items-center justify-center space-x-1 transition cursor-pointer"
-              >
-                <Sparkles size={12} />
-                <span>{resetting ? 'LOADING...' : 'LOAD DEMO'}</span>
-              </button>
+            {/* Custom Background Color Picker */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>Background Canvas</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-default)' }}>
+                <input
+                  type="color"
+                  value={backgroundColor}
+                  onChange={(e) => setBackgroundColor(e.target.value)}
+                  style={{
+                    width: 42,
+                    height: 42,
+                    padding: 0,
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                  }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Canvas Hex</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--text-strong)' }}>{backgroundColor.toUpperCase()}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Save Settings footer bar */}
+      <div className="flex justify-end p-4 rounded-xl" style={{ borderTop: '1px solid var(--border-default)' }}>
+        <Button
+          onClick={handleSaveSettings}
+          disabled={saving}
+          size="lg"
+          leadingIcon={saving ? <VxIcon name="refresh" size={16} style={{ animation: 'vxRingSpin 2s linear infinite' }} /> : <VxIcon name="check" size={16} />}
+        >
+          {saving ? 'SAVING CONFIGURATION...' : 'SAVE SETTINGS'}
+        </Button>
       </div>
     </div>
   );

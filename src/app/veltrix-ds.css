@@ -1,0 +1,305 @@
+/* ============================================================
+   VELTRIX COMMAND OS — DESIGN SYSTEM LAYER
+   Ported from the Claude Design handoff bundle:
+   tokens (colors / effects / spacing / typography) + the in-page
+   overrides that the "VELTRIX Command OS.dc.html" prototype applied
+   on top (darker enterprise ink surfaces, glassmorphic translucent
+   panels, Bricolage Grotesque + Plus Jakarta Sans + JetBrains Mono).
+   Loaded globally so every route inherits the command-center look.
+   (Webfonts are imported from globals.css so the @import stays ahead of
+   Tailwind's generated rules.)
+   ============================================================ */
+
+:root {
+  /* ---- Core neutrals — deepened toward void (in-page override) ---- */
+  --void:        #050310;
+  --ink-900:     #060410;  /* app background */
+  --ink-800:     #0A0718;  /* base surface */
+  --ink-700:     #0F0A22;  /* raised surface / panel */
+  --ink-600:     #150E30;  /* card / elevated */
+  --ink-500:     #271D54;  /* hover surface */
+  --ink-400:     #392B6E;  /* border-strong */
+  --ink-300:     #4A3A86;
+
+  --white:       #FFFFFF;
+  --mist-100:    #EDEAFB;
+  --mist-200:    #C9C2E8;
+  --mist-300:    #9A91C2;
+  --mist-400:    #6E6794;
+  --mist-500:    #4A4470;
+
+  /* ---- Brand violet (primary) ---- */
+  --violet-50:   #F1ECFF;
+  --violet-100:  #E0D4FF;
+  --violet-200:  #C3A8FF;
+  --violet-300:  #A782FF;
+  --violet-400:  #8B5CF6;
+  --violet-500:  #7C3AED;
+  --violet-600:  #6D28D9;
+  --violet-700:  #5B21B6;
+
+  /* ---- Electric blue (secondary) ---- */
+  --blue-300:    #7B93FF;
+  --blue-400:    #4F6BFF;
+  --blue-500:    #3B5BFF;
+  --blue-600:    #2541F0;
+  --blue-700:    #1A2FC4;
+
+  /* ---- Cyan accent ---- */
+  --cyan-300:    #67E8F9;
+  --cyan-400:    #22D3EE;
+  --cyan-500:    #06B6D4;
+
+  /* ---- Magenta accent ---- */
+  --magenta-300: #F0ABFC;
+  --magenta-400: #D946EF;
+  --magenta-500: #C026D3;
+
+  /* ---- Signal: neon green ("Active"/online) ---- */
+  --signal-300:  #6EF7C0;
+  --signal-400:  #2EE6A0;
+  --signal-500:  #14C98A;
+
+  /* ---- Status ---- */
+  --warn-400:    #F5B544;
+  --warn-500:    #E89C1C;
+  --danger-300:  #FF8099;
+  --danger-400:  #FF4D6D;
+  --danger-500:  #E5294F;
+
+  /* ---- Semantic surfaces ---- */
+  --bg-app:          var(--ink-900);
+  --bg-base:         var(--ink-800);
+  --surface-panel:   var(--ink-700);
+  --surface-card:    var(--ink-600);
+  --surface-hover:   var(--ink-500);
+  --surface-glass:   rgba(28, 21, 64, 0.55);
+  --surface-overlay: rgba(5, 3, 16, 0.72);
+
+  /* ---- Text ---- */
+  --text-strong:     var(--white);
+  --text-body:       var(--mist-100);
+  --text-muted:      var(--mist-300);
+  --text-dim:        var(--mist-400);
+  --text-disabled:   var(--mist-500);
+  --text-on-accent:  var(--white);
+  --text-link:       var(--violet-300);
+
+  /* ---- Brand ---- */
+  --brand:           var(--violet-400);
+  --brand-strong:    var(--violet-500);
+  --brand-2:         var(--blue-400);
+  --accent-cyan:     var(--cyan-400);
+  --accent-magenta:  var(--magenta-400);
+
+  --success:         var(--signal-400);
+  --warning:         var(--warn-400);
+  --danger:          var(--danger-400);
+  --info:            var(--cyan-400);
+
+  /* ---- Borders — translucent violet (in-page override) ---- */
+  --border-subtle:   rgba(139,92,246,0.12);
+  --border-default:  rgba(139,92,246,0.22);
+  --border-strong:   rgba(139, 92, 246, 0.42);
+  --border-focus:    var(--violet-400);
+  --hairline:        rgba(237, 234, 251, 0.08);
+
+  /* ---- Corner radii ---- */
+  --radius-xs:   6px;
+  --radius-sm:   10px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+  --radius-2xl:  36px;
+  --radius-pill: 999px;
+  --radius-full: 50%;
+
+  --bw-hair:   1px;
+  --bw-thick:  1.5px;
+
+  /* ---- Ambient shadows ---- */
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md:   0 6px 20px rgba(0,0,0,0.45);
+  --shadow-lg:   0 18px 50px rgba(0,0,0,0.55);
+  --shadow-xl:   0 32px 80px rgba(0,0,0,0.6);
+
+  /* ---- Neon glows ---- */
+  --glow-violet:  0 0 24px rgba(139,92,246,0.45), 0 0 4px rgba(139,92,246,0.6);
+  --glow-blue:    0 0 24px rgba(79,107,255,0.45),  0 0 4px rgba(79,107,255,0.6);
+  --glow-cyan:    0 0 24px rgba(34,211,238,0.45),  0 0 4px rgba(34,211,238,0.55);
+  --glow-signal:  0 0 18px rgba(46,230,160,0.5),   0 0 4px rgba(46,230,160,0.6);
+  --glow-soft:    0 0 60px rgba(124,58,237,0.25);
+
+  --sheen-top:    inset 0 1px 0 rgba(255,255,255,0.06);
+  --inner-ring:   inset 0 0 0 1px rgba(139,92,246,0.18);
+
+  --elev-card:    var(--shadow-md), var(--sheen-top);
+  --elev-popover: var(--shadow-lg), var(--inner-ring);
+  --elev-glow:    var(--shadow-lg), var(--glow-soft);
+
+  --blur-sm:   blur(6px);
+  --blur-md:   blur(14px);
+  --blur-lg:   blur(28px);
+
+  /* ---- Brand gradients ---- */
+  --grad-brand:    linear-gradient(135deg, var(--violet-400) 0%, var(--blue-500) 100%);
+  --grad-brand-br: linear-gradient(120deg, #A782FF 0%, #7C3AED 45%, #3B5BFF 100%);
+  --grad-aurora:   linear-gradient(120deg, #22D3EE 0%, #8B5CF6 50%, #D946EF 100%);
+  --grad-metal:    linear-gradient(180deg, #F2F4FF 0%, #B9C0E8 38%, #7C86C9 60%, #3B5BFF 100%);
+  /* Glassmorphism — translucent so the 3D backdrop bleeds through (in-page override) */
+  --grad-panel:    linear-gradient(155deg, rgba(30,20,66,0.55) 0%, rgba(10,7,26,0.42) 100%);
+  --grad-halo:     radial-gradient(60% 60% at 50% 0%, rgba(124,58,237,0.35) 0%, rgba(124,58,237,0) 70%);
+
+  --bg-space: radial-gradient(120% 80% at 15% -10%, rgba(124,58,237,0.18) 0%, rgba(124,58,237,0) 45%),
+              radial-gradient(120% 90% at 95% 0%, rgba(34,211,238,0.10) 0%, rgba(34,211,238,0) 40%),
+              radial-gradient(100% 100% at 50% 120%, rgba(59,91,255,0.14) 0%, rgba(59,91,255,0) 50%),
+              var(--ink-900);
+
+  --border-grad: linear-gradient(180deg, rgba(167,130,255,0.5), rgba(79,107,255,0.15));
+
+  /* ---- Motion ---- */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:    120ms;
+  --dur-base:    220ms;
+  --dur-slow:    420ms;
+  --dur-ambient: 6s;
+
+  /* ---- Spacing (8px grid) ---- */
+  --space-0:   0;
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+  --space-20:  80px;
+  --space-24:  96px;
+  --space-32:  128px;
+
+  --control-h-sm: 32px;
+  --control-h-md: 40px;
+  --control-h-lg: 48px;
+
+  --sidebar-w:     264px;
+
+  /* ---- Type — premium pairing (in-page override) ---- */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', 'SFMono-Regular', ui-monospace, monospace;
+
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+  --fw-extrabold: 800;
+
+  --lh-tight:     1.05;
+  --lh-snug:      1.2;
+  --lh-normal:    1.5;
+  --lh-relaxed:   1.65;
+
+  --ls-mega:      0.18em;
+  --ls-wide:      0.08em;
+  --ls-normal:    0;
+  --ls-tight:     -0.02em;
+}
+
+/* ---- Typography sugar classes ---- */
+.vx-eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Frost every glass surface built from the panel gradient */
+.vx-glass {
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+}
+
+/* ---- Base app chrome (mirrors the prototype <style> block) ---- */
+.vx-root {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.011em;
+  font-family: var(--font-body);
+  color: var(--text-body);
+}
+.vx-root ::selection { background: rgba(139,92,246,0.35); color: #fff; }
+.vx-root ::-webkit-scrollbar { width: 8px; height: 8px; }
+.vx-root ::-webkit-scrollbar-thumb { background: var(--ink-400); border-radius: 999px; }
+.vx-root ::-webkit-scrollbar-track { background: transparent; }
+.vx-root a { color: var(--text-link); }
+.vx-root a:hover { color: var(--violet-200); }
+
+/* ============================================================
+   KEYFRAMES — ported verbatim from the prototype
+   ============================================================ */
+@keyframes vxFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes vxPulseGlow {
+  0%, 100% { box-shadow: 0 0 30px rgba(139,92,246,0.45), 0 0 70px rgba(79,107,255,0.25); }
+  50%      { box-shadow: 0 0 46px rgba(139,92,246,0.7), 0 0 100px rgba(79,107,255,0.4); }
+}
+@keyframes vxHaloBreathe {
+  0%, 100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.55; }
+  50%      { transform: translate(-50%,-50%) scale(1.14); opacity: 0.9; }
+}
+@keyframes vxRingSpin {
+  from { transform: translate(-50%,-50%) rotate(0deg); }
+  to   { transform: translate(-50%,-50%) rotate(360deg); }
+}
+@keyframes vxRingSpinRev {
+  from { transform: translate(-50%,-50%) rotate(360deg); }
+  to   { transform: translate(-50%,-50%) rotate(0deg); }
+}
+@keyframes vxLineFlow {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.9; }
+}
+@keyframes vxDotBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+@keyframes vxNodeFloat {
+  0%, 100% { transform: translate(-50%,-50%) translateY(0px); }
+  50%      { transform: translate(-50%,-50%) translateY(-6px); }
+}
+@keyframes vxScan {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 0.5; }
+  90%  { opacity: 0.5; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+@keyframes vxOrbDrift {
+  0%   { transform: translate(0,0) scale(1); }
+  33%  { transform: translate(40px,-30px) scale(1.08); }
+  66%  { transform: translate(-30px,24px) scale(0.95); }
+  100% { transform: translate(0,0) scale(1); }
+}
+@keyframes vxSpin3d {
+  from { transform: rotateX(64deg) rotateZ(0deg); }
+  to   { transform: rotateX(64deg) rotateZ(360deg); }
+}
+@keyframes vxSpin3dRev {
+  from { transform: rotateX(64deg) rotateZ(360deg); }
+  to   { transform: rotateX(64deg) rotateZ(0deg); }
+}
+@keyframes vxFabHalo {
+  0%, 100% { transform: scale(1);    opacity: 0.7; }
+  50%      { transform: scale(1.18); opacity: 0.2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vx-glass, [style*="animation"] { animation: none !important; }
+}

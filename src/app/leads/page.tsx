@@ -1,294 +1,87 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { db } from '@/lib/db';
-import { supabase } from '@/lib/supabase/client';
-import { authFetch } from '@/lib/authFetch';
-import { useRealtime } from '@/hooks/useRealtime';
-import { Lead } from '@/lib/types';
-import LeadTable from '@/components/LeadTable';
-import LoadingState from '@/components/LoadingState';
-import EmptyState from '@/components/EmptyState';
-import AddLeadForm from '@/components/AddLeadForm';
-import { Users, Plus, Filter } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 
-export default function LeadsCRM() {
-  const router = useRouter();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>('All');
-  const [filterScore, setFilterScore] = useState<string>('All');
+/**
+ * Leads — ported from the "isPipeline" view of the design prototype: a
+ * four-stage deal pipeline (Prospecting / Qualified / Proposal / Closed Won)
+ * with per-stage totals and deal cards.
+ */
 
-  // Loading indicator states by leadId
-  const [scoringMap, setScoringMap] = useState<Record<string, boolean>>({});
-  const [draftingMap, setDraftingMap] = useState<Record<string, boolean>>({});
-  const [proposalMap, setProposalMap] = useState<Record<string, boolean>>({});
+const STAGES: { name: string; tone: string; count: number; total: string; deals: { company: string; value: string; owner: string }[] }[] = [
+  {
+    name: 'Prospecting',
+    tone: 'var(--cyan-400)',
+    count: 12,
+    total: '$420K',
+    deals: [
+      { company: 'Nordic Retail', value: '$84K', owner: 'AI' },
+      { company: 'Apex Logistics', value: '$52K', owner: 'AI' },
+      { company: 'Vera Health', value: '$38K', owner: 'AI' },
+    ],
+  },
+  {
+    name: 'Qualified',
+    tone: 'var(--violet-300)',
+    count: 8,
+    total: '$310K',
+    deals: [
+      { company: 'Meridian Bank', value: '$120K', owner: 'AI' },
+      { company: 'Solaris Energy', value: '$66K', owner: 'AI' },
+    ],
+  },
+  {
+    name: 'Proposal',
+    tone: 'var(--warn-400)',
+    count: 5,
+    total: '$288K',
+    deals: [
+      { company: 'Cobalt Mfg', value: '$140K', owner: 'AI' },
+      { company: 'Lumen Media', value: '$74K', owner: 'AI' },
+    ],
+  },
+  {
+    name: 'Closed Won',
+    tone: 'var(--signal-400)',
+    count: 9,
+    total: '$222K',
+    deals: [
+      { company: 'Orbit Software', value: '$96K', owner: 'AI' },
+      { company: 'Delta Foods', value: '$48K', owner: 'AI' },
+    ],
+  },
+];
 
-  const [showAddForm, setShowAddForm] = useState(false);
-
-  async function loadLeads() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-
-      const res = await authFetch('/api/leads', { headers });
-      const json = await res.json();
-      if (json.success) {
-        setLeads(json.data || []);
-      } else {
-        throw new Error(json.error || 'Failed to fetch leads');
-      }
-    } catch (e) {
-      console.warn('Failed to load leads from API:', e);
-      try {
-        const lds = await db.getLeads();
-        setLeads(lds);
-      } catch (err) {
-        console.warn('Failed to load leads from DB:', err);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useRealtime('leads', loadLeads);
-
-  useEffect(() => {
-    loadLeads();
-  }, []);
-
-  // 1. AI Score Lead
-  const handleScoreLead = async (leadId: string) => {
-    setScoringMap(prev => ({ ...prev, [leadId]: true }));
-    try {
-      const res = await authFetch('/api/ai/score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId })
-      });
-      const data = await res.json();
-      if (data.success) {
-        await loadLeads();
-      } else {
-        alert(data.error || 'Failed to score lead');
-      }
-    } catch (e) {
-      console.warn('Error scoring lead:', e);
-      alert('Error triggering AI lead scoring');
-    } finally {
-      setScoringMap(prev => ({ ...prev, [leadId]: false }));
-    }
-  };
-
-  // 2. AI Draft Outreach
-  const handleDraftOutreach = async (leadId: string) => {
-    setDraftingMap(prev => ({ ...prev, [leadId]: true }));
-    try {
-      const lead = leads.find(l => l.id === leadId);
-      const isChatbot = lead?.pain_point?.toLowerCase().includes('receptionist') || lead?.pain_point?.toLowerCase().includes('call') || lead?.industry === 'Dental';
-      const offer = isChatbot ? 'AI Receptionist / Lead Booking Agent' : 'AI Website + Brand System';
-
-      const res = await authFetch('/api/ai/outreach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId, offerName: offer, channel: 'Email' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Personalized outreach message successfully drafted! Forwarding to Outbox (Messages)...');
-        router.push('/outreach');
-      } else {
-        alert(data.error || 'Failed to draft outreach');
-      }
-    } catch (e) {
-      console.warn('Failed to draft outreach via AI:', e);
-    } finally {
-      setDraftingMap(prev => ({ ...prev, [leadId]: false }));
-    }
-  };
-
-  // 3. AI Draft Proposal
-  const handleDraftProposal = async (leadId: string) => {
-    setProposalMap(prev => ({ ...prev, [leadId]: true }));
-    try {
-      const lead = leads.find(l => l.id === leadId);
-      const isChatbot = lead?.pain_point?.toLowerCase().includes('receptionist') || lead?.industry === 'Dental';
-      const offer = isChatbot ? 'AI Receptionist' : 'Website + Brand System';
-      const price = isChatbot ? 1000 : 1500;
-
-      const res = await authFetch('/api/ai/proposal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId, offerName: offer, price })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Client proposal drafted! Forwarding to Price Quotes & Proposals...');
-        router.push('/proposals');
-      } else {
-        alert(data.error || 'Failed to draft proposal');
-      }
-    } catch (e) {
-      console.warn('Failed to draft proposal via AI:', e);
-    } finally {
-      setProposalMap(prev => ({ ...prev, [leadId]: false }));
-    }
-  };
-
-  // 4. AI Create Followup Reminder
-  const handleCreateFollowup = async (leadId: string) => {
-    setScoringMap(prev => ({ ...prev, [leadId]: true }));
-    try {
-      const res = await authFetch('/api/ai/agent/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agentKey: 'followup',
-          params: { leadId, sequenceDay: 3 }
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(data.result);
-        router.push('/follow-ups');
-      } else {
-        alert(data.error || 'Failed to create follow-up');
-      }
-    } catch (e) {
-      console.warn('Failed to create followup via AI:', e);
-    } finally {
-      setScoringMap(prev => ({ ...prev, [leadId]: false }));
-    }
-  };
-
-  // 5. Update Status manually in dropdown
-  const handleUpdateStatus = async (leadId: string, status: Lead['status']) => {
-    try {
-      await db.updateLead(leadId, { status });
-      await loadLeads();
-    } catch (err) {
-      console.warn('Failed to update lead status:', err);
-      alert('Failed to update lead status');
-    }
-  };
-
-  // 6. Delete Lead
-  const handleDeleteLead = async (leadId: string) => {
-    if (confirm('Are you sure you want to remove this lead?')) {
-      const deleted = await db.deleteLead(leadId);
-      if (deleted) loadLeads();
-    }
-  };
-
-  if (loading) {
-    return <LoadingState message="LOADING POTENTIAL CLIENTS..." />;
-  }
-
-  // Filter logic
-  const filteredLeads = leads.filter(l => {
-    const statusMatch = filterStatus === 'All' || l.status === filterStatus;
-    
-    let scoreMatch = true;
-    if (filterScore === 'Hot') scoreMatch = l.lead_score >= 8.0;
-    else if (filterScore === 'Warm') scoreMatch = l.lead_score >= 5.0 && l.lead_score < 8.0;
-    else if (filterScore === 'Cold') scoreMatch = l.lead_score > 0.0 && l.lead_score < 5.0;
-    else if (filterScore === 'Unscored') scoreMatch = l.lead_score === 0.0;
-
-    return statusMatch && scoreMatch;
-  });
-
+export default function LeadsPage() {
   return (
-    <div className="space-y-6 font-sans">
-      {/* Action Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-2 text-neon-cyan">
-          <Users size={20} />
-          <span className="font-mono text-sm font-bold uppercase tracking-wider">Potential Clients (Leads)</span>
-        </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-neon-cyan hover:bg-neon-cyan/85 text-black rounded text-xs font-mono font-bold flex items-center space-x-1.5 transition cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-5)', alignItems: 'stretch' }}>
+      {STAGES.map((stage) => (
+        <div
+          key={stage.name}
+          className="vx-glass"
+          style={{ padding: 'var(--space-5)', borderRadius: 'var(--radius-lg)', background: 'var(--grad-panel)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-md), var(--sheen-top)' }}
         >
-          <Plus size={14} />
-          <span>{showAddForm ? 'HIDE FORM' : 'ADD A LEAD'}</span>
-        </button>
-      </div>
-
-      {/* Add Lead Form Modal Overlay */}
-      {showAddForm && (
-        <AddLeadForm
-          onClose={() => setShowAddForm(false)}
-          onLeadAdded={loadLeads}
-        />
-      )}
-
-      {/* Filter panel */}
-      <div className="p-4 glass-panel border border-white/5 rounded-xl bg-cyber-bg/40 flex flex-wrap gap-4 items-center">
-        <div className="flex items-center space-x-2 text-muted-foreground font-mono text-xs">
-          <Filter size={14} />
-          <span>FILTER BY:</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: stage.tone, boxShadow: `0 0 8px ${stage.tone}` }} />
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, color: 'var(--text-strong)', letterSpacing: '0.01em' }}>{stage.name}</span>
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--text-dim)' }}>{stage.count}</span>
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--cyan-300)', marginBottom: 'var(--space-4)', letterSpacing: '-0.01em' }}>{stage.total}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            {stage.deals.map((deal) => (
+              <div key={deal.company} style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)', cursor: 'grab' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>{deal.company}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--text-body)' }}>{deal.value}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>{deal.owner}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-
-        {/* Status selection */}
-        <div>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded px-2.5 py-1 text-xs text-foreground focus:outline-none focus:border-neon-cyan font-mono"
-          >
-            <option value="All">All Statuses</option>
-            <option value="New">New</option>
-            <option value="Researched">Researched</option>
-            <option value="Qualified">Qualified</option>
-            <option value="Contacted">Contacted</option>
-            <option value="Replied">Replied</option>
-            <option value="Call Booked">Call Booked</option>
-            <option value="Proposal Sent">Proposal Sent</option>
-            <option value="Won">Won</option>
-            <option value="Lost">Lost</option>
-          </select>
-        </div>
-
-        {/* Score filter */}
-        <div>
-          <select
-            value={filterScore}
-            onChange={(e) => setFilterScore(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded px-2.5 py-1 text-xs text-foreground focus:outline-none focus:border-neon-cyan font-mono"
-          >
-            <option value="All">All Match Levels</option>
-            <option value="Hot">Best Matches (Hot)</option>
-            <option value="Warm">Good Matches (Warm)</option>
-            <option value="Cold">Weak Matches (Cold)</option>
-            <option value="Unscored">Not Scored Yet</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Leads Table listing */}
-      {filteredLeads.length > 0 ? (
-        <LeadTable
-          leads={filteredLeads}
-          onScoreLead={handleScoreLead}
-          onDraftOutreach={handleDraftOutreach}
-          onDraftProposal={handleDraftProposal}
-          onUpdateStatus={handleUpdateStatus}
-          onCreateFollowup={handleCreateFollowup}
-          onDeleteLead={handleDeleteLead}
-          scoringMap={scoringMap}
-          draftingMap={draftingMap}
-          proposalMap={proposalMap}
-        />
-      ) : (
-        <EmptyState 
-          title="No Leads Found" 
-          description="Try changing your filters or add a new lead to start." 
-          actionLabel="Add a Lead" 
-          onAction={() => setShowAddForm(true)} 
-        />
-      )}
-    </div>
+      ))}
+    </section>
   );
 }

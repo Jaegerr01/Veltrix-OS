@@ -2,186 +2,224 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthGate';
-import { motion } from 'framer-motion';
-import {
-  LayoutDashboard, Terminal, DollarSign, Users, Send, RefreshCw,
-  FileText, Briefcase, FolderGit2, CheckSquare, BrainCircuit,
-  FileCode, ClipboardList, Settings, LogOut, Activity, Radar
-} from 'lucide-react';
-import Image from 'next/image';
+import { Avatar, VxIcon, useAppearance } from '@/components/ds';
+import type { VxIconName } from '@/components/ds';
 
-const NAV_GROUPS = [
-  {
-    label: null,
-    items: [
-      { label: 'Dashboard',       icon: LayoutDashboard, path: '/'               },
-      { label: 'Command Center',  icon: Terminal,        path: '/command-center' },
-      { label: 'Revenue',         icon: DollarSign,      path: '/revenue'        },
-    ],
-  },
-  {
-    label: 'CRM',
-    items: [
-      { label: 'Leads',           icon: Users,           path: '/leads'          },
-      { label: 'Clients',         icon: Briefcase,       path: '/clients'        },
-      { label: 'Outreach',        icon: Send,            path: '/outreach'       },
-      { label: 'Follow-ups',      icon: RefreshCw,       path: '/follow-ups'     },
-      { label: 'Proposals',       icon: FileText,        path: '/proposals'      },
-    ],
-  },
-  {
-    label: 'TOOLS',
-    items: [
-      { label: 'Projects',        icon: FolderGit2,      path: '/projects'       },
-      { label: 'Tasks',           icon: CheckSquare,     path: '/tasks'          },
-      { label: 'Memory',          icon: BrainCircuit,    path: '/memory'         },
-      { label: 'Content',         icon: FileCode,        path: '/content'        },
-      { label: 'Reel Intel',       icon: Radar,           path: '/reel-intel'     },
-      { label: 'Reports',         icon: ClipboardList,   path: '/reports'        },
-      { label: 'System Status',   icon: Activity,        path: '/health'         },
-    ],
-  },
+/**
+ * Command-OS sidebar — glass rail on the deep-space backdrop. Centered
+ * wordmark, grouped nav with gradient-glow active pills, and the CEO Agent
+ * mini card pinned to the bottom. Information architecture ported from the
+ * prototype's NAV_DEFS; routes wired to the existing Next app.
+ */
+
+type NavItem = { group?: string; label?: string; icon?: VxIconName; path?: string };
+
+const NAV_DEFS: NavItem[] = [
+  { label: 'Dashboard', icon: 'grid', path: '/' },
+  { label: 'Command Center', icon: 'terminal', path: '/command-center' },
+  { label: 'Revenue', icon: 'dollar', path: '/revenue' },
+  { group: 'Pipeline' },
+  { label: 'Leads', icon: 'users', path: '/leads' },
+  { label: 'Outreach', icon: 'send', path: '/outreach' },
+  { label: 'Follow-ups', icon: 'refresh', path: '/follow-ups' },
+  { label: 'Proposals', icon: 'doc', path: '/proposals' },
+  { label: 'Clients', icon: 'briefcase', path: '/clients' },
+  { label: 'Projects', icon: 'folder', path: '/projects' },
+  { group: 'Intelligence' },
+  { label: 'Memory', icon: 'brain', path: '/memory' },
+  { label: 'Reel Intel', icon: 'target', path: '/reel-intel' },
+  { label: 'Content', icon: 'doc', path: '/content' },
+  { label: 'Reports', icon: 'chartbar', path: '/reports' },
+  { group: 'System' },
+  { label: 'Tasks', icon: 'usercheck', path: '/tasks' },
+  { label: 'System Status', icon: 'activity', path: '/health' },
+  { label: 'Settings', icon: 'gear', path: '/settings' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const { avatar } = useAppearance();
+  const [displayName, setDisplayName] = React.useState('Operator');
+
+  React.useEffect(() => {
+    const savedName = localStorage.getItem('vx_display_name') || 'Operator';
+    setDisplayName(savedName);
+
+    const handleStorageChange = () => {
+      const updatedName = localStorage.getItem('vx_display_name') || 'Operator';
+      setDisplayName(updatedName);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('vx_settings_updated', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('vx_settings_updated', handleStorageChange);
+    };
+  }, []);
 
   return (
-    <aside className="w-64 border-r border-white/[0.07] bg-[#06060d]/92 backdrop-blur-3xl flex flex-col h-screen fixed left-0 top-0 z-20" style={{ boxShadow: '1px 0 0 0 rgba(168,85,247,0.06), 4px 0 24px rgba(0,0,0,0.4)' }}>
-
-      {/* Brand Header */}
-      <div className="h-16 border-b border-white/[0.06] flex items-center px-4 flex-shrink-0">
-        <div className="relative flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 shadow-[0_0_18px_rgba(168,85,247,0.35)]">
-            <Image
-              src="/veltrix-logo.jpeg"
-              alt="VELTRIX"
-              width={40}
-              height={40}
-              className="w-full h-full object-cover"
-              priority
-            />
-          </div>
-          <p className="text-[9px] font-mono text-neon-purple/60 tracking-[0.2em] uppercase">Command OS</p>
-        </div>
+    <aside
+      style={{
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
+        zIndex: 2,
+        display: 'flex',
+        flexDirection: 'column',
+        padding: 'var(--space-6) var(--space-4)',
+        borderRight: '1px solid var(--border-subtle)',
+        background: 'linear-gradient(180deg, rgba(10,7,26,0.55), rgba(6,4,16,0.35))',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+      }}
+    >
+      {/* Wordmark */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 var(--space-2) var(--space-6)' }}>
+        <Image
+          src="/veltrix-logo.png"
+          alt="Veltrix"
+          width={104}
+          height={40}
+          priority
+          style={{ width: 104, height: 'auto', display: 'block', filter: 'drop-shadow(0 0 16px rgba(139,92,246,0.35))' }}
+        />
       </div>
 
-      {/* Nav Groups */}
-      <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin">
-        {NAV_GROUPS.map((group, gi) => (
-          <div key={gi} className={gi > 0 ? 'mt-6' : ''}>
-            {group.label && (
-              <p className="px-5 mb-1.5 text-[9px] font-mono font-semibold text-white/20 uppercase tracking-[0.22em]">
-                {group.label}
-              </p>
-            )}
-            <div className="px-3 space-y-0.5">
-              {group.items.map((item) => {
-                const isActive = pathname === item.path;
-                return (
-                  <motion.div key={item.path} whileTap={{ scale: 0.97 }} className="relative">
-                    <Link
-                      href={item.path}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-200 group relative overflow-hidden ${
-                        isActive ? 'text-white' : 'text-white/38 hover:text-white/75'
-                      }`}
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="activeNavBg"
-                          className="absolute inset-0 rounded-xl border border-neon-purple/20"
-                          style={{
-                            background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(168,85,247,0.05) 100%)',
-                            boxShadow: '0 0 12px rgba(168,85,247,0.1), inset 0 1px 0 rgba(255,255,255,0.07)',
-                          }}
-                          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                        />
-                      )}
-                      <item.icon
-                        size={15}
-                        className={`flex-shrink-0 relative z-10 transition-colors duration-200 ${
-                          isActive ? 'text-neon-purple' : 'text-white/28 group-hover:text-white/55'
-                        }`}
-                      />
-                      <span className="truncate relative z-10 font-sans font-normal">{item.label}</span>
-                      {isActive && (
-                        <span className="ml-auto w-1 h-1 rounded-full bg-neon-purple relative z-10 flex-shrink-0" />
-                      )}
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-
-        {/* Settings — always at bottom of nav */}
-        <div className="mt-6 px-3">
-          <div className="h-px bg-white/[0.05] mb-4 mx-2" />
-          <motion.div whileTap={{ scale: 0.97 }}>
+      {/* Nav */}
+      <nav
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          flex: 1,
+          overflowY: 'auto',
+          margin: '0 calc(-1 * var(--space-2))',
+          padding: '0 var(--space-2)',
+        }}
+      >
+        {NAV_DEFS.map((n, i) => {
+          if (n.group) {
+            return (
+              <div
+                key={`g-${i}`}
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: 'var(--ls-mega)',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-dim)',
+                  padding: 'var(--space-4) 12px 8px',
+                  opacity: 0.7,
+                }}
+              >
+                {n.group}
+              </div>
+            );
+          }
+          const active = pathname === n.path;
+          return (
             <Link
-              href="/settings"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-200 group relative overflow-hidden ${
-                pathname === '/settings' ? 'text-white' : 'text-white/38 hover:text-white/75'
-              }`}
+              key={n.path}
+              href={n.path!}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 11,
+                padding: '9px 12px',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                textDecoration: 'none',
+                color: active ? 'var(--text-strong)' : 'var(--text-muted)',
+                background: active ? 'var(--grad-brand)' : 'transparent',
+                border: '1px solid transparent',
+                boxShadow: active ? 'var(--glow-violet)' : 'none',
+                transition: 'all var(--dur-base) var(--ease-out)',
+              }}
             >
-              {pathname === '/settings' && (
-                <motion.div
-                  layoutId="activeNavBg"
-                  className="absolute inset-0 rounded-xl border border-neon-purple/20"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(168,85,247,0.05) 100%)',
-                    boxShadow: '0 0 12px rgba(168,85,247,0.1), inset 0 1px 0 rgba(255,255,255,0.07)',
-                  }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                />
-              )}
-              <Settings
-                size={15}
-                className={`flex-shrink-0 relative z-10 ${pathname === '/settings' ? 'text-neon-purple' : 'text-white/28 group-hover:text-white/55'}`}
+              <span style={{ display: 'flex', flex: '0 0 auto', color: active ? '#fff' : 'var(--violet-200)' }}>
+                <VxIcon name={n.icon!} size={17} />
+              </span>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, letterSpacing: '0.01em' }}>{n.label}</span>
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  flex: '0 0 auto',
+                  background: active ? '#fff' : 'transparent',
+                  boxShadow: active ? '0 0 8px rgba(255,255,255,0.8)' : 'none',
+                }}
               />
-              <span className="truncate relative z-10 font-sans font-normal">Settings</span>
-              {pathname === '/settings' && (
-                <span className="ml-auto w-1 h-1 rounded-full bg-neon-purple relative z-10 flex-shrink-0" />
-              )}
             </Link>
-          </motion.div>
-        </div>
+          );
+        })}
       </nav>
 
-      {/* User Profile */}
-      {user && (
-        <div className="p-4 border-t border-white/[0.06] space-y-3 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neon-purple/50 to-neon-cyan/50 border border-white/10 flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
-              {user.email?.[0]?.toUpperCase() ?? 'B'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-white/85 truncate">Barry</p>
-              <p className="text-[9px] text-white/28 font-mono truncate">{user.email}</p>
+      {/* CEO mini card */}
+      <div
+        className="vx-glass"
+        style={{
+          marginTop: 'var(--space-4)',
+          padding: 'var(--space-4)',
+          borderRadius: 'var(--radius-lg)',
+          background: 'var(--grad-panel)',
+          border: '1px solid var(--border-default)',
+          boxShadow: 'var(--shadow-md), var(--sheen-top)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar name="CEO Agent" size="md" status="active">
+            <VxIcon name="crown" size={20} color="#fff" />
+          </Avatar>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, color: 'var(--text-strong)' }}>CEO Agent</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 'var(--space-3)', fontSize: 12, color: 'var(--text-dim)', lineHeight: 'var(--lh-relaxed)' }}>
+          Orchestrating 8 agents · all systems nominal
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: 'var(--space-3) 0 0',
+            borderTop: '1px solid var(--hairline)',
+            marginTop: 'var(--space-3)',
+          }}
+        >
+          <Avatar src={avatar || undefined} name={displayName} size="sm" status="active" />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, color: 'var(--text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {displayName}
             </div>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={signOut}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-white/[0.06] hover:border-neon-orange/25 bg-transparent hover:bg-neon-orange/5 text-white/28 hover:text-neon-orange transition-all duration-300 cursor-pointer text-[11px] font-mono"
-          >
-            <LogOut size={11} />
-            <span>Sign Out</span>
-          </motion.button>
+          {user ? (
+            <button
+              onClick={signOut}
+              style={{
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'transparent',
+                border: '1px solid var(--hairline)',
+                color: 'var(--text-dim)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              Exit
+            </button>
+          ) : null}
         </div>
-      )}
-
-      {/* System status */}
-      <div className="px-5 py-3 border-t border-white/[0.04] flex items-center justify-between flex-shrink-0">
-        <span className="text-[9px] font-mono text-white/18 uppercase tracking-[0.18em]">System</span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse-glow" />
-          <span className="text-[9px] font-mono text-neon-green font-semibold">Online</span>
-        </span>
       </div>
     </aside>
   );

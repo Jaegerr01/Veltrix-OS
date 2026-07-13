@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import LoadingState from './LoadingState';
-import { ShieldAlert, Key, Mail, Lock, ShieldCheck, UserCheck } from 'lucide-react';
+import { ShieldAlert, Lock, ShieldCheck } from 'lucide-react';
+import { AmbientBackground, Input, Button, VxIcon } from './ds';
 
 interface AuthContextType {
   user: any;
@@ -134,19 +135,20 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // 1. Missing Supabase Config Alert
   if (!isDbOnline) {
     return (
-      <div className="min-h-screen bg-cyber-bg text-foreground flex items-center justify-center p-6 font-mono selection:bg-neon-pink selection:text-black">
-        <div className="max-w-md w-full glass-panel border border-neon-orange/30 p-8 rounded-xl shadow-[0_0_50px_rgba(249,115,22,0.1)] space-y-6 relative overflow-hidden">
+      <div className="vx-root min-h-screen text-foreground flex items-center justify-center p-6 relative overflow-hidden" style={{ background: 'var(--ink-900)' }}>
+        <AmbientBackground />
+        <div className="vx-glass max-w-md w-full p-8 rounded-2xl relative overflow-hidden z-10 space-y-6" style={{ background: 'var(--grad-panel)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-xl)' }}>
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-neon-orange via-transparent to-neon-orange" />
           <div className="flex justify-center text-neon-orange">
             <ShieldAlert size={48} className="animate-pulse" />
           </div>
           <div className="space-y-2 text-center">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-neon-orange">DB Config Offline</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-neon-orange" style={{ fontFamily: 'var(--font-display)' }}>DB Config Offline</h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Supabase parameters are missing or undefined. This system requires database connection keys to start up.
             </p>
           </div>
-          <div className="p-4 bg-white/2 border border-white/5 rounded text-[11px] text-muted-foreground space-y-2">
+          <div className="p-4 bg-white/2 border border-white/5 rounded text-[11px] text-muted-foreground space-y-2 font-mono">
             <div>Ensure your <code className="text-foreground">.env.local</code> contains:</div>
             <pre className="text-[10px] text-neon-cyan overflow-x-auto select-all p-2 bg-black/40 rounded">
 {`NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
@@ -154,12 +156,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
             </pre>
           </div>
           <div className="text-center">
-            <button
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => window.location.reload()}
-              className="px-4 py-2 border border-neon-orange/30 text-neon-orange hover:bg-neon-orange/10 rounded text-xs transition cursor-pointer font-bold"
             >
               RECHECK CONNECTION
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -169,107 +172,93 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
   // 2. Auth Screen
   if (!user) {
     return (
-      <div className="min-h-screen bg-cyber-bg text-foreground flex items-center justify-center p-6 font-mono select-none">
-        <div className="max-w-md w-full glass-panel border border-neon-purple/30 p-8 rounded-xl shadow-[0_0_50px_rgba(168,85,247,0.12)] space-y-6 relative overflow-hidden">
-          {/* Decorative neon borders */}
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-neon-purple via-neon-cyan to-neon-purple" />
-          <div className="absolute -top-10 -right-10 w-24 h-24 bg-neon-purple/10 rounded-full blur-xl" />
-          <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-neon-cyan/10 rounded-full blur-xl" />
+      <div className="vx-root min-h-screen text-foreground flex items-center justify-center p-6 relative overflow-hidden" style={{ background: 'var(--ink-900)' }}>
+        <AmbientBackground />
+        
+        {/* Glow halo in the background */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] pointer-events-none rounded-full opacity-40" style={{ background: 'var(--grad-halo)', filter: 'blur(40px)' }} />
+
+        <div className="vx-glass max-w-md w-full p-8 rounded-[28px] relative overflow-hidden z-10" style={{ background: 'var(--grad-panel)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-xl)' }}>
+          {/* Top glowing line */}
+          <div className="absolute top-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-[var(--brand)] to-transparent" />
 
           {/* Logo Brand Header */}
-          <div className="flex flex-col items-center space-y-3 text-center">
-            <div className="flex items-center space-x-2.5">
-              <span className="text-lg font-bold tracking-widest text-foreground">VELTRIX</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-purple/20 border border-neon-purple/30 text-neon-purple uppercase font-bold tracking-widest">
-                OS
+          <div className="flex flex-col items-center space-y-4 text-center mb-8">
+            <div className="flex items-center space-x-3">
+              <span className="text-xl font-bold tracking-widest text-[var(--text-strong)]" style={{ fontFamily: 'var(--font-display)' }}>VELTRIX</span>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[var(--border-default)] border border-[var(--border-strong)] text-[var(--brand)] uppercase font-bold tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
+                COMMAND OS
               </span>
             </div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+            <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]" style={{ fontFamily: 'var(--font-display)' }}>
               {isSignUp ? 'REGISTER SYSTEM OPERATOR' : 'ENTER OPERATOR CREDENTIALS'}
             </p>
           </div>
 
-          <form onSubmit={handleAuth} className="space-y-4 text-xs font-sans">
+          <form onSubmit={handleAuth} className="space-y-6">
             {/* Email input */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-mono text-muted-foreground uppercase block">Email</label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-muted-foreground">
-                  <Mail size={14} />
-                </span>
-                <input
-                  type="email"
-                  required
-                  placeholder="operator@veltrix.ai"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded pl-9 pr-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                />
-              </div>
-            </div>
+            <Input
+              type="email"
+              required
+              label="Email Address"
+              placeholder="operator@veltrix.ai"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              leadingIcon={<VxIcon name="mail" size={16} />}
+              style={{ width: '100%' }}
+            />
 
             {/* Password input */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-mono text-muted-foreground uppercase block">Password</label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-muted-foreground">
-                  <Lock size={14} />
-                </span>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded pl-9 pr-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition"
-                />
-              </div>
-            </div>
+            <Input
+              type="password"
+              required
+              label="Password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              leadingIcon={<Lock size={16} style={{ color: 'var(--text-muted)' }} />}
+              style={{ width: '100%' }}
+            />
 
             {/* Notifications */}
             {errorMsg && (
-              <div className="p-3 bg-neon-pink/10 border border-neon-pink/30 text-neon-pink rounded text-xs flex items-start space-x-2 font-mono">
-                <ShieldAlert size={14} className="mt-0.5 flex-shrink-0" />
-                <span>{errorMsg}</span>
+              <div className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(255,77,109,0.06)', borderColor: 'rgba(255,77,109,0.22)', color: 'var(--danger-300)' }}>
+                <ShieldAlert size={16} className="mt-0.5 flex-shrink-0" />
+                <span className="font-mono leading-relaxed">{errorMsg}</span>
               </div>
             )}
             {successMsg && (
-              <div className="p-3 bg-neon-green/10 border border-neon-green/30 text-neon-green rounded text-xs flex items-start space-x-2 font-mono">
-                <ShieldCheck size={14} className="mt-0.5 flex-shrink-0" />
-                <span>{successMsg}</span>
+              <div className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(46,230,160,0.06)', borderColor: 'rgba(46,230,160,0.22)', color: 'var(--signal-400)' }}>
+                <ShieldCheck size={16} className="mt-0.5 flex-shrink-0" />
+                <span className="font-mono leading-relaxed">{successMsg}</span>
               </div>
             )}
 
             {/* Submit Button */}
-            <button
+            <Button
               type="submit"
               disabled={submitting}
-              className={`w-full py-2.5 rounded font-mono font-bold text-xs uppercase flex items-center justify-center space-x-2 transition cursor-pointer select-none ${
-                isSignUp
-                  ? 'bg-neon-purple hover:bg-neon-purple/80 text-white shadow-[0_0_15px_rgba(168,85,247,0.3)]'
-                  : 'bg-neon-cyan hover:bg-neon-cyan/80 text-black shadow-[0_0_15px_rgba(6,182,212,0.3)]'
-              }`}
+              fullWidth
+              size="lg"
+              leadingIcon={isSignUp ? <VxIcon name="usercheck" size={16} color="#fff" /> : <VxIcon name="crown" size={16} color="#fff" />}
             >
-              {isSignUp ? <UserCheck size={14} /> : <Key size={14} />}
-              <span>
-                {submitting
-                  ? 'COMMUNICATING WITH CORE...'
-                  : isSignUp
-                    ? 'REGISTER OPERATOR'
-                    : 'AUTHORIZE ACCESS'}
-              </span>
-            </button>
+              {submitting
+                ? 'COMMUNICATING WITH CORE...'
+                : isSignUp
+                  ? 'REGISTER OPERATOR'
+                  : 'AUTHORIZE ACCESS'}
+            </Button>
           </form>
 
           {/* Toggle Login/Signup */}
-          <div className="text-center pt-2">
+          <div className="text-center pt-6">
             <button
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setErrorMsg('');
                 setSuccessMsg('');
               }}
-              className="text-[11px] text-muted-foreground hover:text-neon-cyan transition font-mono border-b border-dashed border-white/10 hover:border-neon-cyan/50 pb-0.5"
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--brand)] transition font-mono border-b border-dashed border-white/10 hover:border-[var(--brand)] pb-0.5 cursor-pointer"
             >
               {isSignUp ? 'Already registered? Login here' : 'Need operator account? Register here'}
             </button>

@@ -12,6 +12,8 @@ import { getMemories, addMemory, searchMemories } from './memory';
 import { getAgentLogs, logAgentAction, getToolLogs, logToolAction } from './agents';
 import { getChatMessages, addChatMessage, clearChatMessages } from './chat';
 import { getContentIdeas, addContentIdea, updateContentIdea, getDailyReports, addDailyReport } from './content';
+import { getApprovalRequests, addApprovalRequest, updateApprovalRequest } from './approvals';
+import { getEntityGoals, addEntityGoal, updateEntityGoal } from './entityGoals';
 import { resetDatabase } from './seed';
 
 export const supabase = _supabase;
@@ -100,6 +102,16 @@ export const db = {
   updateContentIdea,
   getDailyReports,
   addDailyReport,
+
+  // Entity — Approval Queue (propose-then-approve)
+  getApprovalRequests,
+  addApprovalRequest,
+  updateApprovalRequest,
+
+  // Entity — Goal Cascade
+  getEntityGoals,
+  addEntityGoal,
+  updateEntityGoal,
 
   // Database Reset
   resetDatabase,

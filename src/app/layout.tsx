@@ -5,7 +5,8 @@ import Topbar from '@/components/Topbar';
 import VoiceAssistant from '@/components/VoiceAssistant';
 import AuthGate from '@/components/AuthGate';
 import SetupBanner from '@/components/SetupBanner';
-import Link from 'next/link';
+import { ToastProvider } from '@/components/Toast';
+import { AmbientBackground, AppearanceProvider } from '@/components/ds';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -23,32 +24,51 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full bg-background text-foreground antialiased dark">
-      <body className="font-sans min-h-screen bg-cyber-bg text-foreground flex">
+    <html lang="en" className="h-full antialiased dark">
+      <body className="vx-root" style={{ background: 'var(--ink-900)' }}>
         <AuthGate>
-          {/* Navigation Sidebar */}
-          <Sidebar />
+          <AppearanceProvider>
+            <ToastProvider>
+              {/* 3D ambient deep-space backdrop */}
+              <AmbientBackground />
 
-          {/* Main Work Area Container */}
-          <div className="flex-1 flex flex-col pl-64 min-h-screen">
-            {/* Header Topbar */}
-            <Topbar />
+            {/* Command-OS shell — sidebar + main column on a tilting grid */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                isolation: 'isolate',
+                display: 'grid',
+                gridTemplateColumns: 'var(--sidebar-w) 1fr',
+                minHeight: '100vh',
+              }}
+            >
+              <Sidebar />
 
-            {/* Page Routing Contents */}
-            <main className="flex-1 pt-16 p-8 overflow-y-auto bg-transparent flex flex-col justify-between">
-              <div className="max-w-7xl mx-auto space-y-6 w-full mb-auto">
-                <SetupBanner />
-                {children}
-              </div>
-              
-            </main>
-          </div>
+              <main style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh' }}>
+                <Topbar />
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: 'var(--space-10)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--space-10)',
+                  }}
+                >
+                  <SetupBanner />
+                  {children}
+                </div>
+              </main>
+            </div>
 
-          {/* Global Voice Assistant HUD & Listener */}
-          <VoiceAssistant />
+            {/* Global Voice Assistant HUD & floating mic orb */}
+            <VoiceAssistant />
+            </ToastProvider>
+          </AppearanceProvider>
         </AuthGate>
       </body>
     </html>
   );
 }
-

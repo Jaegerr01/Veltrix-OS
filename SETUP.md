@@ -28,7 +28,28 @@ Without this, every agent fails at step 1 and the whole pipeline stalls.
 
 ---
 
-## 3. Resend — real email delivery ✉️
+## 3. Email delivery — Gmail (primary) or Resend (fallback) ✉️
+
+The OS sends through **Gmail first** when configured, falling back to Resend. Every autonomous send passes through guardrails (kill switch → blacklist → daily cap) in `src/lib/email/send.ts`.
+
+### 3a. Gmail (recommended for getting started)
+
+1. Google Account → **Security → 2-Step Verification** (enable it) → **App passwords**.
+2. Create an app password, then set in `.env.local` / Netlify:
+   - `GMAIL_USER` — your Gmail address
+   - `GMAIL_APP_PASSWORD` — the 16-character app password
+   - `GMAIL_FROM_NAME` — optional display name, e.g. `Barry from VELTRIX`
+3. ⚠️ Gmail deliverability reality check: personal Gmail sending cold outreach gets flagged fast above ~50/day. Keep `OUTREACH_DAILY_CAP` low (default 15) and warm up gradually. For scale, move to a verified domain on Resend or Google Workspace.
+
+### 3b. Outreach guardrails (all optional, sane defaults)
+
+| Variable | Default | What it does |
+|---|---|---|
+| `OUTREACH_SEND_ENABLED` | `true` | Set `false` = kill switch. Drafts still get created; nothing sends. |
+| `OUTREACH_DAILY_CAP` | `15` | Max autonomous sends per day (counted from Sent messages). |
+| `OUTREACH_BLACKLIST` | empty | Comma-separated emails/domains never to contact, e.g. `gov,edu,rival.com`. |
+
+### 3c. Resend (fallback / scale path)
 
 1. Sign up free at **https://resend.com**.
 2. **API Keys → Create API Key** → copy → this is `RESEND_API_KEY`.

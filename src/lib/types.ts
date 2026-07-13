@@ -101,7 +101,7 @@ export interface OutreachMessage {
   id: string;
   user_id?: string;
   lead_id: string;
-  channel: 'Email' | 'LinkedIn' | 'Instagram' | 'WhatsApp' | 'Facebook';
+  channel: 'Email' | 'LinkedIn' | 'Instagram' | 'WhatsApp' | 'Facebook' | 'Discord';
   message: string;
   status: 'Draft' | 'Approved' | 'Sent' | 'Replied' | 'Failed';
   approval_status: 'Pending Approval' | 'Approved' | 'Rejected';
@@ -359,6 +359,95 @@ export interface CommunityMetric {
   change?: number;
   trend?: 'up' | 'down' | 'neutral';
   created_at?: string;
+}
+
+// ─── Entity Phase 1 — Approval Queue ─────────────────────────────────────────
+// Every autonomous EXTERNAL action (email, publish, spend…) becomes an
+// ApprovalRequest and executes only after Barry approves.
+// Doctrine: Obsidian vault → Entity/VELTRIX Constitution.md (Article 3).
+
+export type ApprovalRequestType =
+  | 'outreach_send'
+  | 'proposal_send'
+  | 'publish'
+  | 'spend'
+  | 'price_change'
+  | 'playbook_edit'
+  | 'structural'
+  | 'goal_ratification';
+
+export type EntityDepartment =
+  | 'core'
+  | 'intelligence'
+  | 'growth'
+  | 'revenue'
+  | 'delivery'
+  | 'product'
+  | 'finance'
+  | 'governance';
+
+export type ApprovalRequestStatus =
+  | 'pending'
+  | 'approved'
+  | 'approved_edited'
+  | 'rejected'
+  | 'expired';
+
+/** Payload for type = 'outreach_send'.
+ *  channel 'Email' → executes automatically on approval (guarded send).
+ *  Social channels (LinkedIn/Instagram/Discord/…) → assisted send: Barry
+ *  copies the approved message, opens the profile, sends, and the approval
+ *  marks it Sent. No bot automation on social — account-ban risk. */
+export interface OutreachSendPayload {
+  leadId: string;
+  outreachMessageId: string;
+  channel: 'Email' | 'LinkedIn' | 'Instagram' | 'WhatsApp' | 'Facebook' | 'Discord';
+  to?: string;         // email address (Email channel)
+  profileUrl?: string; // social profile / search URL (social channels)
+  subject?: string;
+  text: string;
+}
+
+// ─── Entity Phase 2 — Goal Cascade ───────────────────────────────────────────
+// BHAG → quarter → month → week → day. Drafted by the Core, ratified by Barry
+// through the Approval Queue. Doctrine: Obsidian → Entity/Goal Cascade.md.
+
+export type EntityGoalLevel = 'bhag' | 'quarter' | 'month' | 'week' | 'day';
+export type EntityGoalStatus = 'draft' | 'ratified' | 'active' | 'completed' | 'missed';
+
+export interface EntityGoal {
+  id: string;
+  user_id?: string;
+  level: EntityGoalLevel;
+  parent_id?: string | null;
+  department?: EntityDepartment | null;
+  title: string;
+  target?: Record<string, unknown> | null;
+  actuals?: Record<string, unknown> | null;
+  status: EntityGoalStatus;
+  period: string;
+  created_at: string;
+  updated_at?: string;
+  ratified_at?: string;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  user_id?: string;
+  type: ApprovalRequestType;
+  department: EntityDepartment;
+  created_by_agent: string;
+  title: string;
+  context?: string;
+  payload: Record<string, unknown>;
+  recommendation?: string;
+  confidence?: number;
+  status: ApprovalRequestStatus;
+  decision_payload?: Record<string, unknown>;
+  rejection_reason?: string;
+  execution_result?: string;
+  created_at: string;
+  decided_at?: string;
 }
 
 

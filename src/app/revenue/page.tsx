@@ -1,406 +1,100 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { db } from '@/lib/db';
-import { useRealtime } from '@/hooks/useRealtime';
-import { authFetch } from '@/lib/authFetch';
-import { Revenue, BusinessProfile, Client } from '@/lib/types';
-import LoadingState from '@/components/LoadingState';
-import StatusBadge from '@/components/StatusBadge';
-import { DollarSign, Landmark, ArrowUpRight, TrendingDown, ClipboardList } from 'lucide-react';
+import React from 'react';
+import { StatCard } from '@/components/ds';
 
-export default function RevenueTracker() {
-  const [profile, setProfile] = useState<BusinessProfile | null>(null);
-  const [revenues, setRevenues] = useState<Revenue[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+/**
+ * Revenue — ported from the "isAnalytics" view of the design prototype: a
+ * KPI row, a 12-week pipeline bar chart, and a channel-mix donut with legend.
+ */
 
-  // Form states
-  const [amount, setAmount] = useState('');
-  const [clientId, setClientId] = useState('');
-  const [revType, setRevType] = useState<any>('Project');
-  const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+const KPIS = [
+  { label: 'Pipeline Value', value: '1.24', unit: 'M USD', delta: '+18%', accent: 'violet' },
+  { label: 'Meetings Booked', value: '86', unit: '', delta: '+12%', accent: 'blue' },
+  { label: 'Emails Sent', value: '3,482', unit: '', delta: '+24%', accent: 'cyan' },
+  { label: 'Avg Open Rate', value: '41', unit: '%', delta: '-3%', accent: 'magenta' },
+] as const;
 
-  // Marcus Simulator state
-  const [websitesToClose, setWebsitesToClose] = useState(0);
-  const [receptionistsToClose, setReceptionistsToClose] = useState(0);
-  const [playbookResult, setPlaybookResult] = useState('');
-  const [generatingPlaybook, setGeneratingPlaybook] = useState(false);
+const BAR_VALS = [42, 55, 48, 63, 58, 72, 68, 80, 76, 88, 84, 96];
+const BAR_LABELS = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W9', 'W10', 'W11', 'W12'];
 
-  async function loadData() {
-    try {
-      const bp = await db.getBusinessProfile();
-      const revs = await db.getRevenue();
-      const clts = await db.getClients();
-      setProfile(bp);
-      setRevenues(revs);
-      setClients(clts);
-    } catch (e) {
-      console.warn('Failed to load revenue data:', e);
-    } finally {
-      setLoading(false);
-    }
-  }
+const CHANNELS = [
+  { name: 'Outbound', pct: '42%', tone: 'var(--violet-400)' },
+  { name: 'Inbound', pct: '26%', tone: 'var(--cyan-400)' },
+  { name: 'Referral', pct: '18%', tone: 'var(--signal-400)' },
+  { name: 'Partner', pct: '14%', tone: 'var(--mist-500)' },
+];
 
-  useRealtime('profiles', loadData);
-  useRealtime('revenue', loadData);
-  useRealtime('clients', loadData);
+const chartCard: React.CSSProperties = {
+  padding: 'var(--space-6)',
+  borderRadius: 'var(--radius-xl)',
+  background: 'var(--grad-panel)',
+  border: '1px solid var(--border-default)',
+  boxShadow: 'var(--shadow-lg), var(--sheen-top)',
+  backdropFilter: 'blur(18px) saturate(1.3)',
+  WebkitBackdropFilter: 'blur(18px) saturate(1.3)',
+};
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const handleAddRevenue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!amount || submitting) return;
-
-    setSubmitting(true);
-    try {
-      const selectedClient = clients.find(c => c.id === clientId);
-      const today = new Date();
-      
-      await db.addRevenue({
-        client_id: clientId || undefined,
-        amount: Number(amount),
-        type: revType,
-        status: 'Paid',
-        payment_date: today.toISOString().split('T')[0],
-        month: today.toISOString().substring(0, 7),
-        notes: notes || (selectedClient ? `Payment from ${selectedClient.business_name}` : 'General revenue input')
-      });
-
-      // Reset form & reload
-      setAmount('');
-      setClientId('');
-      setNotes('');
-      await loadData();
-      alert('Revenue successfully recorded!');
-    } catch (err) {
-      console.warn('Failed to record revenue:', err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return <LoadingState message="LOADING EARNINGS LOG..." />;
-  }
-
-  const closed = profile?.current_monthly_revenue || 0;
-  const target = profile?.target_monthly_revenue || 6000;
-  const gap = Math.max(0, target - closed);
-  
-  // Retainer sum
-  const retainerMRR = clients.reduce((acc, c) => acc + (c.status === 'Active' ? Number(c.monthly_retainer) : 0), 0);
-
+export default function RevenuePage() {
   return (
-    <div className="space-y-6 font-sans">
-      {/* 4 KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="p-6 glass-panel border border-white/5 rounded-xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-mono text-muted-foreground uppercase block mb-1">Monthly Goal</span>
-            <span className="text-xl font-bold font-mono text-foreground">${target.toLocaleString()}</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-neon-purple/10 text-neon-purple">
-            <Landmark size={20} />
-          </div>
-        </div>
+    <>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-5)' }}>
+        {KPIS.map((k, i) => (
+          <StatCard key={k.label} label={k.label} value={k.value} unit={k.unit} delta={k.delta} accent={k.accent} style={{ animation: 'vxFadeUp 0.6s var(--ease-out) both', animationDelay: `${i * 0.06}s` }} />
+        ))}
+      </section>
 
-        <div className="p-6 glass-panel border border-white/5 rounded-xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-mono text-muted-foreground uppercase block mb-1">Money Earned</span>
-            <span className="text-xl font-bold font-mono text-neon-green">${closed.toLocaleString()}</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-neon-green/10 text-neon-green">
-            <DollarSign size={20} />
-          </div>
-        </div>
-
-        <div className="p-6 glass-panel border border-white/5 rounded-xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-mono text-muted-foreground uppercase block mb-1">Left to Go</span>
-            <span className="text-xl font-bold font-mono text-neon-pink">${gap.toLocaleString()}</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-neon-pink/10 text-neon-pink">
-            <TrendingDown size={20} />
-          </div>
-        </div>
-
-        <div className="p-6 glass-panel border border-white/5 rounded-xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-mono text-muted-foreground uppercase block mb-1">Monthly Retainers (Recurring)</span>
-            <span className="text-xl font-bold font-mono text-neon-cyan">${retainerMRR.toLocaleString()}/mo</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-neon-cyan/10 text-neon-cyan">
-            <ArrowUpRight size={20} />
-          </div>
-        </div>
-      </div>
-
-      {/* Marcus Revenue Forecasting Simulator */}
-      <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30 space-y-4">
-        <div className="flex justify-between items-center pb-3 border-b border-white/5">
-          <div className="flex items-center space-x-2 text-neon-cyan">
-            <ClipboardList size={18} className="animate-pulse-glow" />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-foreground">
-              Marcus Simulator & Playbook
-            </h3>
-          </div>
-          <span className="text-[10px] font-mono text-neon-cyan bg-neon-cyan/5 border border-neon-cyan/20 px-2.5 py-0.5 rounded-full font-bold">
-            FINANCIAL ADVISOR ACTIVE
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          {/* Sliders */}
-          <div className="space-y-4">
-            <span className="text-[10px] font-mono text-muted-foreground uppercase block">Simulator Inputs</span>
+      <section style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 'var(--space-6)', alignItems: 'stretch' }}>
+        {/* Bar chart */}
+        <div style={chartCard}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
             <div>
-              <div className="flex justify-between text-xs font-mono mb-1">
-                <span>AI Website Refresh ($1,200/ea)</span>
-                <span className="text-neon-cyan font-bold">{websitesToClose} Deals</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                value={websitesToClose}
-                onChange={(e) => setWebsitesToClose(Number(e.target.value))}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-neon-cyan"
-              />
+              <div className="vx-eyebrow" style={{ color: 'var(--cyan-300)', marginBottom: 6 }}>Revenue Trend</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>Pipeline · Last 12 Weeks</div>
             </div>
-            <div>
-              <div className="flex justify-between text-xs font-mono mb-1">
-                <span>AI Receptionist Setup ($1,000 + $250 retainer)</span>
-                <span className="text-neon-cyan font-bold">{receptionistsToClose} Deals</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                value={receptionistsToClose}
-                onChange={(e) => setReceptionistsToClose(Number(e.target.value))}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-neon-cyan"
-              />
-            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 22, color: 'var(--signal-400)' }}>+18.4%</span>
           </div>
-
-          {/* Calculations */}
-          <div className="p-4 rounded-lg bg-white/2 border border-white/5 space-y-3">
-            <span className="text-[10px] font-mono text-muted-foreground uppercase block">Forecast Calculations</span>
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-              <span className="text-muted-foreground">Closed Sales:</span>
-              <span className="text-right text-foreground">${closed.toLocaleString()}</span>
-              
-              <span className="text-muted-foreground">Est. Setup Inflow:</span>
-              <span className="text-right text-neon-green">+${(websitesToClose * 1200 + receptionistsToClose * 1000).toLocaleString()}</span>
-              
-              <span className="text-muted-foreground">New MRR Retainers:</span>
-              <span className="text-right text-neon-cyan">+${(receptionistsToClose * 250).toLocaleString()}/mo</span>
-            </div>
-
-            <div className="border-t border-white/5 pt-2 flex justify-between items-center">
-              <span className="text-xs font-mono font-bold text-foreground">Projected Total:</span>
-              <span className="text-sm font-mono font-bold text-neon-green">
-                ${(closed + websitesToClose * 1200 + receptionistsToClose * 1000 + receptionistsToClose * 250).toLocaleString()}
-              </span>
-            </div>
-
-            {closed + websitesToClose * 1200 + receptionistsToClose * 1000 + receptionistsToClose * 250 >= target ? (
-              <div className="p-2 text-center bg-neon-green/10 border border-neon-green/30 text-neon-green rounded text-[10px] font-mono font-bold shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-                ✓ GAP BRIDGED! Monthly revenue target achieved.
-              </div>
-            ) : (
-              <div className="p-2 text-center bg-neon-pink/10 border border-neon-pink/30 text-neon-pink rounded text-[10px] font-mono font-bold">
-                Gap remaining: ${(Math.max(0, target - (closed + websitesToClose * 1200 + receptionistsToClose * 1000 + receptionistsToClose * 250))).toLocaleString()}
-              </div>
-            )}
-          </div>
-
-          {/* Marcus Playbook */}
-          <div className="space-y-3">
-            <span className="text-[10px] font-mono text-muted-foreground uppercase block">Marcus Playbook</span>
-            <button
-              onClick={async () => {
-                setGeneratingPlaybook(true);
-                try {
-                  const res = await authFetch('/api/ai/agent/run', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      agentKey: 'revenue',
-                      params: { websites: websitesToClose, receptionists: receptionistsToClose }
-                    })
-                  });
-                  const json = await res.json();
-                  if (json.success && json.result) {
-                    setPlaybookResult(json.result);
-                  } else {
-                    setPlaybookResult('Marcus (Revenue Agent): Focus on qualifying medical practices in the CRM. Pitch receptionist savings first.');
-                  }
-                } catch (err) {
-                  setPlaybookResult('Marcus (Revenue Agent): Triggered strategy compilation fallback.');
-                } finally {
-                  setGeneratingPlaybook(false);
-                }
-              }}
-              disabled={generatingPlaybook || (websitesToClose === 0 && receptionistsToClose === 0)}
-              className="w-full py-2 bg-neon-cyan hover:bg-neon-cyan/80 text-black font-mono font-bold text-[10px] tracking-wider rounded transition cursor-pointer disabled:opacity-50"
-            >
-              {generatingPlaybook ? 'COMPILING STRATEGY...' : 'GENERATE CLOSE PLAYBOOK'}
-            </button>
-
-            <div className="h-28 overflow-y-auto p-3 rounded bg-black/45 border border-white/5 font-mono text-[9px] text-muted-foreground leading-relaxed">
-              {playbookResult ? (
-                <div className="whitespace-pre-wrap select-text">{playbookResult}</div>
-              ) : (
-                <span className="italic text-muted-foreground/50">[Select simulation deals and click Generate to see Marcus’s sales instructions...]</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Revenue Log */}
-        <div className="lg:col-span-8 space-y-4">
-          <h3 className="font-mono text-xs text-muted-foreground uppercase tracking-widest">
-            EARNINGS HISTORY
-          </h3>
-
-          <div className="overflow-x-auto glass-panel border border-white/5 rounded-xl bg-cyber-bg/20">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-cyber-border bg-white/5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                  <th className="px-6 py-4 font-bold">Month / Date</th>
-                  <th className="px-6 py-4 font-bold">Type of Sale</th>
-                  <th className="px-6 py-4 font-bold">Details</th>
-                  <th className="px-6 py-4 font-bold">Status</th>
-                  <th className="px-6 py-4 font-bold text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {revenues.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground font-mono">
-                      No earnings transactions recorded.
-                    </td>
-                  </tr>
-                ) : (
-                  revenues.map((rev) => (
-                    <tr key={rev.id} className="hover:bg-white/2 transition">
-                      <td className="px-6 py-4 font-mono">
-                        <div>
-                          <span className="font-semibold block">{rev.month}</span>
-                          <span className="text-muted-foreground text-[10px] block mt-0.5">{rev.payment_date || 'Pending'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 font-mono text-[9px] text-neon-cyan">
-                          {rev.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-muted-foreground max-w-xs truncate font-sans text-[11px] select-text">
-                        {rev.notes}
-                      </td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={rev.status} />
-                      </td>
-                      <td className="px-6 py-4 text-right font-mono font-bold text-neon-green text-sm">
-                        +${rev.amount.toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Right Column: Record Revenue Form */}
-        <div className="lg:col-span-4">
-          <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30">
-            <div className="flex items-center space-x-2 text-neon-green mb-4">
-              <Landmark size={18} />
-              <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-                Record a Sale
-              </h3>
-            </div>
-
-            <form onSubmit={handleAddRevenue} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">
-                  Select Client
-                </label>
-                <select
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-xs text-foreground focus:outline-none focus:border-neon-green transition"
-                >
-                  <option value="">General (No client selected)</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.business_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">
-                  Type of Payment
-                </label>
-                <select
-                  value={revType}
-                  onChange={(e) => setRevType(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-xs text-foreground focus:outline-none focus:border-neon-green transition"
-                >
-                  <option value="Setup Fee">Setup Fee</option>
-                  <option value="Project">Project Delivery</option>
-                  <option value="Retainer">Monthly Retainer</option>
-                  <option value="Upsell">Upsell Feature</option>
-                  <option value="Other">Other Revenue</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">
-                  Amount Received (in Dollars)
-                </label>
-                <input
-                  type="number"
-                  required
-                  placeholder="e.g. 1200"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-xs text-foreground focus:outline-none focus:border-neon-green transition"
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 220, paddingTop: 'var(--space-4)' }}>
+            {BAR_VALS.map((v, i) => (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, height: '100%', justifyContent: 'flex-end' }}>
+                <div
+                  style={{
+                    width: '100%',
+                    height: `${v}%`,
+                    borderRadius: '6px 6px 2px 2px',
+                    background: i === BAR_VALS.length - 1 ? 'var(--grad-brand)' : 'linear-gradient(180deg, rgba(139,92,246,0.55), rgba(34,211,238,0.25))',
+                    boxShadow: i === BAR_VALS.length - 1 ? 'var(--glow-violet)' : 'none',
+                    transition: 'height var(--dur-slow) var(--ease-out)',
+                  }}
                 />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, color: 'var(--text-dim)' }}>{BAR_LABELS[i]}</span>
               </div>
-
-              <div>
-                <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">
-                  Details / Notes
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Website launch payment"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-xs text-foreground focus:outline-none focus:border-neon-green transition"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting || !amount}
-                className="w-full py-2 bg-neon-green hover:bg-neon-green/80 text-white rounded font-mono font-bold text-xs tracking-wider transition uppercase cursor-pointer disabled:opacity-50"
-              >
-                {submitting ? 'SAVING...' : 'SAVE TRANSACTION'}
-              </button>
-            </form>
+            ))}
           </div>
         </div>
-      </div>
-    </div>
+
+        {/* Donut */}
+        <div style={chartCard}>
+          <div className="vx-eyebrow" style={{ color: 'var(--violet-300)', marginBottom: 'var(--space-5)' }}>Channel Mix</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--space-6)' }}>
+            <div style={{ width: 180, height: 180, borderRadius: '50%', background: 'conic-gradient(var(--violet-400) 0% 42%, var(--cyan-400) 42% 68%, var(--signal-400) 68% 86%, var(--mist-500) 86% 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(139,92,246,0.3)' }}>
+              <div style={{ width: 118, height: 118, borderRadius: '50%', background: 'var(--ink-800)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 22, color: 'var(--text-strong)', lineHeight: 1 }}>$1.24M</span>
+                <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>TOTAL</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            {CHANNELS.map((ch) => (
+              <div key={ch.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: ch.tone, flex: '0 0 auto' }} />
+                <span style={{ fontSize: 13, color: 'var(--text-body)', flex: 1 }}>{ch.name}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-muted)' }}>{ch.pct}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

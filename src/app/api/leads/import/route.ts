@@ -119,9 +119,11 @@ export async function POST(req: Request) {
     }
   }
 
-  // Fire scoring for each inserted lead — async, non-blocking
-  // Follows the same pattern as api/leads/route.ts
-  if (imported.length > 0) {
+  // Fire the research chain for each inserted lead — async, non-blocking.
+  // Skippable via POST /api/leads/import?research=off (the Scraper Import
+  // UI exposes this as a checkbox).
+  const researchEnabled = new URL(req.url).searchParams.get('research') !== 'off';
+  if (imported.length > 0 && researchEnabled) {
     (async () => {
       try {
         const { runAutopilotForLead } = await import('@/lib/agents/autopilot');

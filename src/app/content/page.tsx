@@ -1,180 +1,104 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { db } from '@/lib/db';
-import { ContentIdea } from '@/lib/types';
-import { authFetch } from '@/lib/authFetch';
-import ContentIdeaCard from '@/components/ContentIdeaCard';
-import LoadingState from '@/components/LoadingState';
-import EmptyState from '@/components/EmptyState';
-import { FileCode, Plus, Sparkles } from 'lucide-react';
+import React from 'react';
+import { PageHeaderCard, VxIcon } from '@/components/ds';
 
-export default function ContentStudio() {
-  const [ideas, setIdeas] = useState<ContentIdea[]>([]);
-  const [loading, setLoading] = useState(true);
+/**
+ * Content — ported from the "isContent" view of the design prototype:
+ * header with DRAFTS / POSTED counts, a grid of platform draft cards with
+ * viral hooks, and the "Create Social Posts with AI" composer.
+ */
 
-  // Form states
-  const [topic, setTopic] = useState('AI Receptionist ROI math for dental practices');
-  const [generating, setGenerating] = useState(false);
+const DRAFTS = [
+  { platform: 'LinkedIn', status: 'Approved', title: 'The AI Receptionist Math for Local Businesses', hook: '"If your business has a front desk, you are losing at least 15 hours a week to phone calls that could be automated."', created: 'Created 6/11/2026' },
+  { platform: 'Instagram', status: 'Approved', title: 'Before & After: Dental Website Booking Flow Redesign', hook: '"Stop forcing patient prospects to dial a phone number in 2026."', created: 'Created 6/11/2026' },
+  { platform: 'YouTube', status: 'Approved', title: 'How I Built an AI Booking Agent in 2 Hours', hook: '"Watch me build an autonomous AI receptionist from scratch for a local salon."', created: 'Created 6/10/2026' },
+];
 
-  async function loadIdeas() {
-    try {
-      const ids = await db.getContentIdeas();
-      setIdeas(ids);
-    } catch (e) {
-      console.warn('Failed to load content ideas:', e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadIdeas();
-  }, []);
-
-  const handleUpdateStatus = async (id: string, newStatus: ContentIdea['status']) => {
-    try {
-      await db.updateContentIdea(id, { status: newStatus });
-      await loadIdeas();
-      alert(`Content item status updated to ${newStatus}`);
-    } catch (err) {
-      console.warn('Failed to update content idea status:', err);
-    }
+export default function ContentPage() {
+  const [topic, setTopic] = React.useState('');
+  const [writing, setWriting] = React.useState(false);
+  const t = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const writePosts = () => {
+    setWriting(true);
+    clearTimeout(t.current);
+    t.current = setTimeout(() => setWriting(false), 2200);
   };
-
-  const handleGenerateIdeas = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!topic.trim() || generating) return;
-
-    setGenerating(true);
-    try {
-      const res = await authFetch('/api/ai/content', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTopic('');
-        await loadIdeas();
-        alert('AI successfully wrote 3 new social media post ideas!');
-      } else {
-        alert(data.error || 'Failed to generate content');
-      }
-    } catch (err) {
-      console.warn('Failed to generate content ideas via AI:', err);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  if (loading) {
-    return <LoadingState message="LOADING SOCIAL WRITER..." />;
-  }
-
-  const activeIdeas = ideas.filter(i => i.status !== 'Posted');
-  const postedIdeas = ideas.filter(i => i.status === 'Posted');
+  React.useEffect(() => () => clearTimeout(t.current), []);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 font-sans">
-      {/* Left Column: Ideas Dashboard */}
-      <div className="lg:col-span-8 space-y-6">
-        <div className="flex items-center space-x-2 text-neon-cyan">
-          <FileCode size={20} />
-          <span className="font-mono text-sm font-bold uppercase tracking-wider">Social Media Writer</span>
-        </div>
+    <>
+      <PageHeaderCard
+        icon="doc"
+        title="Content"
+        subtitle="Ryan drafts authority posts from your topics — approve, schedule, and post."
+        stats={[
+          { value: '3', label: 'DRAFTS', color: 'var(--cyan-300)' },
+          { value: '0', label: 'POSTED', color: 'var(--signal-400)' },
+        ]}
+      />
 
-        {/* Pending list */}
-        <div>
-          <h3 className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-3">
-            My Saved Post Drafts
-          </h3>
-          {activeIdeas.length === 0 ? (
-            <EmptyState
-              title="No Post Drafts Found"
-              description="Type a topic on the right and click Generate to create social media posts using AI."
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {activeIdeas.map((idea) => (
-                <ContentIdeaCard
-                  key={idea.id}
-                  idea={idea}
-                  onUpdateStatus={handleUpdateStatus}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Posted log */}
-        <div>
-          <h3 className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-3">
-            Published Posts History
-          </h3>
-          {postedIdeas.length === 0 ? (
-            <div className="p-8 border border-dashed border-white/5 rounded-xl text-center text-muted-foreground text-xs font-mono">
-              NO PUBLISHED POSTS RECORDED YET.
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-              {postedIdeas.map((idea) => (
-                <div key={idea.id} className="p-3 bg-white/1 border border-white/3 rounded flex justify-between items-center text-xs">
-                  <div>
-                    <span className="font-semibold block text-foreground">{idea.title}</span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      Platform: {idea.platform} | Format: {idea.content_type || 'Text'}
-                    </span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded bg-neon-green/10 text-neon-green border border-neon-green/20 text-[9px] font-mono uppercase font-bold">
-                    POSTED
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Right Column: AI Writer Form */}
-      <div className="lg:col-span-4">
-        <div className="glass-panel p-6 border border-white/5 rounded-xl bg-cyber-bg/30">
-          <div className="flex items-center space-x-2 text-neon-cyan mb-4">
-            <Sparkles size={18} />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-              Create Social Posts with AI
-            </h3>
-          </div>
-
-          <form onSubmit={handleGenerateIdeas} className="space-y-4 text-xs">
-            <div>
-              <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">
-                What topic do you want to write about?
-              </label>
-              <textarea
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                rows={4}
-                required
-                placeholder="e.g. Why slow websites lose customers, how AI receptionists save dental clinics time..."
-                className="w-full bg-white/5 border border-white/10 rounded p-3 text-foreground focus:outline-none focus:border-neon-cyan transition"
-              />
-            </div>
-            
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
-              💡 The AI will write a complete post with hook lines and post text customized for your potential clients.
-            </p>
-
-            <button
-              type="submit"
-              disabled={generating || !topic.trim()}
-              className="w-full py-2 bg-neon-cyan hover:bg-neon-cyan/85 text-black rounded font-mono font-bold text-xs tracking-wider transition uppercase cursor-pointer disabled:opacity-50 animate-pulse-glow"
+      <section style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 'var(--space-6)', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
+          {DRAFTS.map((d) => (
+            <div
+              key={d.title}
+              className="vx-glass"
+              style={{ display: 'flex', flexDirection: 'column', padding: 'var(--space-5)', borderRadius: 'var(--radius-lg)', background: 'var(--grad-panel)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-md), var(--sheen-top)' }}
             >
-              {generating ? 'WRITING POSTS...' : 'WRITE POSTS WITH AI'}
-            </button>
-          </form>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cyan-300)', padding: '4px 10px', borderRadius: 6, background: 'rgba(34,211,238,0.10)', border: '1px solid rgba(34,211,238,0.24)' }}>{d.platform}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--signal-400)', padding: '3px 10px', borderRadius: 999, background: 'rgba(46,230,160,0.10)', border: '1px solid rgba(46,230,160,0.26)' }}>{d.status}</span>
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, color: 'var(--text-strong)', marginTop: 14, lineHeight: 'var(--lh-snug)' }}>{d.title}</div>
+              <div style={{ marginTop: 14, padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', background: 'rgba(139,92,246,0.06)', border: '1px solid var(--hairline)' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, fontWeight: 700, letterSpacing: 'var(--ls-wide)', color: 'var(--violet-300)', textTransform: 'uppercase', marginBottom: 6 }}>Viral Hook</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-body)', fontStyle: 'italic', lineHeight: 'var(--lh-normal)' }}>{d.hook}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 14 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-dim)' }}>{d.created}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 600, color: 'var(--signal-400)', cursor: 'pointer' }}>
+                  <span style={{ display: 'flex' }}>
+                    <VxIcon name="send" size={14} />
+                  </span>
+                  Mark Posted
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
-    </div>
+
+        <div
+          className="vx-glass"
+          style={{ padding: 'var(--space-6)', borderRadius: 'var(--radius-xl)', background: 'linear-gradient(155deg, rgba(34,211,238,0.06), rgba(10,7,26,0.5))', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-lg), var(--sheen-top)' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'var(--space-5)' }}>
+            <span style={{ color: 'var(--cyan-300)', display: 'flex' }}>
+              <VxIcon name="sparkle" size={18} />
+            </span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', color: 'var(--cyan-300)', textTransform: 'uppercase' }}>Create Social Posts with AI</span>
+          </div>
+          <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', marginBottom: 8 }}>What topic do you want to write about?</div>
+          <textarea
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="AI Receptionist ROI math for dental practices"
+            style={{ width: '100%', minHeight: 92, padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--border-default)', color: 'var(--text-strong)', fontFamily: 'var(--font-body)', fontSize: 13.5, outline: 'none', resize: 'vertical', lineHeight: 1.5 }}
+          />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', margin: 'var(--space-4) 0' }}>
+            <span style={{ color: 'var(--warn-400)', display: 'flex', flex: '0 0 auto', marginTop: 1 }}>
+              <VxIcon name="sparkle" size={14} />
+            </span>
+            <span style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 'var(--lh-normal)' }}>The AI will write a complete post with hook lines and post text customized for your potential clients.</span>
+          </div>
+          <div
+            onClick={writePosts}
+            style={{ textAlign: 'center', padding: '13px 0', borderRadius: 'var(--radius-md)', background: 'var(--grad-brand)', color: '#fff', fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: 'var(--glow-violet)', opacity: writing ? 0.7 : 1 }}
+          >
+            {writing ? 'Writing…' : 'Write Posts with AI'}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

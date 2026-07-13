@@ -381,6 +381,46 @@ create table if not exists public.community_metrics (
   created_at timestamptz default now()
 );
 
+-- 22. approval_requests (Entity Phase 1 — propose-then-approve queue.
+--     Every autonomous EXTERNAL action becomes a card here and executes
+--     only after Barry approves. See Obsidian: Entity/VELTRIX Constitution.)
+create table if not exists public.approval_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  type text not null,               -- outreach_send | proposal_send | publish | spend | price_change | playbook_edit | structural | goal_ratification
+  department text not null,         -- core | intelligence | growth | revenue | delivery | product | finance | governance
+  created_by_agent text not null,
+  title text not null,
+  context text,                     -- why: lead history, research brief refs
+  payload jsonb not null,           -- the exact action (email body + recipient, etc.)
+  recommendation text,
+  confidence integer,               -- 1-10 from the proposing agent
+  status text default 'pending',    -- pending | approved | approved_edited | rejected | expired
+  decision_payload jsonb,           -- what Barry actually approved (diff vs payload = learning data)
+  rejection_reason text,
+  execution_result text,            -- outcome after an approved action ran
+  created_at timestamptz default now(),
+  decided_at timestamptz
+);
+
+-- 23. entity_goals (Entity Phase 2 — goal cascade: BHAG → quarter → month →
+--     week → day. Drafted by the Core, ratified by Barry via approval queue.)
+create table if not exists public.entity_goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  level text not null,              -- bhag | quarter | month | week | day
+  parent_id uuid references public.entity_goals(id) on delete set null,
+  department text,                  -- set for week/day goals
+  title text not null,
+  target jsonb,
+  actuals jsonb,
+  status text default 'draft',      -- draft | ratified | active | completed | missed
+  period text not null,             -- '2026' | '2026-Q3' | '2026-07' | '2026-W28'
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  ratified_at timestamptz
+);
+
 
 -- ==========================================
 -- ROW LEVEL SECURITY (RLS) POLICIES DEFINITION
@@ -408,6 +448,8 @@ alter table public.expenses enable row level security;
 alter table public.content_ideas enable row level security;
 alter table public.ad_campaigns enable row level security;
 alter table public.community_metrics enable row level security;
+alter table public.approval_requests enable row level security;
+alter table public.entity_goals enable row level security;
 
 -- Drop any legacy public access policies
 drop policy if exists "Public Access Profile" on public.profiles;
@@ -453,6 +495,8 @@ create policy "Users can access their own expenses" on public.expenses for all u
 create policy "Users can access their own content ideas" on public.content_ideas for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Users can access their own ad campaigns" on public.ad_campaigns for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Users can access their own community metrics" on public.community_metrics for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own approval requests" on public.approval_requests for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can access their own entity goals" on public.entity_goals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 
 -- ==========================================

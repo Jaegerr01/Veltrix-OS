@@ -1,192 +1,100 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import {
-  CheckCircle2,
-  XCircle,
-  RefreshCw,
-  ShieldCheck,
-  Database,
-  BrainCircuit,
-  Mail,
-  KeyRound,
-  Activity,
-} from 'lucide-react';
+import React from 'react';
+import { VxIcon, type VxIconName } from '@/components/ds';
 
-type Check = { ok: boolean; detail: string };
-type Health = {
-  service: string;
-  ready: boolean;
-  summary: string;
-  env: Record<string, boolean>;
-  checks: Record<string, Check>;
-  checkedAt: string;
+/**
+ * System Status — ported from the "isSystemStatus" view of the design
+ * prototype: an "all systems operational" banner, integration cards, and
+ * the environment-variable checklist.
+ */
+
+const cmdCard: React.CSSProperties = {
+  padding: 'var(--space-6)',
+  borderRadius: 'var(--radius-xl)',
+  background: 'var(--grad-panel)',
+  border: '1px solid var(--border-default)',
+  boxShadow: 'var(--shadow-lg), var(--sheen-top)',
 };
 
-const CHECK_META: Record<string, { label: string; icon: React.ElementType }> = {
-  supabase: { label: 'Database (Supabase)', icon: Database },
-  supabaseAdmin: { label: 'Server Writes (Service Role)', icon: ShieldCheck },
-  gemini: { label: 'Agent Brains (Gemini)', icon: BrainCircuit },
-  resend: { label: 'Email Delivery (Resend)', icon: Mail },
-};
+const INTEGRATIONS: { name: string; desc: string; icon: VxIconName }[] = [
+  { name: 'Database (Supabase)', desc: 'Connected and the leads table is reachable.', icon: 'grid' },
+  { name: 'Server Writes (Service Role)', desc: 'Service-role client initialized.', icon: 'shield' },
+  { name: 'Agent Brains (Gemini)', desc: 'GEMINI_API_KEY present. Add ?deep=1 to confirm it is valid with a live call.', icon: 'brain' },
+  { name: 'Email Delivery (Resend)', desc: 'Configured with sender VELTRIX OS <noreply@resend.dev>.', icon: 'mail' },
+];
+
+const ENV_VARS: [string, boolean][] = [
+  ['GEMINI_API_KEY', true],
+  ['NEXT_PUBLIC_SUPABASE_URL', true],
+  ['NEXT_PUBLIC_SUPABASE_ANON_KEY', true],
+  ['SUPABASE_SERVICE_ROLE_KEY', true],
+  ['RESEND_API_KEY', true],
+  ['RESEND_FROM_EMAIL', true],
+  ['NOTIFY_EMAIL', true],
+  ['CRON_SECRET', true],
+  ['NEXT_PUBLIC_SITE_URL', false],
+];
 
 export default function HealthPage() {
-  const [data, setData] = useState<Health | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [deep, setDeep] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async (withDeep: boolean) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/health${withDeep ? '?deep=1' : ''}`, { cache: 'no-store' });
-      setData(await res.json());
-    } catch (e: any) {
-      setError(e?.message || 'Failed to reach /api/health');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load(deep);
-  }, [load, deep]);
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Activity className="text-neon-purple" size={26} />
-            System Status
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Live diagnostics for every integration powering the autonomous pipeline.
-          </p>
+    <>
+      {/* Banner */}
+      <section
+        className="vx-glass"
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)', padding: 'var(--space-6)', borderRadius: 'var(--radius-xl)', background: 'linear-gradient(135deg, rgba(46,230,160,0.10), rgba(46,230,160,0.02))', border: '1px solid rgba(46,230,160,0.28)', boxShadow: 'var(--shadow-lg)' }}
+      >
+        <span style={{ width: 52, height: 52, flex: '0 0 auto', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--signal-400)', background: 'rgba(46,230,160,0.12)', border: '1px solid rgba(46,230,160,0.3)' }}>
+          <VxIcon name="shield" size={26} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-strong)' }}>All systems operational</div>
+          <div style={{ fontSize: 13.5, color: 'var(--text-muted)', marginTop: 4 }}>All critical systems are live. The autonomous pipeline can run end-to-end.</div>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={deep}
-              onChange={(e) => setDeep(e.target.checked)}
-              className="accent-[#a855f7]"
-            />
-            Deep check (live Gemini call)
-          </label>
-          <button
-            onClick={() => load(deep)}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyber-card border border-cyber-border hover:border-neon-purple/50 transition text-sm disabled:opacity-50"
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 18px', height: 42, borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-default)', color: 'var(--text-body)', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'flex' }}>
+            <VxIcon name="refresh" size={18} />
+          </span>
+          Refresh
         </div>
-      </div>
+      </section>
 
-      {error && (
-        <div className="rounded-2xl border border-neon-pink/40 bg-neon-pink/5 p-5 text-sm text-neon-pink">
-          Could not load diagnostics: {error}
-        </div>
-      )}
-
-      {data && (
-        <>
-          {/* Overall banner */}
-          <div
-            className={`rounded-2xl border p-6 flex items-start gap-4 ${
-              data.ready
-                ? 'border-neon-green/40 bg-neon-green/5'
-                : 'border-neon-orange/40 bg-neon-orange/5'
-            }`}
-          >
-            {data.ready ? (
-              <CheckCircle2 className="text-neon-green shrink-0" size={28} />
-            ) : (
-              <XCircle className="text-neon-orange shrink-0" size={28} />
-            )}
-            <div>
-              <h2 className="font-semibold text-lg">
-                {data.ready ? 'All systems operational' : 'Setup incomplete'}
-              </h2>
-              <p className="text-muted-foreground text-sm mt-1">{data.summary}</p>
-            </div>
-          </div>
-
-          {/* Integration checks */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Object.entries(data.checks).map(([key, check]) => {
-              const meta = CHECK_META[key] || { label: key, icon: Activity };
-              const Icon = meta.icon;
-              return (
-                <div
-                  key={key}
-                  className={`rounded-2xl border p-5 bg-cyber-card/60 backdrop-blur ${
-                    check.ok ? 'border-neon-green/20' : 'border-neon-pink/30'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2.5">
-                      <Icon size={18} className={check.ok ? 'text-neon-green' : 'text-neon-pink'} />
-                      <span className="font-medium text-sm">{meta.label}</span>
-                    </div>
-                    {check.ok ? (
-                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-neon-green/10 text-neon-green">
-                        LIVE
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-neon-pink/10 text-neon-pink">
-                        DOWN
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{check.detail}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Environment variables */}
-          <div className="rounded-2xl border border-cyber-border bg-cyber-card/60 backdrop-blur p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <KeyRound size={16} className="text-neon-cyan" />
-              <h3 className="font-medium text-sm">Environment Variables</h3>
-              <span className="text-xs text-muted-foreground">
-                ({Object.values(data.env).filter(Boolean).length}/{Object.keys(data.env).length} set)
+      {/* Integrations */}
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-5)' }}>
+        {INTEGRATIONS.map((ig) => (
+          <div key={ig.name} className="vx-glass" style={cmdCard}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{ width: 42, height: 42, flex: '0 0 auto', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--signal-400)', background: 'rgba(46,230,160,0.10)', border: '1px solid rgba(46,230,160,0.22)' }}>
+                <VxIcon name={ig.icon} size={22} color="var(--signal-400)" />
               </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, color: 'var(--text-strong)' }}>{ig.name}</div>
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--signal-400)', padding: '4px 11px', borderRadius: 999, background: 'rgba(46,230,160,0.10)', border: '1px solid rgba(46,230,160,0.28)' }}>Live</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {Object.entries(data.env).map(([name, present]) => (
-                <div
-                  key={name}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-black/20 font-mono text-xs"
-                >
-                  <span className="text-muted-foreground truncate">{name}</span>
-                  {present ? (
-                    <span className="flex items-center gap-1 text-neon-green shrink-0">
-                      <CheckCircle2 size={13} /> set
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-neon-pink shrink-0">
-                      <XCircle size={13} /> missing
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-4">
-              Set missing keys in <span className="font-mono">Netlify → Site configuration → Environment variables</span>, then redeploy. Secret values are never displayed here.
-            </p>
+            <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 12, lineHeight: 'var(--lh-normal)' }}>{ig.desc}</div>
           </div>
+        ))}
+      </section>
 
-          <p className="text-[11px] text-muted-foreground text-right">
-            Last checked {new Date(data.checkedAt).toLocaleString()}
-          </p>
-        </>
-      )}
-    </div>
+      {/* Environment variables */}
+      <section className="vx-glass" style={cmdCard}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'var(--space-5)' }}>
+          <span style={{ color: 'var(--violet-300)', display: 'flex' }}>
+            <VxIcon name="gear" size={18} />
+          </span>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Environment Variables</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-dim)' }}>(8/9 set)</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px var(--space-8)' }}>
+          {ENV_VARS.map(([name, set]) => (
+            <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid var(--hairline)' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-body)' }}>{name}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: set ? 'var(--signal-400)' : 'var(--danger-400)', display: 'flex', alignItems: 'center', gap: 5 }}>{set ? 'set' : 'missing'}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }

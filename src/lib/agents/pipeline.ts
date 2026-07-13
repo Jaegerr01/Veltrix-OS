@@ -104,45 +104,19 @@ async function processQualifiedLeads(actions: string[], errors: string[]): Promi
       // Decide best channel
       const channel = lead.email ? 'Email' : lead.social_link ? 'LinkedIn' : 'Email';
 
+      // The outreach agent now owns the entire chain: it pulls Daniel's
+      // research brief, has Olivia draft a custom proposal, and sends the
+      // combined email through the guarded sender (Gmail → Resend fallback,
+      // kill switch, daily cap, blacklist). If the send is refused, the
+      // message stays as a Draft awaiting approval — check the Outbox.
       const result = await runAgentLogic(
         'outreach',
         { leadId: lead.id, offerName, channel },
         true
       );
       if (result.success) {
-        actions.push(`[Emma] Outreach sent to: ${lead.business_name} via ${channel}`);
+        actions.push(`[Emma] Outreach + proposal processed for: ${lead.business_name} via ${channel}`);
         count++;
-
-        // If we have a real email and Resend is configured, actually send it
-        if (channel === 'Email' && lead.email) {
-          const messages = await db.getOutreachMessages();
-          const latest = messages
-            .filter(m => m.lead_id === lead.id && m.status === 'Sent')
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-
-          if (latest) {
-            const resend = getResendClient();
-            if (resend) {
-              try {
-                await resend.emails.send({
-                  from: FROM_EMAIL,
-                  to: [lead.email],
-                  subject: `A quick note for ${lead.business_name}`,
-                  text: latest.message,
-                });
-                actions.push(`[Emma] Email delivered to ${lead.email}`);
-              } catch (mailErr: any) {
-                errors.push(`[Emma] Email delivery failed for ${lead.email}: ${mailErr.message}`);
-              }
-            } else {
-              errors.push(
-                `[Emma] Email NOT delivered to ${lead.email} — RESEND_API_KEY is not configured. ` +
-                `The message was drafted and logged but never actually sent. ` +
-                `Set RESEND_API_KEY (and verify a domain + RESEND_FROM_EMAIL) in Netlify to enable real delivery.`
-              );
-            }
-          }
-        }
       }
     } catch (err: any) {
       errors.push(`[Emma] Outreach failed for ${lead.business_name}: ${err.message}`);
@@ -499,6 +473,31 @@ export async function generateDailyBrief(): Promise<string> {
   const activities = await db.getAgentLogs();
   const profile = await db.getBusinessProfile();
 
+  // ── Entity Phase 2: Daily Pulse inputs ────────────────────────────────────
+  // Approval queue digest + goal cascade + today's learning (rejections).
+  const pendingApprovals = await db.getApprovalRequests('pending').catch(() => []);
+  const decidedToday = (await db.getApprovalRequests().catch(() => []))
+    .filter(r => r.decided_at && new Date(r.decided_at).toDateString() === new Date().toDateString());
+  const rejectedToday = decidedToday.filter(r => r.status === 'rejected');
+  const editedToday = decidedToday.filter(r => r.status === 'approved_edited');
+
+  let cascadeSection = 'No ratified goal cascade for this month — draft one from the dashboard.';
+  try {
+    const { getCascadeSnapshot } = await import('../entity/cascade');
+    const snap = await getCascadeSnapshot();
+    if (snap.month) {
+      const target = Number((snap.month.target as any)?.revenue ?? 0);
+      cascadeSection = [
+        `Month goal (${snap.monthPeriod}): $${snap.closedThisMonth.toLocaleString()} closed of $${target.toLocaleString()} target.`,
+        snap.weekly.length > 0
+          ? `This week's department goals (${snap.weekPeriod}):\n${snap.weekly.map(g => `  - [${g.department}] ${g.title}`).join('\n')}`
+          : 'No weekly department goals instantiated for this week.',
+      ].join('\n');
+    }
+  } catch (err) {
+    console.warn('[pulse] cascade snapshot failed:', err);
+  }
+
   const closedRevenue = revenues
     .filter(r => r.status === 'Paid')
     .reduce((acc, r) => acc + Number(r.amount), 0);
@@ -562,14 +561,23 @@ TASK STATUS:
 TODAY'S AUTONOMOUS ACTIONS (${todayActivities.length} actions):
 ${todayActivities.slice(0, 10).map(a => `• [${a.actor}] ${a.action}`).join('\n') || 'None logged today.'}
 
-Generate a DAILY BRIEF that includes:
-1. **Revenue Snapshot** — where we stand vs. target with the math
+GOAL CASCADE (Entity):
+${cascadeSection}
+
+APPROVAL QUEUE (Entity — propose-then-approve):
+- Waiting for Barry's decision: ${pendingApprovals.length}${pendingApprovals.length > 0 ? '\n' + pendingApprovals.slice(0, 5).map(r => `  • [${r.department}] ${r.title}`).join('\n') : ''}
+- Decided today: ${decidedToday.length} (${rejectedToday.length} rejected, ${editedToday.length} approved with edits)
+${rejectedToday.length > 0 ? `- Rejection lessons: ${rejectedToday.map(r => `"${r.title}" — ${r.rejection_reason || 'no reason given'}`).join('; ')}` : ''}
+
+Generate a DAILY PULSE that includes:
+1. **Scoreboard** — revenue vs. target vs. cascade goal, with the math
 2. **Pipeline Status** — what stage leads are at, which ones are hot
 3. **What the Agents Did Today** — summary of all autonomous actions
-4. **Top 5 Priorities for Tomorrow** — specific, actionable, in order of impact
-5. **Leads to Contact Tomorrow** — top 3 leads with specific recommended action
+4. **Approval Queue** — what's waiting for Barry (oldest first); nag him if items are stale
+5. **Top 5 Priorities for Tomorrow** — specific, actionable, each traced to a weekly department goal where possible
 6. **Risk Flags** — anything that needs Barry's attention
-7. **Monthly Trajectory** — on track / at risk / behind (with projected close)
+7. **One Learning** — the single most useful thing the entity learned today (rejections and edits count double)
+8. **Monthly Trajectory** — on track / at risk / behind (with projected close)
 
 Keep it tight, no fluff. Barry reads this in 3 minutes before sleeping.
 `;

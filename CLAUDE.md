@@ -126,6 +126,36 @@ src/
 
 ---
 
+## Lead Pipeline v2 (2026-07-11)
+
+Single source of truth for agent behavior is `src/lib/agents/executor.ts`. Do NOT
+reintroduce parallel implementations — `autopilot.ts` and `pipeline.ts` both delegate
+to the executor now (autopilot.ts previously marked emails "Sent" without sending).
+
+Chain: **Scraper import → Daniel → Emma → Olivia → Approval Queue → guarded send**
+1. Leads page → "FETCH LEADS" → `ScraperImport.tsx` parses Barry's .py Google Maps
+   scraper output (JSON or CSV, flexible field aliases) → `POST /api/leads/import`
+   (append `?research=off` to skip auto-research).
+2. `leadResearch` (Daniel): fetches the lead's live website (`agents/research.ts`,
+   SSRF-guarded), writes a `[Research Brief …]` block into `lead.notes`, scores.
+   Score ≥7 AND `profile.autopilot` on → triggers outreach.
+3. `outreach` (Emma): research-informed message; autonomous mode also runs
+   `proposal` (Olivia) and composes ONE email (message + proposal) — but per
+   Entity Phase 1 (Obsidian → Entity/VELTRIX Constitution.md, Article 3) it does
+   NOT send. It files an approval card via `lib/entity/approvals.ts`.
+4. Barry decides in the dashboard `ApprovalQueue` (approve / edit-and-approve /
+   reject). Approval executes `sendOutreachEmail` — guardrails STILL apply.
+   Rejected cards never execute. Failed/refused sends stay Draft — never
+   phantom "Sent". Requires the `approval_requests` table
+   (`migrations/2026-07-12_approval_requests.sql`).
+5. `lib/email/send.ts` guardrails (autonomous flag): `OUTREACH_SEND_ENABLED=false`
+   kill switch · `OUTREACH_DAILY_CAP` (default 15) · `OUTREACH_BLACKLIST` (emails/
+   domains). Provider order: Gmail (`GMAIL_USER`+`GMAIL_APP_PASSWORD`) → Resend.
+6. Direct human sends from the Outbox (`/api/outreach/send`) bypass guardrails
+   by design (autonomous:false).
+
+Requires `npm install` after pull (new deps: nodemailer, @types/nodemailer).
+
 ## Gotchas (from the 2026-07-03 audit)
 
 - `/api/test-supabase` intentionally 404s in production — dev-only diagnostic; don't "fix" it.

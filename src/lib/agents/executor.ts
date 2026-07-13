@@ -223,6 +223,23 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           return { success: false, error: 'Lead not found' };
         }
 
+        // ── Real research: fetch their live website and build a brief ──
+        // The brief lands in lead.notes so every downstream agent (scoring
+        // below, Emma's outreach, Olivia's proposal) works from actual facts
+        // about this business instead of whatever was hand-typed.
+        let researchNote = '';
+        try {
+          const { fetchWebsiteSnapshot, briefToNotes } = await import('./research');
+          const snapshot = lead.website
+            ? await fetchWebsiteSnapshot(lead.website)
+            : { ok: false as const, url: '', error: 'No website on record' };
+          const brief = await gemini.researchLead(lead, snapshot);
+          researchNote = briefToNotes(brief);
+          lead.notes = `${lead.notes || ''}\n\n${researchNote}`.trim();
+        } catch (err: any) {
+          console.warn('[leadResearch] website research skipped:', err.message);
+        }
+
         let scoreResult;
         try {
           scoreResult = await gemini.scoreLead(lead);
@@ -269,8 +286,10 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
             related_lead_id: leadId
           });
 
-          // Trigger Outreach automatically on autopilot if qualified
-          if (scoreResult.total_score >= 7) {
+          // Hand off to Emma ONLY when the master autopilot toggle is on —
+          // research-on-import with autopilot off should score leads without
+          // ever emailing anyone.
+          if (scoreResult.total_score >= 7 && profile.autopilot) {
             const isChatbot = lead.pain_point?.toLowerCase().includes('receptionist') || lead.pain_point?.toLowerCase().includes('call') || lead.industry === 'Dental';
             const offer = isChatbot ? 'AI Receptionist / Lead Booking Agent' : 'AI Website + Brand System';
             runAgentLogic('outreach', { leadId, offerName: offer, channel: 'Email' }, true);
@@ -280,8 +299,8 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         resultText = `**Daniel (Lead Research Agent)**: Hey Alex, I completed qualifying scoring for lead **${lead.business_name}**.\n\n**Total Score:** ${scoreResult.total_score}/10\n\n**Reasoning:** ${scoreResult.reasoning}`;
         if (isAuto) {
           resultText += `\n\n[AUTONOMOUS OPERATION COMMITTED]: Lead status updated to "${nextStatus}". Research task logged as Completed.`;
-          if (scoreResult.total_score >= 7) {
-            resultText += ` Outreach drafting automatically triggered.`;
+          if (scoreResult.total_score >= 7 && profile.autopilot) {
+            resultText += ` Handing off to Emma (Outreach) for proposal + send.`;
           }
         }
         break;
@@ -298,9 +317,15 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           return { success: false, error: 'Lead not found' };
         }
 
+        // Hand Emma the research brief Daniel left in the lead's notes so the
+        // message references real findings instead of generic pain points.
+        const researchNotes = lead.notes?.includes('[Research Brief')
+          ? lead.notes.slice(lead.notes.indexOf('[Research Brief'))
+          : undefined;
+
         let messageText;
         try {
-          messageText = await gemini.generateOutreach(lead, offerName);
+          messageText = await gemini.generateOutreach(lead, offerName, researchNotes);
         } catch (err: any) {
           const contact = lead.contact_name || 'Owner';
           const business = lead.business_name;
@@ -315,37 +340,94 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         const profile = await db.getBusinessProfile();
         const isAuto = autonomous || profile.autopilot;
 
-        await db.addOutreachMessage({
+        // ── Entity Phase 1 (propose-then-approve): autonomous mode no longer
+        // sends directly. Emma asks Olivia for a custom proposal, composes the
+        // full email, and files it as an approval request in Barry's queue.
+        // The send executes only after Barry approves — and even then the
+        // guarded sender (kill switch, daily cap, blacklist) still applies.
+        // Doctrine: Obsidian → Entity/VELTRIX Constitution.md, Article 3.
+        let queuedInfo = '';
+        let queuedForApproval = false;
+
+        // Every path creates the draft first — single source of truth.
+        const draftMessage = await db.addOutreachMessage({
           lead_id: leadId,
           channel: channel as any,
           message: messageText,
-          status: isAuto ? 'Sent' : 'Draft',
-          approval_status: isAuto ? 'Approved' : 'Pending Approval',
-          sent_at: isAuto ? new Date().toISOString() : undefined
+          status: 'Draft',
+          approval_status: 'Pending Approval'
         });
 
-        if (isAuto) {
-          await db.updateLead(leadId, {
-            status: 'Contacted'
+        if (isAuto && channel === 'Email' && lead.email) {
+          let proposalSection = '';
+          try {
+            const proposalResult = await runAgentLogic('proposal', {
+              leadId,
+              offerName,
+              price: offerName.toLowerCase().includes('receptionist') ? 1000 : 1200,
+              skipStatusUpdate: true,
+            }, true);
+            if (proposalResult.success) {
+              const proposals = await db.getProposals();
+              const latest = proposals
+                .filter(p => p.lead_id === leadId)
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+              if (latest?.solution) {
+                proposalSection = `\n\n---\n\n${latest.solution}`;
+              }
+            }
+          } catch (err: any) {
+            console.warn('[outreach] proposal generation failed, queueing outreach alone:', err.message);
+          }
+
+          const researchContext = lead.notes?.includes('[Research Brief')
+            ? lead.notes.slice(lead.notes.indexOf('[Research Brief')).slice(0, 1500)
+            : undefined;
+
+          const { requestApproval } = await import('../entity/approvals');
+          const request = await requestApproval({
+            type: 'outreach_send',
+            department: 'revenue',
+            createdByAgent: 'Emma (Outreach Agent)',
+            title: `Send outreach${proposalSection ? ' + proposal' : ''} to ${lead.business_name}`,
+            context: [
+              `Lead: ${lead.business_name} (${lead.industry || 'unknown industry'}), score ${lead.lead_score ?? 'n/a'}/10, status ${lead.status}.`,
+              `Offer: ${offerName}.`,
+              researchContext ? `Research: ${researchContext}` : null,
+            ].filter(Boolean).join('\n'),
+            payload: {
+              leadId,
+              outreachMessageId: draftMessage.id,
+              to: lead.email,
+              subject: `A quick note for ${lead.business_name}`,
+              text: `${messageText}${proposalSection}`,
+            },
+            recommendation: 'Send. Research-informed message; lead scored qualified.',
+            confidence: lead.lead_score ? Math.min(10, Math.round(lead.lead_score)) : 7,
           });
+
+          queuedForApproval = true;
+          queuedInfo = `Approval request ${request.id} filed in Barry's queue.`;
         }
 
         await db.addTask({
           agent_name: 'Outreach Agent',
-          title: isAuto 
-            ? `Autonomous outreach sent to ${lead.business_name}`
+          title: queuedForApproval
+            ? `Awaiting approval: outreach to ${lead.business_name}`
             : `Review and approve outreach message for ${lead.business_name}`,
-          description: isAuto 
-            ? `Automatically sent outreach for ${lead.business_name} using channel: ${channel}.`
-            : `Drafted outreach for ${lead.business_name} using channel: ${channel}. Click Approve to mark sent.`,
+          description: queuedForApproval
+            ? `Outreach + proposal composed for ${lead.business_name} via ${channel}. ${queuedInfo} Nothing sends until approved.`
+            : `Drafted outreach for ${lead.business_name} via ${channel}. Approve in the Outbox to send.`,
           priority: 'High',
-          status: isAuto ? 'Completed' : 'Pending',
+          status: 'Pending',
           related_lead_id: leadId
         });
 
-        resultText = isAuto 
-          ? `**Emma (Outreach Agent)**: Hey Alex! I've autonomously generated and sent the outreach message to **${lead.business_name}** via ${channel}.\n\nI updated their lead status to "Contacted" and marked the message as "Sent" in the Outbox.`
-          : `**Emma (Outreach Agent)**: Hey Alex! I've generated the outreach draft message for **${lead.business_name}** via ${channel}.\n\nYou can review it in the Outbox under "Pending Approval". Let me know if you want any edits!`;
+        resultText = queuedForApproval
+          ? `**Emma (Outreach Agent)**: Hey Alex! I coordinated with Olivia on a custom proposal for **${lead.business_name}** and composed the full email. Per the Constitution it's now in **Barry's Approval Queue** — one click and it sends (guardrails still on). ${queuedInfo}`
+          : isAuto
+            ? `**Emma (Outreach Agent)**: I drafted the outreach for **${lead.business_name}** but couldn't queue a send: ${lead.email ? 'channel is not Email.' : 'no email on record for this lead.'}\n\nIt's waiting in the Outbox under "Pending Approval".`
+            : `**Emma (Outreach Agent)**: Hey Alex! I've generated the outreach draft message for **${lead.business_name}** via ${channel}.\n\nYou can review it in the Outbox under "Pending Approval". Let me know if you want any edits!`;
         break;
       }
 
@@ -393,7 +475,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
       }
 
       case 'proposal': {
-        const { leadId, offerName, price = 1200 } = params;
+        const { leadId, offerName, price = 1200, skipStatusUpdate = false } = params;
         if (!leadId || !offerName) {
           return { success: false, error: 'leadId and offerName are required for Proposal Agent' };
         }
@@ -426,7 +508,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           status: autonomous ? 'Sent' : 'Draft'
         });
 
-        if (autonomous) {
+        if (autonomous && !skipStatusUpdate) {
           await db.updateLead(leadId, {
             status: 'Proposal Sent'
           });
@@ -532,6 +614,27 @@ Answer the user's question accurately using only the retrieved documentation abo
 `;
         const generated = await gemini.callRawLLM(prompt, agent.systemPrompt);
         resultText = `**Harper (Support Agent)**: ${generated}`;
+        break;
+      }
+
+      case 'scraper': {
+        const { niche, location, limit = 20 } = params;
+        if (!niche || !location) {
+          return { success: false, error: 'niche and location are required for the Lead Scout Agent' };
+        }
+        const { runScraper, importScrapedLeads, scraperConfigured } = await import('../scraper/run');
+        const check = scraperConfigured();
+        if (!check.ok) {
+          resultText = `**Victor (Lead Scout Agent)**: I can't run the scraper here — ${check.reason}\n\nUse the Paste Import flow on the Leads page, or run me from the local dev machine.`;
+          break;
+        }
+        const run = await runScraper({ niche, location, limit: Number(limit) });
+        if (!run.ok) {
+          return { success: false, error: run.error };
+        }
+        const { imported, skipped } = await importScrapedLeads(run.leads);
+        resultText = `**Victor (Lead Scout Agent)**: Scrape complete for **"${niche} in ${location}"**.\n\n- Scraped: ${run.leads.length}\n- Imported: ${imported.length} new leads\n- Skipped: ${skipped} duplicates\n\nFresh leads are in the pipeline as "New" — Daniel picks them up from here.`;
+        logPayload = { niche, location, scraped: run.leads.length, imported: imported.length, skipped };
         break;
       }
 
