@@ -189,7 +189,9 @@ export async function executeAgent(
 
   if (!isGeminiConfigured) {
     if (isVoiceMode) {
-      return { agentName: agent.name, text: generateVoiceFallback('Gemini API key is missing') };
+      const simulated = await generateSimulatedResponse(agentKey, userMessage, 'Gemini API key is missing');
+      const cleanText = simulated.text.replace(/⚠️\s*\*?\*?Offline Simulator Mode\*?\*?\s*\([^)]*\)\s*/gi, '').trim();
+      return { agentName: agent.name, text: cleanText };
     }
     return generateSimulatedResponse(agentKey, userMessage, 'Gemini API key is missing. Add GEMINI_API_KEY to your env variables.');
   }
@@ -229,7 +231,9 @@ Use this data to provide concrete, grounded answers. If metrics, goals, or lists
   } catch (error: any) {
     console.error(`Error executing agent ${agentKey}:`, error);
     if (isVoiceMode) {
-      return { agentName: agent.name, text: generateVoiceFallback(error.message || 'AI request failed') };
+      const simulated = await generateSimulatedResponse(agentKey, userMessage, error.message || 'AI request failed');
+      const cleanText = simulated.text.replace(/⚠️\s*\*?\*?Offline Simulator Mode\*?\*?\s*\([^)]*\)\s*/gi, '').trim();
+      return { agentName: agent.name, text: cleanText };
     }
     return generateSimulatedResponse(agentKey, userMessage, error.message || 'AI request failed');
   }

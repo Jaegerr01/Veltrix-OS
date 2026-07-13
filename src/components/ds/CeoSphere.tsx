@@ -62,6 +62,8 @@ const CeoSphere = React.forwardRef<
       mx: 0,
       my: 0,
       t: 0,
+      isListening: false,
+      isSpeaking: false,
     };
     stateRef.current = c as unknown as { pulse: number; spin: number };
 
@@ -82,13 +84,34 @@ const CeoSphere = React.forwardRef<
     canvas.addEventListener('pointerenter', onEnter);
     canvas.addEventListener('pointerleave', onLeave);
 
-    // tri-color gradient cyan -> violet -> magenta by vertical position
+    const handleVoiceStatus = (e: CustomEvent) => {
+      if (e.detail) {
+        c.isListening = !!e.detail.isListening;
+        c.isSpeaking = !!e.detail.isSpeaking;
+      }
+    };
+    window.addEventListener('veltrix-voice-status', handleVoiceStatus as any);
+
+    // dynamic gradient stops based on ARIA assistant states
     const col = (t: number) => {
-      const stops = [
-        [34, 211, 238],
-        [139, 92, 246],
-        [217, 70, 239],
-      ];
+      const stops = c.isListening
+        ? [
+            [34, 211, 238], // cyan
+            [34, 211, 238], // cyan
+            [139, 92, 246], // violet
+          ]
+        : c.isSpeaking
+        ? [
+            [217, 70, 239], // magenta
+            [139, 92, 246], // violet
+            [217, 70, 239], // magenta
+          ]
+        : [
+            [34, 211, 238], // cyan
+            [139, 92, 246], // violet
+            [217, 70, 239], // magenta
+          ];
+
       const seg = t * 2,
         i = Math.min(1, Math.floor(seg)),
         f = seg - i;
@@ -109,10 +132,17 @@ const CeoSphere = React.forwardRef<
       const tilt = tiltRef?.current || { x: 0, y: 0 };
       const tiltX = tilt.x / 40,
         tiltY = tilt.y / 40;
-      c.rotY += 0.0032 + c.spin + (c.mx * 0.03 + tiltY * 0.02);
+
+      // Accelerate spin during listening or speaking
+      const spinSpeed = c.isListening ? 0.018 : c.isSpeaking ? 0.010 : 0.0032;
+      c.rotY += spinSpeed + c.spin + (c.mx * 0.03 + tiltY * 0.02);
       c.rotX += (-0.35 + c.my * 0.5 + tiltX * 0.3 - c.rotX) * 0.05;
       c.spin *= 0.9;
-      const scale = 1 + c.hover * 0.12 + c.pulse * 0.18;
+
+      // Add physical voice wobble bounce when speaking
+      const voiceWobble = c.isSpeaking ? Math.sin(c.t * 10) * 0.08 * (Math.random() * 0.4 + 0.8) : 0;
+      const scale = (1 + voiceWobble) * (1 + c.hover * 0.12 + c.pulse * 0.18);
+
       const cosX = Math.cos(c.rotX),
         sinX = Math.sin(c.rotX);
       const cosY = Math.cos(c.rotY),
@@ -153,6 +183,7 @@ const CeoSphere = React.forwardRef<
 
     return () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener('veltrix-voice-status', handleVoiceStatus as any);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerenter', onEnter);
       canvas.removeEventListener('pointerleave', onLeave);

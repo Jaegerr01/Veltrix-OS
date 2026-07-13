@@ -5,11 +5,15 @@ interface LoadingStateProps {
   message?: string;
 }
 
-export default function LoadingState({ message = 'Accessing mainframe data...' }: LoadingStateProps) {
+export default function LoadingState({ message = 'Accessing operator console...' }: LoadingStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center p-12">
-      <VeltrixSpinner size={64} message={message} />
+    <div
+      className="fixed inset-0 flex flex-col items-center justify-center z-[9999]"
+      style={{
+        background: '#060410',
+      }}
+    >
+      <VeltrixSpinner size={80} message={message} />
     </div>
   );
 }
-

@@ -188,7 +188,10 @@ export default function OrbitalCommand() {
           }}
         />
         <div
-          onClick={() => sphereRef.current?.pulse()}
+          onClick={() => {
+            sphereRef.current?.pulse();
+            window.dispatchEvent(new Event('veltrix-toggle-voice'));
+          }}
           style={{
             position: 'absolute',
             left: '50%',
