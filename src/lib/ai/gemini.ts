@@ -1,15 +1,22 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Lead, LeadScore, Proposal, ContentIdea, Memory } from '../types';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-export const isGeminiConfigured = !!apiKey && apiKey !== 'undefined';
+export const isGeminiConfigured = true;
 
-let genAI: GoogleGenerativeAI | null = null;
-if (isGeminiConfigured) {
+async function getGenAI(): Promise<GoogleGenerativeAI | null> {
+  let key = process.env.GEMINI_API_KEY || '';
   try {
-    genAI = new GoogleGenerativeAI(apiKey);
+    const { headers } = await import('next/headers');
+    const nextHeaders = await headers();
+    key = nextHeaders.get('x-gemini-key') || key;
+  } catch {}
+
+  if (!key || key === 'undefined') return null;
+  try {
+    return new GoogleGenerativeAI(key);
   } catch (e) {
-    console.error('Failed to initialize GoogleGenerativeAI in lib/ai/gemini:', e);
+    console.error('Failed to initialize GoogleGenerativeAI:', e);
+    return null;
   }
 }
 
@@ -31,8 +38,9 @@ Business Offer Options:
 `;
 
 async function generateText(prompt: string, systemInstruction?: string): Promise<string> {
-  if (!isGeminiConfigured || !genAI) {
-    throw new Error('Gemini API key is missing. Add GEMINI_API_KEY to your environment variables.');
+  const genAI = await getGenAI();
+  if (!genAI) {
+    throw new Error('Gemini API key is missing. Add GEMINI_API_KEY to settings or environment.');
   }
 
   const modelsToTry = ['gemini-2.5-flash'];
@@ -389,8 +397,9 @@ Tone: executive, confident, data-backed, client-ready. No fluff. Under 180 words
     return generateText(prompt, systemInstruction);
   },
   async getEmbedding(text: string): Promise<number[]> {
-    if (!isGeminiConfigured || !genAI) {
-      throw new Error('Gemini API key is missing. Add GEMINI_API_KEY to your environment variables.');
+    const genAI = await getGenAI();
+    if (!genAI) {
+      throw new Error('Gemini API key is missing. Add GEMINI_API_KEY to settings or environment.');
     }
     const maxRetries = 3;
     let delay = 1000;

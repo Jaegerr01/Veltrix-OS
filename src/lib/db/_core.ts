@@ -49,7 +49,17 @@ export const getUserId = async (): Promise<string> => {
         if (owner?.id) return owner.id;
       }
     } catch (e) {
-      // Admin lookup failed — fall through to session check
+      // Admin lookup failed — fall through to public users table check
+    }
+
+    try {
+      const { supabaseAdmin } = await import('../supabase/admin');
+      if (supabaseAdmin) {
+        const { data } = await supabaseAdmin.from('users').select('id').limit(1);
+        if (data && data[0]?.id) return data[0].id;
+      }
+    } catch (e) {
+      // ignore
     }
   }
 

@@ -31,6 +31,32 @@ export default function Topbar() {
   const { avatar } = useAppearance();
   const [displayName, setDisplayName] = React.useState('Operator');
 
+  const [syncing, setSyncing] = React.useState(false);
+  const [syncStatus, setSyncStatus] = React.useState<'idle' | 'success' | 'failed'>('idle');
+
+  const handleSyncObsidian = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setSyncStatus('idle');
+    try {
+      const { authFetch } = await import('@/lib/authFetch');
+      const res = await authFetch('/api/obsidian/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setSyncStatus('success');
+        setTimeout(() => setSyncStatus('idle'), 3000);
+      } else {
+        setSyncStatus('failed');
+        setTimeout(() => setSyncStatus('idle'), 3000);
+      }
+    } catch {
+      setSyncStatus('failed');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   React.useEffect(() => {
     const savedName = localStorage.getItem('vx_display_name') || 'Operator';
     setDisplayName(savedName);
@@ -79,6 +105,53 @@ export default function Topbar() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginLeft: 'auto', flexWrap: 'wrap', minWidth: 0 }}>
         <Input placeholder="Search agents, tasks, logs…" size="md" style={{ width: 220, minWidth: 140, flex: '1 1 140px' }} />
         <Switch checked={liveSync} onChange={setLiveSync} label="Live Sync" />
+        
+        {/* Sync Obsidian Button */}
+        <div
+          onClick={handleSyncObsidian}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '0 16px',
+            height: 40,
+            borderRadius: 'var(--radius-md)',
+            background: syncStatus === 'success'
+              ? 'rgba(46,230,160,0.12)'
+              : syncStatus === 'failed'
+              ? 'rgba(239,68,68,0.1)'
+              : 'rgba(255,255,255,0.03)',
+            border: syncStatus === 'success'
+              ? '1px solid rgba(46,230,160,0.3)'
+              : syncStatus === 'failed'
+              ? '1px solid rgba(239,68,68,0.25)'
+              : '1px solid var(--border-default)',
+            color: syncStatus === 'success'
+              ? 'var(--signal-400)'
+              : syncStatus === 'failed'
+              ? 'var(--danger-400)'
+              : 'var(--text-strong)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12.5,
+            fontWeight: 600,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all 0.2s ease',
+          }}
+          className="hover:bg-white/5"
+          title="Sync Obsidian Vault Notes"
+        >
+          <VxIcon
+            name="refresh"
+            size={14}
+            color={syncStatus === 'success' ? 'var(--signal-400)' : syncStatus === 'failed' ? 'var(--danger-400)' : 'var(--text-muted)'}
+            style={{
+              animation: syncing ? 'vxRingSpin 2s linear infinite' : 'none',
+            }}
+          />
+          {syncing ? 'SYNCING...' : syncStatus === 'success' ? 'SYNCED!' : syncStatus === 'failed' ? 'FAILED!' : 'SYNC OBSIDIAN'}
+        </div>
+
         <Link
           href="/command-center"
           style={{

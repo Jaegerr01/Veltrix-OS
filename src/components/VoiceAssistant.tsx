@@ -189,11 +189,15 @@ export default function VoiceAssistant() {
     if (!voice) {
       const en = voices.filter(v => v.lang.startsWith('en'));
       voice =
-        en.find(v => /Google US English/i.test(v.name)) ||
+        en.find(v => /Aria.*Online/i.test(v.name)) ||
+        en.find(v => /Jenny.*Online/i.test(v.name)) ||
+        en.find(v => /Online.*Natural/i.test(v.name)) ||
         en.find(v => /Aria/i.test(v.name)) ||
+        en.find(v => /Jenny/i.test(v.name)) ||
+        en.find(v => /Google US English/i.test(v.name)) ||
         en.find(v => /Microsoft.*Online/i.test(v.name)) ||
-        en.find(v => /natural/i.test(v.name) && /jenny|female/i.test(v.name)) ||
-        en.find(v => /Samantha|Zira/i.test(v.name)) ||
+        en.find(v => /natural/i.test(v.name) && /female/i.test(v.name)) ||
+        en.find(v => /female/i.test(v.name)) ||
         en[0] || voices[0];
       if (voice) selectedVoiceNameRef.current = voice.name;
     }
@@ -365,130 +369,5 @@ export default function VoiceAssistant() {
     }
   }, [isOpen, isListening, isSpeaking, loading]);
 
-  if (!isOpen) return null;
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 32,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 9999,
-        width: '90%',
-        maxWidth: 520,
-        borderRadius: 24,
-        background: 'rgba(10, 6, 26, 0.85)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid var(--border-default)',
-        boxShadow: 'var(--shadow-xl), var(--glow-violet)',
-        padding: '16px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        fontFamily: 'var(--font-body)',
-        animation: 'vxFadeUp 0.3s var(--ease-out) both',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: isSpeaking ? 'var(--danger-400)' : isListening ? 'var(--cyan-400)' : 'var(--mist-400)',
-              boxShadow: isSpeaking ? '0 0 10px var(--danger-400)' : isListening ? '0 0 10px var(--cyan-400)' : 'none',
-              animation: isListening || isSpeaking ? 'vxDotBlink 1.4s ease-in-out infinite' : 'none',
-            }}
-          />
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 10.5,
-              fontWeight: 700,
-              letterSpacing: 'var(--ls-wide)',
-              textTransform: 'uppercase',
-              color: isSpeaking ? 'var(--danger-400)' : isListening ? 'var(--cyan-400)' : 'var(--text-muted)',
-            }}
-          >
-            {isSpeaking ? 'ARIA TRANSMITTING' : isListening ? 'ARIA LISTENING' : 'ARIA STANDBY'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={toggleMute}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-muted)',
-              display: 'flex',
-              padding: 4,
-            }}
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-          </button>
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              stopListening();
-              cancelCurrentAudio();
-            }}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-muted)',
-              display: 'flex',
-              padding: 4,
-            }}
-            title="Close"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {transcript && (
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-            &ldquo;{transcript}&rdquo;
-          </div>
-        )}
-        
-        {loading && (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Loader2 size={12} className="animate-spin text-neon-purple" />
-            <span style={{ fontSize: 11, color: 'var(--violet-200)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
-              COORDINATING SPECIALIST AGENTS...
-            </span>
-          </div>
-        )}
-
-        {errorMsg && (
-          <div style={{ fontSize: 12, color: 'var(--danger-400)', fontFamily: 'var(--font-mono)' }}>
-            ⚠️ {errorMsg}
-          </div>
-        )}
-
-        {agentResponse && (
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--text-strong)',
-              lineHeight: 1.45,
-              borderLeft: '2px solid var(--violet-400)',
-              paddingLeft: 12,
-              marginTop: 4,
-            }}
-          >
-            {agentResponse}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return null;
 }

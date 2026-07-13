@@ -23,6 +23,19 @@ export default function OrbitalCommand() {
   const sphereRef = React.useRef<CeoSphereHandle>(null);
   const N = AGENT_DEFS.length;
 
+  const [voiceState, setVoiceState] = React.useState({ isListening: false, isSpeaking: false });
+
+  React.useEffect(() => {
+    const handleVoiceStatus = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        setVoiceState({ isListening: !!detail.isListening, isSpeaking: !!detail.isSpeaking });
+      }
+    };
+    window.addEventListener('veltrix-voice-status', handleVoiceStatus as any);
+    return () => window.removeEventListener('veltrix-voice-status', handleVoiceStatus as any);
+  }, []);
+
   const onMove = (e: React.MouseEvent<HTMLElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const px = (e.clientX - r.left) / r.width - 0.5;
@@ -180,11 +193,18 @@ export default function OrbitalCommand() {
             height: 240,
             borderRadius: '50%',
             transform: 'translate(-50%,-50%)',
-            background: 'var(--grad-halo)',
-            filter: 'blur(6px)',
-            animation: 'vxHaloBreathe 4.5s ease-in-out infinite',
+            background: voiceState.isListening
+              ? 'radial-gradient(circle, rgba(34,211,238,0.4) 0%, rgba(34,211,238,0) 70%)'
+              : voiceState.isSpeaking
+              ? 'radial-gradient(circle, rgba(217,70,239,0.45) 0%, rgba(217,70,239,0) 70%)'
+              : 'var(--grad-halo)',
+            filter: 'blur(8px)',
+            animation: voiceState.isListening || voiceState.isSpeaking
+              ? 'vxHaloPulse 1.2s ease-in-out infinite'
+              : 'vxHaloBreathe 4.5s ease-in-out infinite',
             zIndex: 1,
             pointerEvents: 'none',
+            transition: 'background 0.3s ease',
           }}
         />
         <div
@@ -218,7 +238,7 @@ export default function OrbitalCommand() {
               pointerEvents: 'none',
             }}
           >
-            CEO Agent
+            {voiceState.isSpeaking ? 'ARIA TRANSMITTING' : voiceState.isListening ? 'ARIA LISTENING' : 'ARIA'}
           </span>
         </div>
 

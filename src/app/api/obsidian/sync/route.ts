@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { headers } from 'next/headers';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,12 +13,18 @@ interface VaultNote {
 // ── GitHub API sync (works on Netlify + local) ───────────────────────────────
 
 async function collectNotesFromGitHub(): Promise<VaultNote[]> {
-  const token = process.env.GITHUB_TOKEN;
-  const repo  = process.env.GITHUB_OBSIDIAN_REPO; // e.g. "barry/veltrix-vault"
+  let token = process.env.GITHUB_TOKEN;
+  let repo  = process.env.GITHUB_OBSIDIAN_REPO; // e.g. "barry/veltrix-vault"
+
+  try {
+    const nextHeaders = await headers();
+    token = nextHeaders.get('x-github-token') || token;
+    repo = nextHeaders.get('x-github-repo') || repo;
+  } catch {}
 
   if (!token || !repo) return [];
 
-  const headers = {
+  const gitHeaders = {
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
@@ -26,7 +33,7 @@ async function collectNotesFromGitHub(): Promise<VaultNote[]> {
   // Fetch the full recursive file tree
   const treeRes = await fetch(
     `https://api.github.com/repos/${repo}/git/trees/HEAD?recursive=1`,
-    { headers, next: { revalidate: 0 } }
+    { headers: gitHeaders, next: { revalidate: 0 } }
   );
   if (!treeRes.ok) throw new Error(`GitHub tree fetch failed: ${treeRes.status}`);
 
@@ -40,7 +47,7 @@ async function collectNotesFromGitHub(): Promise<VaultNote[]> {
   await Promise.all(
     mdFiles.map(async (file) => {
       try {
-        const blobRes = await fetch(file.url, { headers, next: { revalidate: 0 } });
+        const blobRes = await fetch(file.url, { headers: gitHeaders, next: { revalidate: 0 } });
         if (!blobRes.ok) return;
         const blob = await blobRes.json();
         const content = Buffer.from(blob.content, 'base64').toString('utf-8').trim();
@@ -62,7 +69,11 @@ async function collectNotesFromGitHub(): Promise<VaultNote[]> {
 // ── Local filesystem sync (local dev only — not available on Netlify) ─────────
 
 async function collectNotesFromDisk(): Promise<VaultNote[]> {
-  const vaultPath = process.env.OBSIDIAN_VAULT_PATH;
+  let vaultPath = process.env.OBSIDIAN_VAULT_PATH;
+  try {
+    const nextHeaders = await headers();
+    vaultPath = nextHeaders.get('x-obsidian-path') || vaultPath;
+  } catch {}
   if (!vaultPath) return [];
 
   try {

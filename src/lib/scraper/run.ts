@@ -47,11 +47,18 @@ export interface ScraperResult {
 
 const TIMEOUT_MS = 10 * 60_000; // scrapes with email extraction are slow — 10 min
 
-export function scraperConfigured(): { ok: boolean; reason?: string; script?: string } {
-  if (process.env.NODE_ENV === 'production') {
-    return { ok: false, reason: 'Scraper runs are local-only (dev machine). Use Paste Import in production.' };
-  }
-  const script = process.env.SCRAPER_SCRIPT || DEFAULT_SCRIPT;
+export async function getScraperScript(): Promise<string> {
+  try {
+    const { headers } = await import('next/headers');
+    const nextHeaders = await headers();
+    const headerPath = nextHeaders.get('x-scraper-path');
+    if (headerPath) return headerPath;
+  } catch {}
+  return process.env.SCRAPER_SCRIPT || DEFAULT_SCRIPT;
+}
+
+export function scraperConfigured(scriptPath?: string): { ok: boolean; reason?: string; script?: string } {
+  const script = scriptPath || process.env.SCRAPER_SCRIPT || DEFAULT_SCRIPT;
   return { ok: true, script };
 }
 
@@ -110,7 +117,8 @@ function normalize(item: Record<string, string>): ScrapedLead | null {
  * approve the consent screen if the token has expired.
  */
 export async function runScraper(opts: { niche: string; location: string; limit?: number; sheets?: boolean }): Promise<ScraperResult> {
-  const check = scraperConfigured();
+  const scriptPath = await getScraperScript();
+  const check = scraperConfigured(scriptPath);
   if (!check.ok) return { ok: false, leads: [], error: check.reason };
 
   const { niche, location, limit = 20, sheets = false } = opts;

@@ -53,6 +53,14 @@ export default function SettingsPage() {
     weekly: true,
   });
 
+  // Developer Integrations state
+  const [claudeKey, setClaudeKey] = React.useState('');
+  const [geminiKey, setGeminiKey] = React.useState('');
+  const [githubToken, setGithubToken] = React.useState('');
+  const [githubRepo, setGithubRepo] = React.useState('');
+  const [obsidianPath, setObsidianPath] = React.useState('');
+  const [scraperPath, setScraperPath] = React.useState('');
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Load configuration on mount
@@ -83,6 +91,13 @@ export default function SettingsPage() {
           }));
         } catch {}
       }
+
+      setClaudeKey(localStorage.getItem('vx_claude_key') || '');
+      setGeminiKey(localStorage.getItem('vx_gemini_key') || '');
+      setGithubToken(localStorage.getItem('vx_github_token') || '');
+      setGithubRepo(localStorage.getItem('vx_github_repo') || '');
+      setObsidianPath(localStorage.getItem('vx_obsidian_path') || '');
+      setScraperPath(localStorage.getItem('vx_scraper_path') || '');
 
       setLoading(false);
     }
@@ -117,6 +132,14 @@ export default function SettingsPage() {
       // Persist displayName and prefs to localStorage
       localStorage.setItem('vx_display_name', displayName);
       localStorage.setItem('vx_preferences', JSON.stringify(prefs));
+
+      // Persist developer integrations
+      localStorage.setItem('vx_claude_key', claudeKey);
+      localStorage.setItem('vx_gemini_key', geminiKey);
+      localStorage.setItem('vx_github_token', githubToken);
+      localStorage.setItem('vx_github_repo', githubRepo);
+      localStorage.setItem('vx_obsidian_path', obsidianPath);
+      localStorage.setItem('vx_scraper_path', scraperPath);
 
       toast.success('Settings Saved', 'System profile and visual preferences updated successfully.');
     } catch (err: any) {
@@ -233,6 +256,64 @@ export default function SettingsPage() {
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Permanently shut down all agents.</div>
             </div>
             <Button variant="danger" size="sm" onClick={triggerDecommission}>Decommission</Button>
+          </div>
+        </div>
+
+        {/* Developer Integrations */}
+        <div style={settingsCard} className="vx-glass flex flex-col gap-6">
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Developer Integrations</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Input
+              label="Claude API Key"
+              type="password"
+              value={claudeKey}
+              onChange={(e) => setClaudeKey(e.target.value)}
+              placeholder="sk-ant-..."
+              size="md"
+              style={{ width: '100%' }}
+            />
+            <Input
+              label="Gemini API Key"
+              type="password"
+              value={geminiKey}
+              onChange={(e) => setGeminiKey(e.target.value)}
+              placeholder="AIzaSy..."
+              size="md"
+              style={{ width: '100%' }}
+            />
+            <Input
+              label="GitHub Personal Access Token"
+              type="password"
+              value={githubToken}
+              onChange={(e) => setGithubToken(e.target.value)}
+              placeholder="github_pat_..."
+              size="md"
+              style={{ width: '100%' }}
+            />
+            <Input
+              label="Obsidian GitHub Repository"
+              value={githubRepo}
+              onChange={(e) => setGithubRepo(e.target.value)}
+              placeholder="username/vault-repo"
+              size="md"
+              style={{ width: '100%' }}
+            />
+            <Input
+              label="Local Obsidian Vault Disk Path"
+              value={obsidianPath}
+              onChange={(e) => setObsidianPath(e.target.value)}
+              placeholder="E:\Vetrix-app\Veltrix"
+              size="md"
+              style={{ width: '100%' }}
+            />
+            <Input
+              label="Local Maps Scraper Script Path"
+              value={scraperPath}
+              onChange={(e) => setScraperPath(e.target.value)}
+              placeholder="C:\Users\H.H\.local\bin\veltrix_maps_scraper.py"
+              size="md"
+              style={{ width: '100%' }}
+            />
           </div>
         </div>
 
