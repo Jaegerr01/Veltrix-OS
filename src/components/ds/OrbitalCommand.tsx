@@ -74,12 +74,12 @@ export default function OrbitalCommand() {
           Orbital Network
         </div>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>
-          Your AI Workforce, Always On
+          {N} specialist agents, coordinated by ARIA
         </div>
       </div>
       <div style={{ position: 'absolute', top: 'var(--space-6)', right: 'var(--space-6)', zIndex: 3, display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
         <Badge tone="active" dot>
-          8 / 100+ Agents
+          {AGENT_DEFS.filter((a) => a.status === 'active').length} of {N} active
         </Badge>
         <div
           onClick={() => router.push('/command-center')}
@@ -106,21 +106,6 @@ export default function OrbitalCommand() {
         </div>
       </div>
 
-      {/* scanline */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          height: '40%',
-          background: 'linear-gradient(180deg, rgba(34,211,238,0.08), rgba(34,211,238,0))',
-          animation: 'vxScan 7s linear infinite',
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      />
-
       {/* stage */}
       <div
         style={{
@@ -133,7 +118,7 @@ export default function OrbitalCommand() {
           transition: 'transform 0.18s var(--ease-out)',
         }}
       >
-        {/* rings */}
+        {/* rings — static hairlines; the orbit structure is the meaning, spin added none */}
         <div
           style={{
             position: 'absolute',
@@ -142,8 +127,8 @@ export default function OrbitalCommand() {
             width: RADIUS * 2 + 40,
             height: RADIUS * 2 + 40,
             borderRadius: '50%',
-            border: '1px dashed rgba(139,92,246,0.22)',
-            animation: 'vxRingSpin 90s linear infinite',
+            border: '1px solid rgba(139,92,246,0.16)',
+            transform: 'translate(-50%,-50%)',
           }}
         />
         <div
@@ -154,12 +139,12 @@ export default function OrbitalCommand() {
             width: RADIUS * 2 - 60,
             height: RADIUS * 2 - 60,
             borderRadius: '50%',
-            border: '1px dashed rgba(34,211,238,0.18)',
-            animation: 'vxRingSpinRev 70s linear infinite',
+            border: '1px solid rgba(34,211,238,0.12)',
+            transform: 'translate(-50%,-50%)',
           }}
         />
 
-        {/* orbit lines */}
+        {/* orbit lines — static; they show which agents connect to ARIA */}
         {AGENT_DEFS.map((_, i) => {
           const angle = -90 + i * (360 / N);
           return (
@@ -171,13 +156,11 @@ export default function OrbitalCommand() {
                 top: '50%',
                 width: RADIUS - 26,
                 height: 2,
-                background: 'linear-gradient(90deg, rgba(139,92,246,0.65), rgba(139,92,246,0))',
+                background: 'linear-gradient(90deg, rgba(139,92,246,0.45), rgba(139,92,246,0))',
                 transformOrigin: 'left center',
                 transform: `rotate(${angle}deg)`,
                 borderRadius: 2,
                 zIndex: 1,
-                animation: 'vxLineFlow 3.2s ease-in-out infinite',
-                animationDelay: `${i * 0.22}s`,
               }}
             />
           );
@@ -199,9 +182,11 @@ export default function OrbitalCommand() {
               ? 'radial-gradient(circle, rgba(217,70,239,0.45) 0%, rgba(217,70,239,0) 70%)'
               : 'var(--grad-halo)',
             filter: 'blur(8px)',
+            /* Halo only animates when it means something: ARIA listening/speaking.
+               Idle = static glow (rule 2). */
             animation: voiceState.isListening || voiceState.isSpeaking
-              ? 'vxHaloPulse 1.2s ease-in-out infinite'
-              : 'vxHaloBreathe 4.5s ease-in-out infinite',
+              ? 'vxHaloBreathe 1.2s ease-in-out infinite'
+              : 'none',
             zIndex: 1,
             pointerEvents: 'none',
             transition: 'background 0.3s ease',
@@ -264,8 +249,6 @@ export default function OrbitalCommand() {
                 gap: 6,
                 cursor: 'pointer',
                 zIndex: 2,
-                animation: `vxNodeFloat ${5 + (i % 3)}s ease-in-out infinite`,
-                animationDelay: `${i * 0.35}s`,
               }}
             >
               <div
@@ -296,8 +279,8 @@ export default function OrbitalCommand() {
                     borderRadius: '50%',
                     background: color,
                     border: '2px solid var(--ink-900)',
+                    /* Active = color + static glow; no blinking (rule 6) */
                     boxShadow: a.status === 'active' ? `0 0 8px ${color}` : 'none',
-                    animation: a.status === 'active' ? 'vxDotBlink 2.4s ease-in-out infinite' : 'none',
                   }}
                 />
               </div>

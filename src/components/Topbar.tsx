@@ -192,20 +192,10 @@ export default function Topbar() {
             cursor: 'pointer',
           }}
         >
+          {/* Hardcoded red "unread" dot removed (rule 5) — never show an
+              invented notification signal. Re-add only when wired to real
+              unread state. */}
           <VxIcon name="bell" size={18} color="var(--text-muted)" />
-          <span
-            style={{
-              position: 'absolute',
-              top: 9,
-              right: 10,
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: 'var(--danger-400)',
-              border: '1.5px solid var(--ink-800)',
-              boxShadow: '0 0 6px var(--danger-400)',
-            }}
-          />
         </div>
         <Avatar src={avatar || undefined} name={displayName} size="md" status="active" />
       </div>

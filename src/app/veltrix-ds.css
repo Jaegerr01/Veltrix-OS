@@ -189,9 +189,12 @@
   --sidebar-w:     264px;
 
   /* ---- Type — premium pairing (in-page override) ---- */
+  /* Two fonts only (design rule 3): Bricolage = display, Jakarta = everything else.
+     --font-mono intentionally resolves to Jakarta — data alignment comes from
+     tabular-nums on body, not from a third font family. */
   --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
   --font-body:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono:    'JetBrains Mono', 'SFMono-Regular', ui-monospace, monospace;
+  --font-mono:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 
   --fw-regular:   400;
   --fw-medium:    500;

@@ -3,16 +3,18 @@
 import React from 'react';
 
 /**
- * Deep-space 3D ambient backdrop: drifting brand orbs, two perspective
- * rings, and a masked perspective grid. Fixed behind the whole app.
- * Ported from the prototype's bgLayer / bgOrbs / bgRing / bgGrid styles.
+ * Deep-space ambient backdrop: static brand glows + a masked perspective
+ * grid, fixed behind the whole app. Motion removed per design rule 2 —
+ * the backdrop sets atmosphere; it has no reason to move. The static
+ * gradients keep the exact same look at rest, and every section shares
+ * this one continuous background (rule 7).
  */
 
 const ORB_DEFS = [
-  { size: 460, top: '-8%', left: '-6%', c1: 'rgba(139,92,246,0.30)', dur: 26 },
-  { size: 380, top: '54%', left: '68%', c1: 'rgba(34,211,238,0.22)', dur: 32 },
-  { size: 300, top: '72%', left: '8%', c1: 'rgba(217,70,239,0.18)', dur: 29 },
-  { size: 240, top: '6%', left: '74%', c1: 'rgba(79,107,255,0.22)', dur: 23 },
+  { size: 460, top: '-8%', left: '-6%', c1: 'rgba(139,92,246,0.30)' },
+  { size: 380, top: '54%', left: '68%', c1: 'rgba(34,211,238,0.22)' },
+  { size: 300, top: '72%', left: '8%', c1: 'rgba(217,70,239,0.18)' },
+  { size: 240, top: '6%', left: '74%', c1: 'rgba(79,107,255,0.22)' },
 ];
 
 export default function AmbientBackground() {
@@ -33,38 +35,9 @@ export default function AmbientBackground() {
             borderRadius: '50%',
             filter: 'blur(60px)',
             background: `radial-gradient(circle at 40% 40%, ${o.c1}, transparent 70%)`,
-            animation: `vxOrbDrift ${o.dur}s ease-in-out infinite`,
-            animationDelay: `${i * 1.3}s`,
           }}
         />
       ))}
-      <div
-        style={{
-          position: 'absolute',
-          top: '20%',
-          left: '58%',
-          width: 520,
-          height: 520,
-          borderRadius: '50%',
-          border: '1px solid rgba(139,92,246,0.14)',
-          transformStyle: 'preserve-3d',
-          animation: 'vxSpin3d 60s linear infinite',
-          boxShadow: '0 0 40px rgba(139,92,246,0.08) inset',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          top: '58%',
-          left: '12%',
-          width: 380,
-          height: 380,
-          borderRadius: '50%',
-          border: '1px dashed rgba(34,211,238,0.16)',
-          transformStyle: 'preserve-3d',
-          animation: 'vxSpin3dRev 48s linear infinite',
-        }}
-      />
       <div
         style={{
           position: 'absolute',

@@ -135,7 +135,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Initiating neural dashboard sync..." />
+        <VeltrixSpinner message="Loading your pipeline, revenue and tasks…" />
       </div>
     );
   }
@@ -158,13 +158,15 @@ export default function DashboardPage() {
   const wonCount = leads.filter(l => l.status === 'Won').length;
 
   const maxFunnel = Math.max(newCount, contactedCount, repliedCount, bookedCount, proposalCount, wonCount, 1);
-  const funnelBars: [string, number, string][] = [
-    ['New', Math.max(5, (newCount / maxFunnel) * 100), 'var(--violet-400)'],
-    ['Contact', Math.max(5, (contactedCount / maxFunnel) * 100), 'var(--violet-400)'],
-    ['Replied', Math.max(5, (repliedCount / maxFunnel) * 100), 'var(--violet-400)'],
-    ['Booked', Math.max(5, (bookedCount / maxFunnel) * 100), 'var(--cyan-400)'],
-    ['Proposal', Math.max(5, (proposalCount / maxFunnel) * 100), 'var(--cyan-400)'],
-    ['Won', Math.max(5, (wonCount / maxFunnel) * 100), 'var(--cyan-400)'],
+  // Real data only (rule 5): a stage with zero leads renders as an empty
+  // hairline, not an inflated 5% bar pretending there's something there.
+  const funnelBars: [string, number, string, number][] = [
+    ['New', (newCount / maxFunnel) * 100, 'var(--violet-400)', newCount],
+    ['Contact', (contactedCount / maxFunnel) * 100, 'var(--violet-400)', contactedCount],
+    ['Replied', (repliedCount / maxFunnel) * 100, 'var(--violet-400)', repliedCount],
+    ['Booked', (bookedCount / maxFunnel) * 100, 'var(--cyan-400)', bookedCount],
+    ['Proposal', (proposalCount / maxFunnel) * 100, 'var(--cyan-400)', proposalCount],
+    ['Won', (wonCount / maxFunnel) * 100, 'var(--cyan-400)', wonCount],
   ];
 
   // revenue target dial
@@ -190,12 +192,8 @@ export default function DashboardPage() {
 
   const goalsDone = `${goals.filter((g) => g.status === 'Completed').length} / ${goals.length} done`;
 
-  const getTaskProgress = (task: any) => {
-    const charCodeSum = task.title.split('').reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0);
-    const progressOptions = [35, 45, 55, 65, 75, 85];
-    return `${progressOptions[charCodeSum % progressOptions.length]}%`;
-  };
-
+  // Fake progress % (derived from title char codes) removed per design rule 5 —
+  // never display invented data. Tasks show their real priority instead.
   const getTaskColor = (priority: string) => {
     if (priority === 'Critical') return 'var(--danger-400)';
     if (priority === 'High') return 'var(--warn-400)';
@@ -210,9 +208,12 @@ export default function DashboardPage() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
+    /* Spacing rhythm (rule 1): tight greeting→hero (space-6), the hero dominates,
+       then a deliberate wide break (space-16) before the denser data sections,
+       which sit closer together (space-8). Not one even column. */
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Greeting + autopilot */}
-      <section style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+      <section style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap', marginBottom: 'var(--space-6)' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-strong)' }}>
             Good morning, {displayName}
@@ -242,8 +243,8 @@ export default function DashboardPage() {
               height: 7,
               borderRadius: '50%',
               background: profile?.autopilot ? 'var(--signal-400)' : 'var(--mist-400)',
+              /* Static glow — color carries the state, no blinking (rule 6) */
               boxShadow: profile?.autopilot ? '0 0 8px var(--signal-400)' : 'none',
-              animation: profile?.autopilot ? 'vxDotBlink 1.6s ease-in-out infinite' : 'none',
             }}
           />
           <span
@@ -261,16 +262,18 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Orbital hero */}
-      <OrbitalCommand />
+      {/* Orbital hero — the one big open moment on the page */}
+      <div style={{ marginBottom: 'var(--space-16)' }}>
+        <OrbitalCommand />
+      </div>
 
-      {/* Overview / Funnel / Revenue */}
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 1fr', gap: 'var(--space-10)', alignItems: 'stretch' }}>
+      {/* Overview / Funnel / Revenue — dense detail band */}
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 1fr', gap: 'var(--space-6)', alignItems: 'stretch', marginBottom: 'var(--space-8)' }}>
         {/* Business Overview */}
         <div className="vx-glass" style={dashCard}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>Overview</div>
+              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>This month</div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>Business Overview</div>
             </div>
             <span
@@ -327,9 +330,13 @@ export default function DashboardPage() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, marginTop: 'var(--space-6)' }}>
-            {funnelBars.map(([label, h, c]) => (
+            {funnelBars.map(([label, h, c, count]) => (
               <div key={label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, height: '100%', justifyContent: 'flex-end' }}>
-                <div style={{ width: '100%', height: `${h}%`, borderRadius: '6px 6px 2px 2px', background: `linear-gradient(180deg, ${c}, rgba(139,92,246,0.15))`, boxShadow: `0 0 12px ${c}44` }} />
+                {count > 0 ? (
+                  <div style={{ width: '100%', height: `${Math.max(6, h)}%`, borderRadius: '6px 6px 2px 2px', background: `linear-gradient(180deg, ${c}, rgba(139,92,246,0.15))`, boxShadow: `0 0 12px ${c}44` }} />
+                ) : (
+                  <div style={{ width: '100%', height: 2, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }} />
+                )}
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-dim)', textTransform: 'uppercase' }}>{label}</span>
               </div>
             ))}
@@ -422,7 +429,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Goals + Tasks in progress */}
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)', alignItems: 'stretch' }}>
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', alignItems: 'stretch' }}>
         {/* Today's Goals */}
         <div className="vx-glass" style={dashCard}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
@@ -546,14 +553,13 @@ export default function DashboardPage() {
                 </span>
               </div>
             </div>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => router.push('/tasks')}>Open archive →</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => router.push('/tasks')}>All tasks →</span>
           </div>
 
           {inProgressTasks.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', maxHeight: '330px', overflowY: 'auto' }}>
               {inProgressTasks.map((tk) => {
                 const taskColor = getTaskColor(tk.priority);
-                const progressVal = getTaskProgress(tk);
                 return (
                   <div
                     key={tk.id}
@@ -564,7 +570,7 @@ export default function DashboardPage() {
                       <div style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>{tk.title}</div>
                       <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{tk.agent_name || 'System Agent'}</div>
                     </div>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan-300)' }}>{progressVal}</span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: taskColor }}>{tk.priority}</span>
                   </div>
                 );
               })}
