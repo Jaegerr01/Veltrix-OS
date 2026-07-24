@@ -29,32 +29,31 @@ Without this, every agent fails at step 1 and the whole pipeline stalls.
 
 ---
 
-## 2b. Google / Microsoft sign-in buttons 🔑 *(optional — email/password login always works without this)*
+## 2b. Google sign-in button 🔑 *(optional — email/password login always works without this)*
 
-The login screen's GOOGLE and MICROSOFT buttons call `supabase.auth.signInWithOAuth`. That
-code is correct and needs no changes — **as-shipped, both buttons are disabled** because no
-OAuth provider is turned on for this Supabase project. Clicking either one redirects to a raw
-JSON error page: `{"error_code":"validation_failed","msg":"Unsupported provider: provider is
-not enabled"}`. This is expected until you complete both halves below — the buttons don't need
-"fixing" in code, they need turning on in two dashboards.
+The login screen's GOOGLE button calls `supabase.auth.signInWithOAuth`. That code is correct
+and needs no changes — it just needs the provider turned on in Supabase.
 
-**Google:**
+**Google — done ✅** (as of 2026-07-24):
 1. In **Google Cloud Console** → APIs & Services → Credentials → **Create Credentials → OAuth client ID** → Application type **Web application**.
-2. **Authorized redirect URI**: `https://sxueyuqpqeqvzuzhrhxo.supabase.co/auth/v1/callback` (your Supabase project's callback — same for every environment, dev and prod).
-3. Copy the **Client ID** and **Client Secret**.
-4. In Supabase → **Authentication → Providers → Google**, toggle it on, paste the Client ID + Secret, **Save**.
+2. **Authorized JavaScript origins**: the origin(s) you sign in from, e.g. `http://localhost:3000` for local dev, plus your production URL once known.
+3. **Authorized redirect URI**: `https://sxueyuqpqeqvzuzhrhxo.supabase.co/auth/v1/callback` (your Supabase project's callback — same for every environment, dev and prod).
+4. Copy the **Client ID** and **Client Secret**.
+5. In Supabase → **Authentication → Providers → Google**, toggle it on, paste the Client ID + Secret, **Save**.
 
-**Microsoft (Supabase calls this provider `azure`):**
+**Microsoft — temporarily removed (2026-07-24):** the MICROSOFT button was pulled from
+`AuthGate.tsx` after hitting setup issues with the Azure app registration / Supabase `azure`
+provider config. Email/password and Google both still work. To bring it back once the Azure
+side is sorted:
 1. In **Azure Portal** → Microsoft Entra ID → App registrations → **New registration**.
 2. **Redirect URI** (platform: Web): `https://sxueyuqpqeqvzuzhrhxo.supabase.co/auth/v1/callback`.
 3. Under **Certificates & secrets**, create a new client secret and copy its **value** immediately (it's hidden after you leave the page).
 4. Copy the **Application (client) ID** from the app's Overview page.
 5. In Supabase → **Authentication → Providers → Azure**, toggle it on, paste the Application ID as the Client ID and the secret value as the Client Secret, **Save**.
+6. Tell Claude to re-add the MICROSOFT button in `AuthGate.tsx` (it's a small, self-contained diff — see git history around 2026-07-24 for the original button code).
 
-**Either provider, also required:**
+**Every provider, also required:**
 - Supabase → **Authentication → URL Configuration → Redirect URLs** must include every origin you sign in from, e.g. `http://localhost:3000` for local dev and your live site URL for production. The app calls `signInWithOAuth({ redirectTo: window.location.origin })`, so whatever origin the browser is on must be in that allow-list or Supabase rejects the callback.
-
-Once both are saved, the buttons work with no code changes — the `AuthGate.tsx` implementation was already correct.
 
 ---
 
@@ -146,7 +145,7 @@ curl -X POST https://YOUR-SITE/api/autopilot/run \
 - **"Agents do nothing"** → `GEMINI_API_KEY` missing → leads never leave `New`. Check `/health`.
 - **Leads don't load** → Supabase keys missing or `supabase_schema.sql` not run.
 - **Pipeline never runs on its own** → `CRON_SECRET` not set, or the site hasn't been redeployed since adding env vars.
-- **Google/Microsoft login button → raw JSON "provider is not enabled" page** → expected until you complete Section 2b (enable the provider + credentials in the Supabase dashboard). Not a code bug.
+- **Google login button → raw JSON "provider is not enabled" page** → expected until you complete Section 2b (enable the provider + credentials in the Supabase dashboard). Not a code bug. (Microsoft is currently removed from the UI — see 2b.)
 
 ---
 

@@ -276,7 +276,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
                 <div className="flex-grow border-t border-white/5"></div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {/* Microsoft/azure temporarily removed — provider setup issues, see SETUP.md §2b */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
                 <button
                   type="button"
                   onClick={async () => {
@@ -316,46 +317,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
                   </svg>
                   GOOGLE
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setErrorMsg('');
-                    try {
-                      const { error } = await supabase.auth.signInWithOAuth({
-                        provider: 'azure',
-                        options: { redirectTo: window.location.origin },
-                      });
-                      if (error) throw error;
-                    } catch (err: any) {
-                      setErrorMsg(err.message || 'Microsoft authentication failed.');
-                    }
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    height: 40,
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-strong)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  className="hover:bg-white/5"
-                >
-                  <svg width="13" height="13" viewBox="0 0 23 23" fill="currentColor">
-                    <rect x="0" y="0" width="11" height="11" fill="#F25022" />
-                    <rect x="12" y="0" width="11" height="11" fill="#7FBA00" />
-                    <rect x="0" y="12" width="11" height="11" fill="#00A4EF" />
-                    <rect x="12" y="12" width="11" height="11" fill="#FFB900" />
-                  </svg>
-                  MICROSOFT
                 </button>
               </div>
             </div>
