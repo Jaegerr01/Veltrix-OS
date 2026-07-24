@@ -31,28 +31,10 @@ export async function requireUser(req: Request): Promise<AuthResult> {
     return { user: { id: 'local-dev', email: undefined }, response: null };
   }
 
-  // 2. Fail-soft Fallback: lookup primary account owner by NOTIFY_EMAIL or grab the first active operator user
-  try {
-    const ownerEmail = process.env.NOTIFY_EMAIL;
-    const { data } = await supabaseAdmin.auth.admin.listUsers({ perPage: 50 });
-    const owner = data?.users?.find((u: any) => u.email === ownerEmail) ?? data?.users?.[0];
-    if (owner?.id) {
-      return { user: { id: owner.id, email: owner.email }, response: null };
-    }
-  } catch (e) {
-    console.warn('[auth] Fallback listUsers lookup failed:', e);
-  }
-
-  // 3. Last resort fallback: check public.users table directly for any record
-  try {
-    const { data } = await supabaseAdmin.from('users').select('id, email').limit(1);
-    if (data && data[0]?.id) {
-      return { user: { id: data[0].id, email: data[0].email }, response: null };
-    }
-  } catch (e) {
-    console.warn('[auth] Fallback public.users query failed:', e);
-  }
-
+  // SECURITY: no owner-impersonation fallback here. A missing/invalid token
+  // must always be 401 in a configured environment — a fallback that
+  // guesses "the owner" for any unauthenticated request would let anyone
+  // who can reach the deployment act as Barry on every requireUser route.
   return {
     user: null,
     response: NextResponse.json(
