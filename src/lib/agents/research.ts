@@ -37,6 +37,23 @@ export interface WebsiteSnapshot {
   error?: string;
 }
 
+const MAX_REDIRECTS = 3;
+
+const PRIVATE_HOST_PATTERNS = [
+  /^localhost$/, /^127\./, /^10\./, /^192\.168\./, /^169\.254\./,
+  /^172\.(1[6-9]|2\d|3[01])\./, /^0\./, /^\[?::1\]?$/, /\.local$/, /\.internal$/,
+];
+
+/** Refuse anything that isn't plain http(s) to a public host — never let a
+ * lead record (or a redirect target) point the agent at localhost, cloud
+ * metadata, or internal services (SSRF). */
+function assertPublicUrl(parsed: URL): string | null {
+  if (!['http:', 'https:'].includes(parsed.protocol)) return 'Unsupported protocol';
+  const host = parsed.hostname.toLowerCase();
+  if (PRIVATE_HOST_PATTERNS.some(p => p.test(host))) return 'Private/internal host blocked';
+  return null;
+}
+
 /**
  * Fetch the lead's website and return a text snapshot for the LLM.
  * Never throws — a dead website is itself a valuable research finding
@@ -47,36 +64,48 @@ export async function fetchWebsiteSnapshot(rawUrl: string): Promise<WebsiteSnaps
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
 
   try {
-    const parsed = new URL(url);
-    // Autonomous server-side fetch: refuse anything that isn't plain http(s)
-    // to a public host — never let a lead record point the agent at
-    // localhost, cloud metadata, or internal services (SSRF).
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return { ok: false, url, error: 'Unsupported protocol' };
-    }
-    const host = parsed.hostname.toLowerCase();
-    const privatePatterns = [
-      /^localhost$/, /^127\./, /^10\./, /^192\.168\./, /^169\.254\./,
-      /^172\.(1[6-9]|2\d|3[01])\./, /^0\./, /^\[?::1\]?$/, /\.local$/, /\.internal$/,
-    ];
-    if (privatePatterns.some(p => p.test(host))) {
-      return { ok: false, url, error: 'Private/internal host blocked' };
-    }
+    const parsedInitial = new URL(url);
+    const initialError = assertPublicUrl(parsedInitial);
+    if (initialError) return { ok: false, url, error: initialError };
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; VeltrixResearch/1.0)',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-    });
-    clearTimeout(timer);
+    // Follow redirects manually, re-validating the target host at every hop.
+    // fetch's built-in redirect:'follow' would only check the ORIGINAL host,
+    // letting a public URL 302 to a private/internal address and bypass the
+    // guard above entirely.
+    let currentUrl = url;
+    let res: Response;
+    for (let hop = 0; ; hop++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      try {
+        res = await fetch(currentUrl, {
+          signal: controller.signal,
+          redirect: 'manual',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; VeltrixResearch/1.0)',
+            Accept: 'text/html,application/xhtml+xml',
+          },
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+
+      const isRedirect = res.status >= 300 && res.status < 400 && res.headers.get('location');
+      if (!isRedirect) break;
+
+      if (hop >= MAX_REDIRECTS) {
+        return { ok: false, url: currentUrl, error: 'Too many redirects' };
+      }
+      const next = new URL(res.headers.get('location')!, currentUrl);
+      const redirectError = assertPublicUrl(next);
+      if (redirectError) {
+        return { ok: false, url: next.toString(), error: `Redirect target blocked: ${redirectError}` };
+      }
+      currentUrl = next.toString();
+    }
 
     if (!res.ok) {
-      return { ok: false, url, status: res.status, error: `HTTP ${res.status}` };
+      return { ok: false, url: currentUrl, status: res.status, error: `HTTP ${res.status}` };
     }
 
     const html = (await res.text()).slice(0, 400_000);
@@ -85,7 +114,7 @@ export async function fetchWebsiteSnapshot(rawUrl: string): Promise<WebsiteSnaps
 
     return {
       ok: true,
-      url,
+      url: currentUrl,
       status: res.status,
       title: titleMatch ? htmlToText(titleMatch[1]) : undefined,
       text,
