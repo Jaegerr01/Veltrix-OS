@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isGeminiConfigured } from '@/lib/ai/gemini';
 import { getResendClient, FROM_EMAIL } from '@/lib/email/resend';
+import { requireUser } from '@/lib/auth/requireUser';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -29,6 +30,15 @@ function envPresent(name: string): boolean {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const deep = url.searchParams.get('deep') === '1';
+
+  // SECURITY: ?deep=1 burns a real Gemini call — require an authenticated
+  // operator so it can't be used as an unauthenticated quota-abuse vector.
+  // Plain /api/health (presence/reachability checks only) stays open for
+  // uptime monitors.
+  if (deep) {
+    const auth = await requireUser(req);
+    if (auth.response) return auth.response;
+  }
 
   const checks: Record<string, Check> = {};
 
