@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (auth.response) return auth.response;
 
-  const rl = checkRateLimit(`scraper:${auth.user.id}`, { limit: 3, windowMs: 60_000 });
+  const rl = await checkRateLimit(`scraper:${auth.user.id}`, { limit: 3, windowMs: 60_000 });
   if (!rl.allowed) {
     return NextResponse.json({ success: false, error: 'Rate limit: max 3 scrape runs per minute.' }, { status: 429 });
   }

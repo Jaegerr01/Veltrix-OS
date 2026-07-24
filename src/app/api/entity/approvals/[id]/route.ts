@@ -14,7 +14,7 @@ export async function POST(
   const auth = await requireUser(req);
   if (auth.response) return auth.response;
 
-  const rl = checkRateLimit(`approvals:${auth.user.id}`, { limit: 30, windowMs: 60_000 });
+  const rl = await checkRateLimit(`approvals:${auth.user.id}`, { limit: 30, windowMs: 60_000 });
   if (!rl.allowed) {
     return NextResponse.json(
       { success: false, error: 'Rate limit exceeded. Try again in a minute.' },

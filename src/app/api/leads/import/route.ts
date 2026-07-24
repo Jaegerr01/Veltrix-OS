@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   if (auth.response) return auth.response;
 
   // Tighter limit for bulk import — 5 batches/min per user
-  const rl = checkRateLimit(`import:${auth.user.id}`, { limit: 5, windowMs: 60_000 });
+  const rl = await checkRateLimit(`import:${auth.user.id}`, { limit: 5, windowMs: 60_000 });
   if (!rl.allowed) {
     return NextResponse.json(
       { success: false, error: 'Rate limit exceeded for bulk import. Try again in a minute.' },

@@ -11,7 +11,7 @@ export async function POST(
 ) {
   const auth = await requireUser(req);
   if (auth.response) return auth.response;
-  const rl = checkRateLimit(auth.user.id);
+  const rl = await checkRateLimit(auth.user.id);
   if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
 
   // Thread auth header through to any internal sub-route fetches
