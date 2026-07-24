@@ -25,6 +25,36 @@ Without this, every agent fails at step 1 and the whole pipeline stalls.
    - **service_role key** (secret!) → `SUPABASE_SERVICE_ROLE_KEY`
 3. Open **SQL Editor → New query**, paste the entire contents of **`supabase_schema.sql`** (in this repo), and **Run**. This creates the `leads`, `notes`, `agent_memory`, and other tables.
    - If you later see a leads-table error on `/health`, also run **`fix_leads_schema.sql`**.
+   - Also run **`migrations/2026-07-12_approval_requests.sql`**, **`migrations/2026-07-12_entity_goals.sql`**, and **`migrations/2026-07-24_rate_limit_events.sql`** — same SQL Editor, same "paste and Run."
+
+---
+
+## 2b. Google / Microsoft sign-in buttons 🔑 *(optional — email/password login always works without this)*
+
+The login screen's GOOGLE and MICROSOFT buttons call `supabase.auth.signInWithOAuth`. That
+code is correct and needs no changes — **as-shipped, both buttons are disabled** because no
+OAuth provider is turned on for this Supabase project. Clicking either one redirects to a raw
+JSON error page: `{"error_code":"validation_failed","msg":"Unsupported provider: provider is
+not enabled"}`. This is expected until you complete both halves below — the buttons don't need
+"fixing" in code, they need turning on in two dashboards.
+
+**Google:**
+1. In **Google Cloud Console** → APIs & Services → Credentials → **Create Credentials → OAuth client ID** → Application type **Web application**.
+2. **Authorized redirect URI**: `https://sxueyuqpqeqvzuzhrhxo.supabase.co/auth/v1/callback` (your Supabase project's callback — same for every environment, dev and prod).
+3. Copy the **Client ID** and **Client Secret**.
+4. In Supabase → **Authentication → Providers → Google**, toggle it on, paste the Client ID + Secret, **Save**.
+
+**Microsoft (Supabase calls this provider `azure`):**
+1. In **Azure Portal** → Microsoft Entra ID → App registrations → **New registration**.
+2. **Redirect URI** (platform: Web): `https://sxueyuqpqeqvzuzhrhxo.supabase.co/auth/v1/callback`.
+3. Under **Certificates & secrets**, create a new client secret and copy its **value** immediately (it's hidden after you leave the page).
+4. Copy the **Application (client) ID** from the app's Overview page.
+5. In Supabase → **Authentication → Providers → Azure**, toggle it on, paste the Application ID as the Client ID and the secret value as the Client Secret, **Save**.
+
+**Either provider, also required:**
+- Supabase → **Authentication → URL Configuration → Redirect URLs** must include every origin you sign in from, e.g. `http://localhost:3000` for local dev and your live site URL for production. The app calls `signInWithOAuth({ redirectTo: window.location.origin })`, so whatever origin the browser is on must be in that allow-list or Supabase rejects the callback.
+
+Once both are saved, the buttons work with no code changes — the `AuthGate.tsx` implementation was already correct.
 
 ---
 
@@ -116,6 +146,7 @@ curl -X POST https://YOUR-SITE/api/autopilot/run \
 - **"Agents do nothing"** → `GEMINI_API_KEY` missing → leads never leave `New`. Check `/health`.
 - **Leads don't load** → Supabase keys missing or `supabase_schema.sql` not run.
 - **Pipeline never runs on its own** → `CRON_SECRET` not set, or the site hasn't been redeployed since adding env vars.
+- **Google/Microsoft login button → raw JSON "provider is not enabled" page** → expected until you complete Section 2b (enable the provider + credentials in the Supabase dashboard). Not a code bug.
 
 ---
 
