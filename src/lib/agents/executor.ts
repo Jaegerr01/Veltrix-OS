@@ -325,7 +325,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
 
         let messageText;
         try {
-          messageText = await gemini.generateOutreach(lead, offerName, researchNotes);
+          messageText = await gemini.generateOutreach(lead, offerName, researchNotes, channel);
         } catch (err: any) {
           const contact = lead.contact_name || 'Owner';
           const business = lead.business_name;
@@ -358,27 +358,41 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           approval_status: 'Pending Approval'
         });
 
-        if (isAuto && channel === 'Email' && lead.email) {
+        const isEmailChannel = channel === 'Email';
+        const canQueue = isAuto && (isEmailChannel ? !!lead.email : true);
+
+        if (canQueue) {
+          // Email gets the full proposal attached; DMs stay short.
           let proposalSection = '';
-          try {
-            const proposalResult = await runAgentLogic('proposal', {
-              leadId,
-              offerName,
-              price: offerName.toLowerCase().includes('receptionist') ? 1000 : 1200,
-              skipStatusUpdate: true,
-            }, true);
-            if (proposalResult.success) {
-              const proposals = await db.getProposals();
-              const latest = proposals
-                .filter(p => p.lead_id === leadId)
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-              if (latest?.solution) {
-                proposalSection = `\n\n---\n\n${latest.solution}`;
+          if (isEmailChannel) {
+            try {
+              const proposalResult = await runAgentLogic('proposal', {
+                leadId,
+                offerName,
+                price: offerName.toLowerCase().includes('receptionist') ? 1000 : 1200,
+                skipStatusUpdate: true,
+              }, true);
+              if (proposalResult.success) {
+                const proposals = await db.getProposals();
+                const latest = proposals
+                  .filter(p => p.lead_id === leadId)
+                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+                if (latest?.solution) {
+                  proposalSection = `\n\n---\n\n${latest.solution}`;
+                }
               }
+            } catch (err: any) {
+              console.warn('[outreach] proposal generation failed, queueing outreach alone:', err.message);
             }
-          } catch (err: any) {
-            console.warn('[outreach] proposal generation failed, queueing outreach alone:', err.message);
           }
+
+          // Social channels: best link we have for the assisted send.
+          const profileUrl = lead.social_link
+            || (channel === 'LinkedIn'
+              ? `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(lead.business_name)}`
+              : channel === 'Instagram'
+                ? `https://www.google.com/search?q=${encodeURIComponent(lead.business_name + ' instagram')}`
+                : `https://www.google.com/search?q=${encodeURIComponent(lead.business_name + ' ' + channel)}`);
 
           const researchContext = lead.notes?.includes('[Research Brief')
             ? lead.notes.slice(lead.notes.indexOf('[Research Brief')).slice(0, 1500)
@@ -389,20 +403,27 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
             type: 'outreach_send',
             department: 'revenue',
             createdByAgent: 'Emma (Outreach Agent)',
-            title: `Send outreach${proposalSection ? ' + proposal' : ''} to ${lead.business_name}`,
+            title: isEmailChannel
+              ? `Send outreach${proposalSection ? ' + proposal' : ''} to ${lead.business_name}`
+              : `${channel} DM to ${lead.business_name} (assisted send)`,
             context: [
               `Lead: ${lead.business_name} (${lead.industry || 'unknown industry'}), score ${lead.lead_score ?? 'n/a'}/10, status ${lead.status}.`,
-              `Offer: ${offerName}.`,
+              `Offer: ${offerName}. Channel: ${channel}.`,
+              isEmailChannel ? null : `Assisted send: approve → copy message → open profile → paste-send. No bot automation on social (account safety).`,
               researchContext ? `Research: ${researchContext}` : null,
             ].filter(Boolean).join('\n'),
             payload: {
               leadId,
               outreachMessageId: draftMessage.id,
-              to: lead.email,
-              subject: `A quick note for ${lead.business_name}`,
+              channel,
+              to: isEmailChannel ? lead.email : undefined,
+              profileUrl: isEmailChannel ? undefined : profileUrl,
+              subject: isEmailChannel ? `A quick note for ${lead.business_name}` : undefined,
               text: `${messageText}${proposalSection}`,
             },
-            recommendation: 'Send. Research-informed message; lead scored qualified.',
+            recommendation: isEmailChannel
+              ? 'Send. Research-informed message; lead scored qualified.'
+              : `Copy + send on ${channel}. Message written DM-style.`,
             confidence: lead.lead_score ? Math.min(10, Math.round(lead.lead_score)) : 7,
           });
 
@@ -424,9 +445,11 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         });
 
         resultText = queuedForApproval
-          ? `**Emma (Outreach Agent)**: Hey Alex! I coordinated with Olivia on a custom proposal for **${lead.business_name}** and composed the full email. Per the Constitution it's now in **Barry's Approval Queue** — one click and it sends (guardrails still on). ${queuedInfo}`
+          ? (isEmailChannel
+            ? `**Emma (Outreach Agent)**: Hey Alex! I coordinated with Olivia on a custom proposal for **${lead.business_name}** and composed the full email. Per the Constitution it's now in **Barry's Approval Queue** — one click and it sends (guardrails still on). ${queuedInfo}`
+            : `**Emma (Outreach Agent)**: Hey Alex! I wrote a ${channel} DM for **${lead.business_name}** — it's in **Barry's Approval Queue** as an assisted send: he approves, copies, opens the profile, and sends in seconds. ${queuedInfo}`)
           : isAuto
-            ? `**Emma (Outreach Agent)**: I drafted the outreach for **${lead.business_name}** but couldn't queue a send: ${lead.email ? 'channel is not Email.' : 'no email on record for this lead.'}\n\nIt's waiting in the Outbox under "Pending Approval".`
+            ? `**Emma (Outreach Agent)**: I drafted the outreach for **${lead.business_name}** but couldn't queue a send: no email on record for this lead.\n\nIt's waiting in the Outbox under "Pending Approval".`
             : `**Emma (Outreach Agent)**: Hey Alex! I've generated the outreach draft message for **${lead.business_name}** via ${channel}.\n\nYou can review it in the Outbox under "Pending Approval". Let me know if you want any edits!`;
         break;
       }

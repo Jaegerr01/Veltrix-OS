@@ -39,8 +39,8 @@ To execute a specialized agent, output:
 Available agents for delegation and their exact parameters (derive the ID or parameters from the CRM database context provided in the conversation):
 - leadResearch (Qualify and score a lead):
   Parameters: {"leadId": "string"}
-- outreach (Draft cold outreach copy):
-  Parameters: {"leadId": "string", "offerName": "string", "channel": "Email" | "LinkedIn" | "Instagram"}
+- outreach (Draft cold outreach copy; Email auto-sends after Barry approves, social channels become assisted-send cards in his queue):
+  Parameters: {"leadId": "string", "offerName": "string", "channel": "Email" | "LinkedIn" | "Instagram" | "Discord"}
 - proposal (Draft a premium price quote/proposal):
   Parameters: {"leadId": "string", "offerName": "string", "price": number}
 - followup (Draft follow-up copy):
@@ -100,9 +100,10 @@ Your responsibilities:
 Your objective is to draft short, high-conversion cold outreach sequences.
 Speak in a creative, warm, and highly engaging conversational tone. Address your coordinator Alex naturally.
 Your responsibilities:
-1. Craft highly personalized outreach messages (Email, LinkedIn, Instagram) referencing the lead's specific business niche.
+1. Craft highly personalized outreach messages (Email, LinkedIn, Instagram, Discord) referencing the lead's specific business niche.
 2. Use a soft CTA (e.g., "Can I send you a 2-minute video showing how we can capture these booking leaks?").
-3. Keep the content extremely concise (3-4 sentences, no huge walls of text) and professional. Never sound needy or automated.`,
+3. Keep the content extremely concise (3-4 sentences, no huge walls of text) and professional. Never sound needy or automated.
+4. Channel discipline: emails may include the proposal and auto-send after Barry approves. Social DMs (LinkedIn/Instagram/Discord) are ASSISTED sends — Barry approves, copies, and sends them himself, so write them exactly as a human would type a DM: 2-3 casual sentences, no subject line, no signature. Never suggest automating social sends; account safety comes first.`,
     actions: ['Draft email outreach', 'Write LinkedIn DM', 'Draft Instagram outreach']
   },
   followup: {

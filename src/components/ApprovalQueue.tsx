@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Check, X, Pencil, RefreshCw, ChevronDown, ChevronUp, Send } from 'lucide-react';
+import { ShieldCheck, Check, X, Pencil, RefreshCw, ChevronDown, ChevronUp, Send, Copy, ExternalLink } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
 import type { ApprovalRequest } from '@/lib/types';
@@ -114,6 +114,7 @@ export default function ApprovalQueue() {
           const expanded = expandedId === req.id;
           const editing = editingId === req.id;
           const busy = busyId === req.id;
+          const isSocialDM = !!payload.channel && payload.channel !== 'Email';
           return (
             <motion.div
               key={req.id}
@@ -129,6 +130,11 @@ export default function ApprovalQueue() {
                       {req.department}
                     </span>
                     <span className="text-[9px] font-mono text-white/30">{req.created_by_agent}</span>
+                    {payload.channel && (
+                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border ${isSocialDM ? 'text-neon-cyan bg-neon-cyan/10 border-neon-cyan/20' : 'text-white/40 bg-white/[0.05] border-white/[0.1]'}`}>
+                        {payload.channel}{isSocialDM ? ' · assisted' : ''}
+                      </span>
+                    )}
                     {typeof req.confidence === 'number' && (
                       <span className="text-[9px] font-mono text-white/30">confidence {req.confidence}/10</span>
                     )}
@@ -178,14 +184,37 @@ export default function ApprovalQueue() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {isSocialDM && (
+                  <>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(editing ? editedText : String(payload.text ?? ''));
+                        toast.info('Copied', `${payload.channel} message on clipboard — paste it in the DM.`);
+                      }}
+                      className="flex items-center gap-1.5 text-[11px] font-mono text-white/60 bg-white/[0.05] border border-white/[0.12] px-3 py-1.5 rounded-lg hover:bg-white/[0.1] transition-colors cursor-pointer"
+                    >
+                      <Copy size={11} /> Copy message
+                    </button>
+                    {payload.profileUrl && (
+                      <a
+                        href={payload.profileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[11px] font-mono text-neon-cyan bg-neon-cyan/10 border border-neon-cyan/25 px-3 py-1.5 rounded-lg hover:bg-neon-cyan/20 transition-colors cursor-pointer"
+                      >
+                        <ExternalLink size={11} /> Open profile
+                      </a>
+                    )}
+                  </>
+                )}
                 {editing ? (
                   <button
                     disabled={busy}
                     onClick={() => decide(req, 'approve', { ...payload, text: editedText })}
                     className="flex items-center gap-1.5 text-[11px] font-mono text-neon-green bg-neon-green/10 border border-neon-green/25 px-3 py-1.5 rounded-lg hover:bg-neon-green/20 transition-colors cursor-pointer disabled:opacity-40"
                   >
-                    <Send size={11} /> {busy ? 'Executing…' : 'Approve edited'}
+                    <Send size={11} /> {busy ? 'Executing…' : isSocialDM ? 'I sent it (edited)' : 'Approve edited'}
                   </button>
                 ) : (
                   <button
@@ -193,7 +222,7 @@ export default function ApprovalQueue() {
                     onClick={() => decide(req, 'approve')}
                     className="flex items-center gap-1.5 text-[11px] font-mono text-neon-green bg-neon-green/10 border border-neon-green/25 px-3 py-1.5 rounded-lg hover:bg-neon-green/20 transition-colors cursor-pointer disabled:opacity-40"
                   >
-                    <Check size={11} /> {busy ? 'Executing…' : 'Approve'}
+                    <Check size={11} /> {busy ? 'Executing…' : isSocialDM ? 'I sent it — mark Sent' : 'Approve'}
                   </button>
                 )}
                 {!editing && payload.text !== undefined && (

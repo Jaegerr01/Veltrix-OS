@@ -138,12 +138,34 @@ export async function decideApprovalRequest(opts: {
 }
 
 /**
- * Execute an approved outreach send. Constitutional rule: the message state
- * only becomes "Sent" if the email verifiably left the building.
+ * Execute an approved outreach send.
+ * Email → guarded automatic send; "Sent" only if it verifiably left.
+ * Social channels (LinkedIn/Instagram/Discord/…) → assisted send: Barry's
+ * approval IS his attestation that he copied + sent the DM himself, so we
+ * mark it Sent and move the lead to Contacted. No bot automation on social.
  */
 async function executeOutreachSend(payload: OutreachSendPayload): Promise<string> {
-  const { leadId, outreachMessageId, to, subject, text } = payload;
-  if (!to || !text) throw new Error('Payload missing recipient or message text.');
+  const { leadId, outreachMessageId, channel, to, subject, text, profileUrl } = payload;
+  if (!text) throw new Error('Payload missing message text.');
+
+  // ── Social channels: assisted send ────────────────────────────────────────
+  if (channel && channel !== 'Email') {
+    if (outreachMessageId) {
+      await db.updateOutreachMessage(outreachMessageId, {
+        approval_status: 'Approved',
+        status: 'Sent',
+        sent_at: new Date().toISOString(),
+        message: text,
+      });
+    }
+    if (leadId) {
+      await db.updateLead(leadId, { status: 'Contacted' });
+    }
+    return `${channel} DM confirmed sent by Barry (assisted send)${profileUrl ? ` → ${profileUrl}` : ''}. Lead moved to Contacted.`;
+  }
+
+  // ── Email: guarded automatic send ─────────────────────────────────────────
+  if (!to) throw new Error('Payload missing recipient email.');
 
   const { sendOutreachEmail } = await import('../email/send');
 

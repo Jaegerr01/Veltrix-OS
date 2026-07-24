@@ -253,9 +253,10 @@ Output ONLY raw JSON:
   },
 
   // 3. Generate Outreach Message
-  async generateOutreach(lead: Lead, offerName: string, researchNotes?: string): Promise<string> {
+  async generateOutreach(lead: Lead, offerName: string, researchNotes?: string, channel: string = 'Email'): Promise<string> {
+    const isDM = channel !== 'Email';
     const prompt = `
-You are Outreach Agent. Draft a personalized outreach message for this lead:
+You are Outreach Agent. Draft a personalized ${isDM ? `${channel} DIRECT MESSAGE (DM)` : 'outreach email'} for this lead:
 Lead Name: ${lead.business_name}
 Industry: ${lead.industry || 'Unknown'}
 Website: ${lead.website || 'None'}
@@ -268,8 +269,8 @@ Follow these strict rules:
 2. One specific observation${researchNotes ? ' taken from the research brief (real, verifiable)' : ' (e.g. mobile speed, lack of booking chat)'}.
 3. One clear pain point solved.
 4. Soft CTA (e.g. "Can I send you a 2-minute video overview?").
-5. Keep it short (3-4 sentences, no long blocks).
-6. Do NOT sound needy or like a generic freelancer. Sound like a professional tech partner.
+5. Keep it short (${isDM ? '2-3 casual sentences — this is a DM, not an email: no subject line, no greeting like "Dear", no signature block' : '3-4 sentences, no long blocks'}).
+6. Do NOT sound needy or like a generic freelancer. Sound like a professional tech partner.${isDM ? '\n7. Write like a human typing on their phone — casual capitalization is fine, zero corporate stiffness.' : ''}
 `;
     return generateText(prompt);
   },
