@@ -231,9 +231,12 @@ Use this data to provide concrete, grounded answers. If metrics, goals, or lists
   } catch (error: any) {
     console.error(`Error executing agent ${agentKey}:`, error);
     if (isVoiceMode) {
-      const simulated = await generateSimulatedResponse(agentKey, userMessage, error.message || 'AI request failed');
-      const cleanText = simulated.text.replace(/⚠️\s*\*?\*?Offline Simulator Mode\*?\*?\s*\([^)]*\)\s*/gi, '').trim();
-      return { agentName: agent.name, text: cleanText };
+      // Fast, spoken-length, cause-specific reply — no DB round-trip. The
+      // previous behavior (generateSimulatedResponse) rebuilt the entire
+      // business context on every voice failure, which could take 20+
+      // seconds and risked the request being killed before it replied —
+      // the exact failure ARIA's "I lost connection to the agents" masked.
+      return { agentName: agent.name, text: generateVoiceFallback(error.message || 'AI request failed') };
     }
     return generateSimulatedResponse(agentKey, userMessage, error.message || 'AI request failed');
   }
