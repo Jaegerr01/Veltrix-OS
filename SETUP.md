@@ -29,22 +29,24 @@ Without this, every agent fails at step 1 and the whole pipeline stalls.
 
 ---
 
-## 2b. Google sign-in button 🔑 *(optional — email/password login always works without this)*
+## 2b. Google / Microsoft sign-in buttons 🔑 *(optional — email/password login always works without this)*
 
-The login screen's GOOGLE button calls `supabase.auth.signInWithOAuth`. That code is correct
-and needs no changes — it just needs the provider turned on in Supabase.
+Both social login buttons are currently pulled from `AuthGate.tsx` — email/password is the
+only sign-in method on the login screen right now. The code for both (`signInWithOAuth`) was
+verified working; they're removed at Barry's request, not because of a bug. To bring either
+back, re-add its button in `AuthGate.tsx` (see git history around 2026-07-24 / 2026-07-25 for
+the original button code) — no Supabase-side changes needed since both are already configured.
 
-**Google — done ✅** (as of 2026-07-24):
+**Google — configured and verified working (2026-07-24):**
 1. In **Google Cloud Console** → APIs & Services → Credentials → **Create Credentials → OAuth client ID** → Application type **Web application**.
 2. **Authorized JavaScript origins**: the origin(s) you sign in from, e.g. `http://localhost:3000` for local dev, plus your production URL once known.
 3. **Authorized redirect URI**: `https://sxueyuqpqeqvzuzhrhxo.supabase.co/auth/v1/callback` (your Supabase project's callback — same for every environment, dev and prod).
 4. Copy the **Client ID** and **Client Secret**.
 5. In Supabase → **Authentication → Providers → Google**, toggle it on, paste the Client ID + Secret, **Save**.
 
-**Microsoft — temporarily removed (2026-07-24):** the MICROSOFT button was pulled from
-`AuthGate.tsx` after hitting setup issues with the Azure app registration / Supabase `azure`
-provider config. Email/password and Google both still work. To bring it back once the Azure
-side is sorted:
+**Microsoft — configured in Supabase, button removed (2026-07-25):** the Azure provider shows
+Enabled in Supabase, but the MICROSOFT button was pulled from `AuthGate.tsx` after hitting
+setup issues on the Azure app registration side. Steps to finish/re-verify:
 1. In **Azure Portal** → Microsoft Entra ID → App registrations → **New registration**.
 2. **Redirect URI** (platform: Web): `https://sxueyuqpqeqvzuzhrhxo.supabase.co/auth/v1/callback`.
 3. Under **Certificates & secrets**, create a new client secret and copy its **value** immediately (it's hidden after you leave the page).
@@ -145,7 +147,8 @@ curl -X POST https://YOUR-SITE/api/autopilot/run \
 - **"Agents do nothing"** → `GEMINI_API_KEY` missing → leads never leave `New`. Check `/health`.
 - **Leads don't load** → Supabase keys missing or `supabase_schema.sql` not run.
 - **Pipeline never runs on its own** → `CRON_SECRET` not set, or the site hasn't been redeployed since adding env vars.
-- **Google login button → raw JSON "provider is not enabled" page** → expected until you complete Section 2b (enable the provider + credentials in the Supabase dashboard). Not a code bug. (Microsoft is currently removed from the UI — see 2b.)
+- **No social login buttons on the login screen** → expected — both Google and Microsoft are currently removed from `AuthGate.tsx` at Barry's request (see 2b). Email/password still works normally.
+- **ARIA says "I lost connection to the agents" / gives generic canned answers** → almost always `GEMINI_API_KEY` invalid or revoked. Check `/health` and the dev server logs for a `401 ... ACCESS_TOKEN_TYPE_UNSUPPORTED` from `generativelanguage.googleapis.com` — that means the key itself is bad, not a code bug. Get a fresh key at https://aistudio.google.com/app/apikey and update `GEMINI_API_KEY`.
 
 ---
 
