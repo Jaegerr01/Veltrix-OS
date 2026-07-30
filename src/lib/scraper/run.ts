@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { db } from '../db';
 
 /**
@@ -57,8 +58,51 @@ export async function getScraperScript(): Promise<string> {
   return process.env.SCRAPER_SCRIPT || DEFAULT_SCRIPT;
 }
 
+/**
+ * True when we are running somewhere that cannot possibly host Barry's local
+ * Python scraper — Netlify/Lambda serverless, or any production build.
+ *
+ * Netlify's runtime has no Python interpreter and no access to his C:\ drive,
+ * so `execFile('python', …)` there fails with a raw `spawn python ENOENT`.
+ */
+function isServerlessOrProduction(): boolean {
+  return (
+    !!process.env.NETLIFY ||
+    !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    !!process.env.LAMBDA_TASK_ROOT ||
+    process.env.NODE_ENV === 'production'
+  );
+}
+
 export function scraperConfigured(scriptPath?: string): { ok: boolean; reason?: string; script?: string } {
   const script = scriptPath || process.env.SCRAPER_SCRIPT || DEFAULT_SCRIPT;
+
+  // Fail CLOSED off-machine. Previously this returned ok:true unconditionally,
+  // so the UI advertised the scraper as available in production and the run
+  // died with `spawn python ENOENT` instead of a usable explanation.
+  if (isServerlessOrProduction()) {
+    return {
+      ok: false,
+      script,
+      reason: 'Local dev only — the scraper runs a Python script on Barry\'s machine and cannot execute on Netlify. Start the app locally with `npm run dev` to use it.',
+    };
+  }
+
+  // Local, but the script itself is missing/misconfigured.
+  try {
+    if (!fs.existsSync(script)) {
+      return {
+        ok: false,
+        script,
+        reason: `Scraper script not found at "${script}". Set SCRAPER_SCRIPT in .env.local to its full path.`,
+      };
+    }
+  } catch {
+    // If we cannot even probe the filesystem, treat it as unavailable rather
+    // than optimistically reporting ready.
+    return { ok: false, script, reason: 'Cannot access the filesystem to verify the scraper script.' };
+  }
+
   return { ok: true, script };
 }
 

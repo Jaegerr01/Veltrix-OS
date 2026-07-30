@@ -145,16 +145,36 @@ export default function VoiceAssistant() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Time-aware wake line. Hardcoded on purpose — costs no Gemini quota. */
+  const wakeGreeting = () => {
+    const hour = new Date().getHours();
+    const part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+    return `${part}. ARIA online — how may I help you?`;
+  };
+
   const startListening = () => {
     if (!recognitionRef.current) return;
     setIsListening(true);
+    // Set the ref synchronously as well: speakText() below gates the mic on it,
+    // and the effect that normally syncs it has not flushed yet. Without this
+    // ARIA would still be recording while it speaks and hear its own greeting.
+    isListeningActiveRef.current = true;
     setIsOpen(true);
     setTranscript('');
-    setAgentResponse('');
     setErrorMsg(null);
+
+    const greeting = wakeGreeting();
+    setAgentResponse(greeting);
+
     try {
       if (!isActuallyRunningRef.current) recognitionRef.current.start();
     } catch (e) { console.error('Error starting recognition:', e); }
+
+    // Only fires on a genuine wake — the auto-restart paths (rec.onend and
+    // resumeListeningIfNeeded) call recognition.start() directly, so this does
+    // not repeat after every reply. speakText() no-ops when muted, leaving the
+    // greeting visible but silent.
+    void speakText(greeting);
   };
 
   const stopListening = () => {

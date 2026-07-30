@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { gemini, isGeminiConfigured } from '@/lib/ai/gemini';
+import { gemini, isGeminiConfigured, isQuotaError, QUOTA_MESSAGE } from '@/lib/ai/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -246,6 +246,11 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Reel Intel API error:', error);
+    // A rate-limit rejection is not a fault the user can act on beyond waiting,
+    // and the raw provider payload is ~20 lines of JSON. Surface the short form.
+    if (isQuotaError(error)) {
+      return NextResponse.json({ success: false, error: QUOTA_MESSAGE }, { status: 429 });
+    }
     return NextResponse.json({ success: false, error: error.message || 'Analysis failed.' }, { status: 500 });
   }
 }

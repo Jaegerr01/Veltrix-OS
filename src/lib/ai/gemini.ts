@@ -37,6 +37,49 @@ Business Offer Options:
    Deliverables: Brand refresh, landing page, social assets, booking funnel, automations.
 `;
 
+/** Upper bound on a single honored retry wait, so a bad payload can't stall a request. */
+const MAX_RETRY_WAIT_MS = 35_000;
+
+/** Short, human-readable message for a quota/rate-limit failure. */
+export const QUOTA_MESSAGE =
+  'Gemini free-tier rate limit reached (20 requests/minute). Wait about a minute and try again.';
+
+/** Best-effort message text from an unknown thrown value. */
+function errorText(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'object' && e !== null && 'message' in e) {
+    return String((e as { message: unknown }).message ?? '');
+  }
+  return String(e ?? '');
+}
+
+/** True when the error is a quota/rate-limit rejection rather than a real fault. */
+export function isQuotaError(e: unknown): boolean {
+  const msg = errorText(e);
+  return msg.includes('429') ||
+         msg.includes('RESOURCE_EXHAUSTED') ||
+         msg.includes('Resource Has Exhausted') ||
+         msg.toLowerCase().includes('quota');
+}
+
+/**
+ * Pull the provider's own `retryDelay` out of an error and return it in ms.
+ *
+ * The SDK surfaces the RetryInfo detail inside the message text, e.g.
+ * `..."retryDelay":"26.28s"...`, so match that rather than trying to walk a
+ * typed error shape that the SDK does not guarantee. Returns null when absent.
+ */
+export function parseRetryDelayMs(e: unknown): number | null {
+  const msg = errorText(e);
+  const m = msg.match(/"?retryDelay"?\s*:?\s*"?(\d+(?:\.\d+)?)s"?/i);
+  if (!m) return null;
+  const seconds = Number(m[1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  // Pad slightly — the window is rolling, so waiting the exact figure can still
+  // land a hair early.
+  return Math.ceil(seconds * 1000) + 750;
+}
+
 async function generateText(prompt: string, systemInstruction?: string): Promise<string> {
   const genAI = await getGenAI();
   if (!genAI) {
@@ -65,14 +108,19 @@ async function generateText(prompt: string, systemInstruction?: string): Promise
       } catch (e: any) {
         lastError = e;
         console.warn(`Gemini API call failed for model ${modelName} (attempt ${attempt}/${maxRetries}):`, e.message || e);
-        const isTransient = e.message?.includes('503') || 
-                            e.message?.includes('Service Unavailable') || 
-                            e.message?.includes('429') || 
+        const isTransient = e.message?.includes('503') ||
+                            e.message?.includes('Service Unavailable') ||
+                            e.message?.includes('429') ||
                             e.message?.includes('Resource Has Exhausted') ||
                             e.message?.includes('overloaded');
-        
+
         if (isTransient && attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, delay));
+          // Prefer the delay the API itself asks for. The free tier resets on a
+          // rolling ~60s window and commonly returns retryDelay ~26s, whereas the
+          // plain 1.5s→3→6→12 ladder only totals 22.5s — it used to give up a few
+          // seconds BEFORE the quota reopened, turning a wait into a hard failure.
+          const wait = Math.min(parseRetryDelayMs(e) ?? delay, MAX_RETRY_WAIT_MS);
+          await new Promise(resolve => setTimeout(resolve, wait));
           delay *= 2;
         } else {
           break; // Try the next fallback model (if any)
@@ -81,6 +129,9 @@ async function generateText(prompt: string, systemInstruction?: string): Promise
     }
   }
 
+  if (isQuotaError(lastError)) {
+    throw new Error(QUOTA_MESSAGE);
+  }
   throw new Error(`AI request failed. Check API key, model name, and server logs. Details: ${lastError?.message || lastError}`);
 }
 
