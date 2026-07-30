@@ -2,11 +2,17 @@
 
 import React from 'react';
 import { VxIcon } from '@/components/ds';
+import { authFetch } from '@/lib/authFetch';
+import { useToast } from '@/components/Toast';
 
 /**
  * Reel Intel — ported from the "isReelIntel" view of the design prototype:
  * a titled header with a "Nova Active" badge, the Instagram reel analyzer
  * form, and the intel history column.
+ *
+ * Wired to Nova's real backend:
+ *   POST /api/reel-intel          { url, context }  → analysis
+ *   GET  /api/reel-intel/history                    → past analyses
  */
 
 const cmdCard: React.CSSProperties = {
@@ -30,22 +36,121 @@ const inputStyle: React.CSSProperties = {
 };
 const textareaStyle: React.CSSProperties = { ...inputStyle, height: 'auto', minHeight: 92, padding: '12px 14px', resize: 'vertical', lineHeight: 1.5 };
 
-const HISTORY = [
-  { text: 'Reel Intel: The reel demonstrates Clawsmith’s AI-driven cold DM funnel converting cold IG traffic to booked calls.', time: '1d ago', tags: '#reel-intel #instagram' },
-  { text: 'Reel Intel: Short-form hook formula — bold claim + on-screen proof + single CTA. Save for the dental campaign.', time: '3d ago', tags: '#hooks #shortform' },
-];
+const sectionLabel: React.CSSProperties = {
+  fontFamily: 'var(--font-display)',
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  color: 'var(--violet-200)',
+  marginBottom: 8,
+};
+
+interface ImplementationSuggestion {
+  area: string;
+  action: string;
+  priority: string;
+}
+interface ReelIntelResult {
+  summary: string;
+  creator: string;
+  topic: string;
+  keyTakeaways: string[];
+  veltrixRelevance: string;
+  implementationSuggestions: ImplementationSuggestion[];
+  tags: string[];
+}
+interface HistoryNote {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[] | null;
+  created_at: string;
+}
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const mins = Math.floor((Date.now() - then) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+const priorityColor = (p: string) =>
+  /high|critical/i.test(p) ? 'var(--danger-400)' : /low/i.test(p) ? 'var(--text-dim)' : 'var(--warn-400)';
 
 export default function ReelIntelPage() {
   const [url, setUrl] = React.useState('');
   const [note, setNote] = React.useState('');
   const [analyzing, setAnalyzing] = React.useState(false);
-  const t = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const analyze = () => {
+  const [result, setResult] = React.useState<ReelIntelResult | null>(null);
+  const [savedToObsidian, setSavedToObsidian] = React.useState(false);
+  const [history, setHistory] = React.useState<HistoryNote[]>([]);
+  const [historyLoading, setHistoryLoading] = React.useState(true);
+  const toast = useToast();
+
+  // Refresh helper for event handlers (safe to call outside an effect).
+  const loadHistory = React.useCallback(async () => {
+    try {
+      const res = await authFetch('/api/reel-intel/history');
+      const data = await res.json();
+      if (data.success) setHistory(Array.isArray(data.data) ? data.data : []);
+    } catch {
+      // Non-fatal — the analyzer still works without history.
+    }
+  }, []);
+
+  // Initial load. Mirrors the async-IIFE pattern used in ScraperControl.tsx so
+  // no setState happens synchronously in the effect body.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await authFetch('/api/reel-intel/history');
+        const data = await res.json();
+        if (!cancelled && data.success) setHistory(Array.isArray(data.data) ? data.data : []);
+      } catch {
+        // Non-fatal — the analyzer still works without history.
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const analyze = async () => {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      toast.warning('Reel URL required', 'Paste an Instagram reel link first.');
+      return;
+    }
     setAnalyzing(true);
-    clearTimeout(t.current);
-    t.current = setTimeout(() => setAnalyzing(false), 2200);
+    setResult(null);
+    try {
+      const res = await authFetch('/api/reel-intel', {
+        method: 'POST',
+        body: JSON.stringify({ url: trimmed, context: note.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResult(data.data);
+        setSavedToObsidian(!!data.savedToObsidian);
+        toast.success('Nova: analysis complete', data.savedToObsidian ? 'Saved to your Obsidian vault.' : 'Saved to your notes.');
+        setUrl('');
+        setNote('');
+        loadHistory();
+      } else {
+        toast.error('Analysis failed', data.error || 'Unknown error.');
+      }
+    } catch (e: unknown) {
+      toast.error('Analysis failed', e instanceof Error ? e.message : 'Network error.');
+    } finally {
+      setAnalyzing(false);
+    }
   };
-  React.useEffect(() => () => clearTimeout(t.current), []);
 
   return (
     <>
@@ -66,26 +171,95 @@ export default function ReelIntelPage() {
       </section>
 
       <section style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 'var(--space-6)', alignItems: 'start' }}>
-        <div className="vx-glass" style={cmdCard}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'var(--space-6)' }}>
-            <span style={{ color: 'var(--cyan-300)', display: 'flex' }}>
-              <VxIcon name="sparkle" size={18} />
-            </span>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', color: 'var(--cyan-300)', textTransform: 'uppercase' }}>Analyze Instagram Reel</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          <div className="vx-glass" style={cmdCard}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'var(--space-6)' }}>
+              <span style={{ color: 'var(--cyan-300)', display: 'flex' }}>
+                <VxIcon name="sparkle" size={18} />
+              </span>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', color: 'var(--cyan-300)', textTransform: 'uppercase' }}>Analyze Instagram Reel</span>
+            </div>
+            <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', marginBottom: 8 }}>Reel URL *</div>
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !analyzing) analyze(); }}
+              placeholder="https://www.instagram.com/reel/…"
+              style={inputStyle}
+            />
+            <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', margin: 'var(--space-5) 0 8px' }}>Context Note (optional)</div>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Guy explains how to close $5k deals using loom videos instead of proposals" style={textareaStyle} />
+            <button
+              onClick={analyze}
+              disabled={analyzing}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 'var(--space-5)', padding: '15px 0', borderRadius: 'var(--radius-md)', background: 'var(--grad-brand)', color: '#fff', fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase', cursor: analyzing ? 'not-allowed' : 'pointer', boxShadow: 'var(--glow-violet)', opacity: analyzing ? 0.7 : 1, border: 'none' }}
+            >
+              <span style={{ display: 'flex' }}>
+                <VxIcon name="send" size={14} color="#fff" />
+              </span>
+              {analyzing ? 'Analyzing…' : 'Analyze Reel'}
+            </button>
           </div>
-          <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', marginBottom: 8 }}>Reel URL *</div>
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.instagram.com/reel/…" style={inputStyle} />
-          <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', margin: 'var(--space-5) 0 8px' }}>Context Note (optional)</div>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Guy explains how to close $5k deals using loom videos instead of proposals" style={textareaStyle} />
-          <div
-            onClick={analyze}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 'var(--space-5)', padding: '15px 0', borderRadius: 'var(--radius-md)', background: 'var(--grad-brand)', color: '#fff', fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: 'var(--glow-violet)', opacity: analyzing ? 0.7 : 1 }}
-          >
-            <span style={{ display: 'flex' }}>
-              <VxIcon name="send" size={14} color="#fff" />
-            </span>
-            {analyzing ? 'Analyzing…' : 'Analyze Reel'}
-          </div>
+
+          {result && (
+            <div className="vx-glass" style={cmdCard}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ color: 'var(--signal-400)', display: 'flex' }}>
+                    <VxIcon name="check" size={16} />
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', color: 'var(--text-strong)', textTransform: 'uppercase' }}>{result.topic}</span>
+                </div>
+                {savedToObsidian && (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--signal-400)' }}>saved to vault</span>
+                )}
+              </div>
+
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', marginBottom: 'var(--space-4)' }}>by {result.creator}</div>
+              <div style={{ fontSize: 14, color: 'var(--text-strong)', lineHeight: 'var(--lh-normal)', marginBottom: 'var(--space-5)' }}>{result.summary}</div>
+
+              {result.keyTakeaways.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-5)' }}>
+                  <div style={sectionLabel}>Key Takeaways</div>
+                  <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {result.keyTakeaways.map((t, i) => (
+                      <li key={i} style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 'var(--lh-normal)' }}>{t}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {result.veltrixRelevance && (
+                <div style={{ marginBottom: 'var(--space-5)' }}>
+                  <div style={sectionLabel}>VELTRIX Relevance</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 'var(--lh-normal)' }}>{result.veltrixRelevance}</div>
+                </div>
+              )}
+
+              {result.implementationSuggestions.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-4)' }}>
+                  <div style={sectionLabel}>Implementation</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {result.implementationSuggestions.map((s, i) => (
+                      <div key={i} style={{ padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--cyan-300)' }}>{s.area}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: priorityColor(s.priority) }}>{s.priority}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 'var(--lh-normal)' }}>{s.action}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {result.tags.length > 0 && (
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--violet-300)' }}>
+                  {result.tags.map((t) => `#${t.replace(/\s+/g, '-')}`).join(' ')}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="vx-glass" style={cmdCard}>
@@ -95,15 +269,28 @@ export default function ReelIntelPage() {
             </span>
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--text-body)', textTransform: 'uppercase' }}>Intel History</span>
           </div>
-          {HISTORY.map((h, i) => (
-            <div key={i} style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)', marginBottom: 'var(--space-3)' }}>
-              <div style={{ fontSize: 13, color: 'var(--text-strong)', lineHeight: 'var(--lh-normal)' }}>{h.text}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-dim)' }}>{h.time}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--violet-300)' }}>{h.tags}</span>
-              </div>
+
+          {historyLoading ? (
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: 'var(--space-4) 0' }}>Loading…</div>
+          ) : history.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: 'var(--space-4) 0', lineHeight: 'var(--lh-normal)' }}>
+              No reels analyzed yet. Paste a reel URL to build your intel library.
             </div>
-          ))}
+          ) : (
+            history.map((h) => (
+              <div key={h.id} style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)', marginBottom: 'var(--space-3)' }}>
+                <div style={{ fontSize: 13, color: 'var(--text-strong)', lineHeight: 'var(--lh-normal)' }}>{h.title}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-dim)' }}>{relativeTime(h.created_at)}</span>
+                  {h.tags && h.tags.length > 0 && (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--violet-300)' }}>
+                      {h.tags.slice(0, 3).map((t) => `#${t.replace(/\s+/g, '-')}`).join(' ')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </>

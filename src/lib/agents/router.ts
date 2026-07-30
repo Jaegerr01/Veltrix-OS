@@ -1,6 +1,7 @@
 import { buildBusinessContext } from '../context/buildBusinessContext';
 import { gemini, isGeminiConfigured } from '../ai/gemini';
 import { AGENTS } from './agents';
+import { activeRosterForPrompt } from './catalogue';
 import { Lead, Task, Offer } from '../types';
 import { db } from '../db';
 
@@ -214,9 +215,23 @@ export async function executeAgent(
       console.warn('Failed to retrieve vector memories for agent:', memErr);
     }
 
+    // Only the CEO delegates, so only the CEO pays for the roster (~7.8 KB).
+    // Active tier only — library agents stay reachable by slug but unadvertised.
+    let specialistRoster = '';
+    if (agent === AGENTS.ceo) {
+      try {
+        const roster = activeRosterForPrompt();
+        if (roster) {
+          specialistRoster = `\n=== SPECIALIST CATALOGUE (use with [RUN_AGENT: specialist, {"slug": "...", "task": "..."}]) ===\n${roster}\n`;
+        }
+      } catch (rosterErr) {
+        console.warn('Failed to build specialist roster:', rosterErr);
+      }
+    }
+
     const systemInstruction = `${agent.systemPrompt}
 ${voiceHint ? `\n${voiceHint}\n` : ''}
-${memorySnippet}
+${memorySnippet}${specialistRoster}
 Below is the real-time business workspace data compiled from Supabase:
 ${contextString}
 

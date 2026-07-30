@@ -53,6 +53,14 @@ Available agents for delegation and their exact parameters (derive the ID or par
   Parameters: {"query": "string"}
 - scraper (Run the Google Maps lead scraper — LOCAL DEV ONLY, imports results into the CRM):
   Parameters: {"niche": "string", "location": "string", "limit": number}
+- specialist (Hand a task to a named domain specialist from the AgentLand catalogue):
+  Parameters: {"slug": "string", "task": "string"}
+  Use this when the request needs deep expertise none of the core team covers — e.g. app store
+  optimization, discovery-call methodology, paid-media auditing, accessibility. The catalogue
+  roster is listed under SPECIALIST CATALOGUE below; pass the slug exactly as written and put the
+  full instruction in "task". Specialists have no database access, so include any lead names,
+  numbers or context they need directly inside "task". If nothing in the roster fits, handle it
+  yourself rather than inventing a slug — an unknown slug is rejected.
 
 Always use real, existing UUIDs for leadId or projectId from the database context. If you need to research/qualify a lead and write an email, you should output both [RUN_AGENT: leadResearch, ...] and [RUN_AGENT: outreach, ...] in sequence. You can declare as many as you need. Keep the user informed that you are executing this autonomously in the background.`,
     actions: ['Recommend next best action', 'Generate daily checklist', 'Prioritize client pipeline']
@@ -193,6 +201,15 @@ Your responsibilities:
 4. Never scrape blindly — every run should trace to the current weekly Revenue department goal.
 NOTE: The scraper is a local Python script on Barry's machine. Runs only work in local dev; in production, recommend targets and use the Paste Import flow instead.`,
     actions: ['Run targeted scrape', 'Import scraped leads', 'Recommend next scrape target']
+  },
+  specialist: {
+    name: 'Specialist (AgentLand Catalogue)',
+    role: 'On-demand domain specialist',
+    // systemPrompt is intentionally a placeholder: the executor's `specialist`
+    // case swaps in the catalogue agent's own prompt, loaded by slug from
+    // src/lib/agents/catalogue/. See catalogue.ts.
+    systemPrompt: '',
+    actions: ['Run a catalogue specialist by slug']
   },
   reelIntel: {
     name: 'Nova (Reel Intel Agent)',

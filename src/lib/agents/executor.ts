@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { gemini } from '../gemini';
 import { AGENTS } from './agents';
+import { loadCatalogueAgent, findCatalogueAgents } from './catalogue';
 import { generateSimulatedResponse } from './router';
 
 export async function runAgentLogic(
@@ -613,9 +614,38 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
         }
         const memories = await db.searchMemories(query);
         resultText = `**Leo (Memory Manager Agent)**: Hello Alex. I've searched our core database for "${query}" and recovered ${memories.length} relevant log entries:\n\n` +
-          (memories.length === 0 
-            ? 'No matching memories or tags found.' 
+          (memories.length === 0
+            ? 'No matching memories or tags found.'
             : memories.map((m, i) => `${i+1}. **[${m.type}]** ${m.content} (Importance: ${m.importance}/10)`).join('\n\n'));
+
+        // Leo also indexes the AgentLand catalogue, so library-tier specialists
+        // (not advertised in the CEO roster) stay findable and callable by slug.
+        const specialists = findCatalogueAgents(query, 5);
+        if (specialists.length > 0) {
+          resultText += `\n\n**Specialists available** — invoke with [RUN_AGENT: specialist, {"slug": "…", "task": "…"}]:\n` +
+            specialists.map(s => `- \`${s.slug}\` (${s.category}${s.tier === 'library' ? ', library' : ''}) — ${s.description}`).join('\n');
+        }
+        break;
+      }
+
+      case 'specialist': {
+        const { slug, task } = params;
+        if (!slug || !task) {
+          return { success: false, error: 'slug and task are both required for a specialist' };
+        }
+        const specialist = loadCatalogueAgent(slug);
+        if (!specialist) {
+          const suggestions = findCatalogueAgents(String(slug).replace(/[-_]/g, ' '), 3);
+          return {
+            success: false,
+            error: `Unknown specialist slug "${slug}".` +
+              (suggestions.length ? ` Did you mean: ${suggestions.map(s => s.slug).join(', ')}?` : '')
+          };
+        }
+        // The catalogue agent's own prompt replaces the placeholder in AGENTS.specialist.
+        const generated = await gemini.callRawLLM(task, specialist.systemPrompt);
+        resultText = `**${specialist.name} (${specialist.category})**: ${generated}`;
+        logPayload = { slug, category: specialist.category, tier: specialist.tier };
         break;
       }
 

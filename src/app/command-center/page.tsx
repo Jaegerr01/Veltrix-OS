@@ -2,12 +2,18 @@
 
 import React from 'react';
 import { StatCard, AgentCard, VxIcon, AGENT_DEFS, ACTIVITY_DEFS } from '@/components/ds';
+import ApprovalQueue from '@/components/ApprovalQueue';
+import GoalCascadePanel from '@/components/GoalCascadePanel';
+import ScraperControl from '@/components/ScraperControl';
 
 /**
  * Command Center — ported from the "isCommand" view of the design prototype:
  * Approval Queue, Goal Cascade + Lead Scraper controls, Live Data pipeline,
- * a KPI row, and the Agent Roster paired with Live Telemetry. The scraper
- * form is locally interactive (matches the prototype's simulated run).
+ * a KPI row, and the Agent Roster paired with Live Telemetry.
+ *
+ * The Approval Queue, Goal Cascade and Lead Scraper panels render the real
+ * wired components (each talks to its own API route). The prototype's
+ * simulated versions were removed — they only faked a 2.2s spinner.
  */
 
 const cmdCard: React.CSSProperties = {
@@ -17,24 +23,6 @@ const cmdCard: React.CSSProperties = {
   border: '1px solid var(--border-default)',
   boxShadow: 'var(--shadow-lg), var(--sheen-top)',
 };
-
-const selectStyle: React.CSSProperties = {
-  width: '100%',
-  height: 44,
-  padding: '0 12px',
-  borderRadius: 'var(--radius-md)',
-  background: 'var(--ink-700)',
-  border: '1px solid var(--border-default)',
-  color: 'var(--text-strong)',
-  fontFamily: 'var(--font-body)',
-  fontSize: 13.5,
-  outline: 'none',
-  appearance: 'none',
-  cursor: 'pointer',
-};
-const inputStyle: React.CSSProperties = { ...selectStyle, appearance: 'auto', cursor: 'text', padding: '0 14px' };
-
-const NICHES = ['Dental clinic', 'Med spa', 'Law firm', 'Real estate agency', 'Fitness studio', 'Auto detailing'];
 
 const KPIS = [
   { label: 'Pipeline Value', value: '1.24', unit: 'M USD', delta: '+18%', accent: 'violet' },
@@ -54,161 +42,19 @@ const LIVE_PIPELINE = [
   { label: 'Nurture', value: '0', color: 'var(--text-strong)' },
 ];
 
-function Checkbox({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
-  return (
-    <div onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-      <span
-        style={{
-          width: 20,
-          height: 20,
-          flex: '0 0 auto',
-          borderRadius: 6,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: on ? 'var(--grad-brand)' : 'transparent',
-          border: on ? '1px solid transparent' : '1px solid var(--border-default)',
-          boxShadow: on ? 'var(--glow-violet)' : 'none',
-        }}
-      >
-        {on ? <VxIcon name="check" size={12} color="#fff" /> : null}
-      </span>
-      <span style={{ fontSize: 13.5, color: 'var(--text-body)' }}>{label}</span>
-    </div>
-  );
-}
-
 const telemetryDot = (tone: string) =>
   tone === 'active' ? 'var(--signal-400)' : tone === 'warn' ? 'var(--warn-400)' : tone === 'brand' ? 'var(--violet-300)' : 'var(--cyan-400)';
 
 export default function CommandCenterPage() {
-  const [niche, setNiche] = React.useState('Dental clinic');
-  const [location, setLocation] = React.useState('');
-  const [maxLeads, setMaxLeads] = React.useState('20');
-  const [autoResearch, setAutoResearch] = React.useState(true);
-  const [writeSheets, setWriteSheets] = React.useState(false);
-  const [scraping, setScraping] = React.useState(false);
-  const scrapeT = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  const runScrape = () => {
-    setScraping(true);
-    clearTimeout(scrapeT.current);
-    scrapeT.current = setTimeout(() => setScraping(false), 2200);
-  };
-  React.useEffect(() => () => clearTimeout(scrapeT.current), []);
-
   return (
     <>
-      {/* Approval Queue */}
-      <section className="vx-glass" style={cmdCard}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div className="vx-eyebrow" style={{ color: 'var(--text-dim)' }}>Entity · Propose-then-Approve</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-              <span style={{ color: 'var(--signal-400)', display: 'flex' }}>
-                <VxIcon name="shield" size={22} />
-              </span>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', letterSpacing: '-0.01em' }}>Barry&apos;s Approval Queue</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--violet-200)', padding: '2px 9px', borderRadius: 999, background: 'rgba(139,92,246,0.14)', border: '1px solid var(--border-default)' }}>0</span>
-            </div>
-          </div>
-          <span style={{ color: 'var(--text-dim)', cursor: 'pointer', display: 'flex' }}>
-            <VxIcon name="refresh" size={18} />
-          </span>
-        </div>
-        <div style={{ textAlign: 'center', padding: 'var(--space-8) 0 var(--space-4)', color: 'var(--text-muted)', fontSize: 14 }}>
-          ✓ Queue clear — nothing awaiting your decision
-        </div>
-      </section>
+      {/* Approval Queue — real component, reads /api/entity/approvals */}
+      <ApprovalQueue />
 
-      {/* Goal Cascade + Lead Scraper */}
+      {/* Goal Cascade + Lead Scraper — both real components, each wired to its API */}
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', alignItems: 'stretch' }}>
-        <div className="vx-glass" style={cmdCard}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-dim)' }}>Entity · Goal Cascade</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                <span style={{ color: 'var(--violet-300)', display: 'flex' }}>
-                  <VxIcon name="target" size={22} />
-                </span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 19, fontWeight: 500, color: 'var(--text-strong)' }}>2026-07 · 2026-W28</span>
-              </div>
-            </div>
-            <span style={{ color: 'var(--text-dim)', cursor: 'pointer', display: 'flex' }}>
-              <VxIcon name="refresh" size={18} />
-            </span>
-          </div>
-          <div style={{ marginTop: 'var(--space-5)', padding: 'var(--space-5)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)', fontSize: 13.5, color: 'var(--text-muted)', lineHeight: 'var(--lh-relaxed)' }}>
-            No ratified cascade for this month yet. Draft one — it lands in your Approval Queue for one-click ratification.
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 'var(--space-4)', padding: '13px 0', borderRadius: 'var(--radius-md)', background: 'rgba(139,92,246,0.14)', border: '1px solid var(--border-default)', color: 'var(--violet-200)', fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>
-            <span style={{ display: 'flex' }}>
-              <VxIcon name="branch" size={17} />
-            </span>
-            Draft this month&apos;s cascade → Approval Queue
-          </div>
-        </div>
-
-        <div className="vx-glass" style={cmdCard}>
-          <div className="vx-eyebrow" style={{ color: 'var(--text-dim)' }}>Victor · Lead Scout</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, marginBottom: 'var(--space-6)' }}>
-            <span style={{ color: 'var(--cyan-300)', display: 'flex' }}>
-              <VxIcon name="target" size={22} />
-            </span>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, color: 'var(--text-strong)' }}>Lead Scraper Control</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
-            <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', marginBottom: 8 }}>Niche</div>
-              <select value={niche} onChange={(e) => setNiche(e.target.value)} style={selectStyle}>
-                {NICHES.map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', marginBottom: 8 }}>Location</div>
-              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Austin, TX" style={inputStyle} />
-            </div>
-          </div>
-          <div style={{ marginBottom: 'var(--space-5)' }}>
-            <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', marginBottom: 8 }}>Max Leads</div>
-            <input value={maxLeads} onChange={(e) => setMaxLeads(e.target.value)} type="number" style={inputStyle} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 'var(--space-5)' }}>
-            <Checkbox on={autoResearch} onToggle={() => setAutoResearch((v) => !v)} label="Auto-research (Daniel)" />
-            <Checkbox on={writeSheets} onToggle={() => setWriteSheets((v) => !v)} label="Write to Google Sheets" />
-          </div>
-          <div
-            onClick={runScrape}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '15px 0',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--grad-brand)',
-              color: '#fff',
-              fontFamily: 'var(--font-display)',
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              boxShadow: 'var(--glow-violet)',
-              opacity: scraping ? 0.7 : 1,
-            }}
-          >
-            <span style={{ display: 'flex' }}>
-              <VxIcon name="play" size={16} color="#fff" />
-            </span>
-            {scraping ? 'Scraping…' : 'Run Scrape'}
-          </div>
-          <div style={{ marginTop: 'var(--space-4)', fontSize: 11.5, color: 'var(--text-dim)', lineHeight: 'var(--lh-relaxed)' }}>
-            Local dev only · results import as &quot;New&quot; leads · dedup on · outreach still requires your approval
-          </div>
-        </div>
+        <GoalCascadePanel />
+        <ScraperControl />
       </section>
 
       {/* Live Data */}
