@@ -118,6 +118,10 @@ export default function ApprovalQueue() {
         <div className="rounded-lg border border-red-400/30 bg-red-400/5 p-2.5 text-[11px] font-mono text-red-300">{loadError}</div>
       )}
 
+      {requests.length === 0 && loading && !loadError && (
+        <div role="status" className="py-8 text-center text-[11px] font-mono text-white/25">Loading approvals...</div>
+      )}
+
       {requests.length === 0 && !loading && !loadError && (
         <div className="py-8 text-center text-[11px] font-mono text-white/25">
           ✓ Queue clear — nothing awaiting your decision

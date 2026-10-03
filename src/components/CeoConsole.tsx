@@ -169,7 +169,7 @@ export default function CeoConsole() {
           <div role="alert" style={{ ...card, padding: '12px 16px', borderColor: 'rgba(239,68,68,0.4)' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--danger-400)' }}>The AI is not connected - the CEO cannot plan or run anything.</div>
             <div style={{ ...mono, color: 'var(--text-body)', marginTop: 4, lineHeight: 1.5 }}>
-              <b>{status.ai.envVar}</b> is not set on the server. Add it to <b>.env.local</b> (or your host's environment variables) and restart, then use <Link href="/settings#ai-panel" style={{ color: 'var(--cyan-300)' }}>Test AI connection</Link> in Settings.
+              <b>{status.ai.envVar}</b> is not set on the server. Add it to <b>.env.local</b> (or the environment variables of your host) and restart, then use <Link href="/settings#ai-panel" style={{ color: 'var(--cyan-300)' }}>Test AI connection</Link> in Settings.
             </div>
           </div>
         )}

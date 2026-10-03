@@ -93,6 +93,10 @@ export default function GoalCascadePanel() {
           </div>
           <p className="text-[10px] font-mono text-white/30 mt-1.5">{month.title}</p>
         </div>
+      ) : loading ? (
+        <div role="status" className="rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 text-[11px] font-sans text-white/40">
+          Loading goals...
+        </div>
       ) : (
         <div className="rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 text-[11px] font-sans text-white/40">
           No ratified cascade for this month yet. Draft one — it lands in your Approval Queue for one-click ratification.
