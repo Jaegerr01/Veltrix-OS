@@ -24,7 +24,7 @@ export function listProviders(env: NodeJS.ProcessEnv = process.env): ProviderSta
   if (!resendMissing.length) {
     if (!has(env, 'RESEND_FROM_EMAIL') || /onboarding@resend\.dev/i.test(from)) {
       resendWarning =
-        'RESEND_FROM_EMAIL is unset or the Resend sandbox sender: Resend will only deliver to your own Resend account email. Verify your domain in Resend and set RESEND_FROM_EMAIL="Name <you@your-domain>".';
+        'RESEND_FROM_EMAIL is unset or the Resend sandbox sender: Resend will only deliver to your own Resend account email. Verify postelstudio.com in Resend (add its SPF/DKIM DNS records) and set RESEND_FROM_EMAIL="PostelOS <hello@postelstudio.com>".';
     }
   }
   return [

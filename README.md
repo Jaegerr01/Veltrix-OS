@@ -29,9 +29,9 @@ The app is gated by Supabase auth (`AuthGate`): sign up / sign in on the login s
 
 ## Environment
 
-See [`.env.example`](./.env.example) for every variable (Supabase, Gemini, Resend, Voicebox, Obsidian sync, cron secret, site URL). Brand-related placeholders:
+See [`.env.example`](./.env.example) for every variable (Supabase, Gemini, Resend/Gmail, Voicebox/ElevenLabs, cron secret, site URL). Brand-related placeholders:
 
-- `NEXT_PUBLIC_SUPPORT_EMAIL` – contact shown in the UI. Defaults to `hello@postel.studio`, an **unverified placeholder**.
+- `NEXT_PUBLIC_SUPPORT_EMAIL` – contact shown in the UI. Defaults to the official address `hello@postelstudio.com` (the domain must be verified in Resend - SPF/DKIM - before PostelOS can send from it).
 - `OWNER_EMAIL` – optional server-side owner contact (falls back to `NOTIFY_EMAIL`).
 - `TEST_USER_EMAIL` / `TEST_USER_PASSWORD` – throwaway dev-only credentials for the `/api/test-supabase` diagnostic and `seed-supabase.ts`. Nothing is hardcoded.
 
@@ -49,4 +49,4 @@ See [`.env.example`](./.env.example) for every variable (Supabase, Gemini, Resen
 
 ## Rebrand notes
 
-Intentionally **not** renamed (names that are tied to external systems or stored data): the GitHub repo slug, the Obsidian vault repo / `Entity/VELTRIX Constitution.md` note path, the local `veltrix_maps_scraper.py` script, Supabase project/URLs, DB table & column names, and the legacy `vx_*` localStorage keys. Rename these deliberately, together with whatever they point at.
+Intentionally **not** renamed (names that are tied to external systems or stored data): the GitHub repo slug (target name: PostelOS - see [docs/REPO_RENAME.md](./docs/REPO_RENAME.md)), the local `veltrix_maps_scraper.py` script, Supabase project/URLs, DB table & column names, and the legacy `vx_*` localStorage keys. Rename these deliberately, together with whatever they point at.

@@ -1,5 +1,7 @@
 {
   "name": "postelos",
+  "description": "PostelOS - the AI command center by Postel Studio",
+  "repository": { "type": "git", "url": "https://github.com/Jaegerr01/PostelOS.git" },
   "version": "0.1.0",
   "private": true,
   "scripts": {
