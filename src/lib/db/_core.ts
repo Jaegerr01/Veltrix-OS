@@ -36,7 +36,7 @@ export const getUserId = async (): Promise<string> => {
           if (user) return user.id;
         }
       }
-    } catch (e) {
+    } catch {
       // Ignore errors during build / non-request paths
     }
 
@@ -51,7 +51,7 @@ export const getUserId = async (): Promise<string> => {
         const { data } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
         const owner = data?.users?.find((u: { email?: string }) => (u.email || '').toLowerCase() === ownerEmail);
         if (owner?.id) return owner.id;
-      } catch (e) {
+      } catch {
         // Admin lookup failed - fall through to the explicit error below
       }
     }

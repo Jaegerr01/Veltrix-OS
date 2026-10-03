@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Task } from '@/lib/types';
-import StatusBadge from './StatusBadge';
 import { Clock, ArrowRight, ArrowLeft, Trash2, CheckCircle2 } from 'lucide-react';
 
 interface TaskBoardProps {

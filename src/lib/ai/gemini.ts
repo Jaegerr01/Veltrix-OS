@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Lead, LeadScore, Proposal, ContentIdea, Memory } from '../types';
+import { Lead, LeadScore, ContentIdea, Memory } from '../types';
 import { AiError, classifyAiError, notConfigured } from './errors';
 import { INSTRUCTION_HIERARCHY, fence, leadBlock } from './untrusted';
 import { asErr } from '@/lib/errors';
@@ -53,7 +53,6 @@ Business Offer Options:
 `;
 
 /** Upper bound on a single honored retry wait, so a bad payload can't stall a request. */
-const MAX_RETRY_WAIT_MS = 35_000;
 
 /** Short, human-readable message for a quota/rate-limit failure. */
 export const QUOTA_MESSAGE =

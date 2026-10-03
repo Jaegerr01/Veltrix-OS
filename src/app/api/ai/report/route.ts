@@ -13,7 +13,6 @@ export async function POST(req: Request) {
   try {
     const profile = await db.getBusinessProfile();
     const leads = await db.getLeads();
-    const goals = await db.getGoals();
     const memories = await db.getMemories();
     const reports = await db.getDailyReports();
 

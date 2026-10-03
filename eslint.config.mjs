@@ -7,6 +7,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Test doubles legitimately need loose typing (mock factories, partial fixtures).
   { files: ["**/*.test.ts", "**/*.test.tsx"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
+  { rules: { "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true }] } },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

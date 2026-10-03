@@ -3,7 +3,7 @@
 import React from 'react';
 import { ContentIdea } from '@/lib/types';
 import StatusBadge from './StatusBadge';
-import { FileCode, Globe, Check, Send, Sparkles } from 'lucide-react';
+import { Globe, Check, Send } from 'lucide-react';
 
 interface ContentIdeaCardProps {
   idea: ContentIdea;
@@ -11,7 +11,7 @@ interface ContentIdeaCardProps {
 }
 
 export default function ContentIdeaCard({ idea, onUpdateStatus }: ContentIdeaCardProps) {
-  const getPlatformIcon = (platform: string) => {
+  const getPlatformIcon = (_platform: string) => {
     return <Globe size={15} className="text-neon-cyan" />;
   };
 

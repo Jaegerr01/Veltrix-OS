@@ -111,7 +111,7 @@ Output ONLY a raw JSON array of strings, e.g. ["task 1", "task 2", ...], with no
             if (Array.isArray(parsed) && parsed.length > 0) {
               checklist = parsed;
             }
-          } catch (err) {
+          } catch {
             const isChatbot = proposal.title.toLowerCase().includes('receptionist');
             const isBranding = proposal.title.toLowerCase().includes('brand');
             checklist = isChatbot

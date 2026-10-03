@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Target, Calculator, Percent, ArrowUpRight } from 'lucide-react';
+import { Target, Calculator, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface RevenueProgressProps {

@@ -200,7 +200,7 @@ export async function importFiles(store: VaultStore, userId: string, files: { pa
       ? await store.update(userId, existing.id, { body: parsed.body, tags: parsed.tags, pinned: parsed.pinned ?? existing.pinned })
       : await store.insert(userId, { title, path, body: parsed.body, tags: parsed.tags, pinned: !!parsed.pinned, source: 'user' });
     await store.setLinks(userId, saved.id, parseWikiLinks(saved.body));
-    existing ? res.updated++ : res.created++;
+    if (existing) res.updated++; else res.created++;
   }
   return res;
 }

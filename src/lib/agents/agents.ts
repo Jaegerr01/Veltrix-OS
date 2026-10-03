@@ -1,4 +1,3 @@
-import { Lead, Task, Goal, Revenue, Memory, Client, Proposal, Followup } from '../types';
 
 export interface AgentConfig {
   name: string;

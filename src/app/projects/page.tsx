@@ -64,7 +64,7 @@ export default function ProjectsPage() {
   const [projectName, setProjectName] = useState('');
   const [clientId, setClientId] = useState('');
   const [serviceType, setServiceType] = useState('Website Development');
-  const [status, setStatus] = useState<Project['status']>('Discovery');
+  const [status] = useState<Project['status']>('Discovery');
   const [deadline, setDeadline] = useState('');
   const [deliverablesStr, setDeliverablesStr] = useState('');
   const [notes, setNotes] = useState('');

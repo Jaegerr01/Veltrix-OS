@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, Zap, RefreshCw, CheckCircle2, AlertCircle,
   Users, Mail, FileText, Calendar, Brain, TrendingUp,
-  Play, Clock, ChevronRight
+  Play, ChevronRight
 } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
 import { asErr } from '@/lib/errors';

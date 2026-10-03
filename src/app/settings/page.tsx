@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { Button, Input, Skeleton, Switch, VxIcon, useAppearance } from '@/components/ds';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import { db } from '@/lib/db';

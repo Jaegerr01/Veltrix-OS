@@ -40,7 +40,6 @@ export async function runAgentLogic(
 
   const agent = AGENTS[agentKey];
   let resultText = '';
-  let logPayload = {};
   let approvalId: string | undefined;
   // When the orchestrator drives a run it owns the task row, so agents must not add duplicates.
   const addTaskIfStandalone = async (t: Parameters<typeof db.addTask>[0]) => (ctx?.orchestrated ? null : db.addTask(t));
@@ -190,7 +189,6 @@ Output in a concise layout with next actions.
 `;
         const generated = await gemini.callRawLLM(prompt, agent.systemPrompt);
         resultText = `**Marcus (Revenue Agent)**: ${generated}`;
-        logPayload = { closedRevenue, gap, simulatedWebsites: websites, simulatedReceptionists: receptionists };
         break;
       }
 
@@ -220,7 +218,6 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
 `;
         const generated = await gemini.callRawLLM(prompt, agent.systemPrompt);
         resultText = `**Sophia (Sales Agent)**: ${generated}`;
-        logPayload = { leadId, businessName: lead.business_name };
         break;
       }
 
@@ -637,7 +634,6 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
         if (note && note.title && note.body) {
           const saved = await vault.agentWrite({ title: String(note.title), body: String(note.body), folder: note.folder, tags: note.tags, mode: note.mode === 'append' ? 'append' : 'create', agent: 'memory' });
           resultText = `**Leo (Memory Manager Agent)**: Saved "${saved.title}" to the Memory Vault (${saved.path || 'root'}).`;
-          logPayload = { vaultNoteId: saved.id };
           break;
         }
         if (!query) {
@@ -681,7 +677,6 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
         // The catalogue agent's own prompt replaces the placeholder in AGENTS.specialist.
         const generated = await gemini.callRawLLM(task, specialist.systemPrompt);
         resultText = `**${specialist.name} (${specialist.category})**: ${generated}`;
-        logPayload = { slug, category: specialist.category, tier: specialist.tier };
         break;
       }
 
@@ -724,7 +719,6 @@ Answer the user's question accurately using only the retrieved documentation abo
         }
         const { imported, skipped } = await importScrapedLeads(run.leads);
         resultText = `**Victor (Lead Scout Agent)**: Scrape complete for **"${niche} in ${location}"**.\n\n- Scraped: ${run.leads.length}\n- Imported: ${imported.length} new leads\n- Skipped: ${skipped} duplicates\n\nFresh leads are in the pipeline as "New" — Daniel picks them up from here.`;
-        logPayload = { niche, location, scraped: run.leads.length, imported: imported.length, skipped };
         break;
       }
 

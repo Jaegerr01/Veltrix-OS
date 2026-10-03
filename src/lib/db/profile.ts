@@ -1,5 +1,4 @@
 import type { BusinessProfile, Goal, Offer } from '../types';
-import * as seedData from '../seedData';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
 import type { DbRow } from './_core';
 import { addMemory } from './memory';

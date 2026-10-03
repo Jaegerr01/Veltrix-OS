@@ -2,7 +2,6 @@ import { buildBusinessContext } from '../context/buildBusinessContext';
 import { gemini, geminiConfigured } from '../ai/gemini';
 import { notConfigured } from '../ai/errors';
 import { AGENTS } from './agents';
-import { activeRosterForPrompt } from './catalogue';
 import { db } from '../db';
 
 // Helper: Classify query using keyword mapping as fallback

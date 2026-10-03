@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { authFetch } from '@/lib/authFetch';
 import { asErr } from '@/lib/errors';
+import { useToast } from '@/components/Toast';
 
 interface Props {
   onClose: () => void;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
+  const toast = useToast();
   const [businessName, setBusinessName] = useState('');
   const [contactName, setContactName] = useState('');
   const [industry, setIndustry] = useState('');
@@ -59,11 +61,11 @@ export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
         onLeadAdded();
         onClose();
       } else {
-        alert('Failed to add lead: ' + json.error);
+        toast.error('Could not add the lead', json.error);
       }
     } catch (errRaw: unknown) { const err = asErr(errRaw);
       console.warn('Error adding lead:', err);
-      alert('Error adding lead: ' + err.message);
+      toast.error('Could not add the lead', err.message);
     } finally {
       setSubmitting(false);
     }

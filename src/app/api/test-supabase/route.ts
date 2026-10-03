@@ -29,7 +29,7 @@ export async function GET() {
         password,
         email_confirm: true
       });
-    } catch (e) {}
+    } catch {}
 
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -133,7 +133,7 @@ export async function GET() {
   } catch (errRaw: unknown) { const err = asErr(errRaw);
     try {
       await supabase.auth.signOut();
-    } catch (e) {}
+    } catch {}
     return NextResponse.json({ success: false, error: err.message || err }, { status: 500 });
   }
 }

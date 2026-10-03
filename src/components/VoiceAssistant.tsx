@@ -268,7 +268,6 @@ export default function VoiceAssistant() {
     recRef.current = rec;
     if (mode === 'handsfree') { setHandsFree(true); handsFreeRef.current = true; }
     try { rec.start(); } catch (raw) { setError({ message: `Could not start the microphone: ${asErr(raw).message || String(raw)}` }); setS('error'); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ask, cancelSpeech, setS]);
   React.useEffect(() => { startListeningRef.current = startListening; }, [startListening]);
 

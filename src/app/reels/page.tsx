@@ -191,7 +191,7 @@ Return only the JSON object.`;
     try {
       const result = await callClaude(msg);
       setScript(result);
-    } catch (e) {
+    } catch {
       setError('Generation failed. Check your connection and try again.');
     }
     setGenerating(false);

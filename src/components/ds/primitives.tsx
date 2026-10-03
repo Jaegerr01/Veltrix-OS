@@ -436,11 +436,11 @@ export function Input({
           disabled={disabled}
           onFocus={(e) => {
             setFocus(true);
-            rest.onFocus && rest.onFocus(e);
+            rest.onFocus?.(e);
           }}
           onBlur={(e) => {
             setFocus(false);
-            rest.onBlur && rest.onBlur(e);
+            rest.onBlur?.(e);
           }}
           aria-invalid={error ? true : undefined}
           {...rest}
@@ -495,7 +495,7 @@ export function Switch({
   const toggle = () => {
     if (disabled) return;
     if (!isControlled) setInternal(!on);
-    onChange && onChange(!on);
+    onChange?.(!on);
   };
   const control = (
     <button type="button" role="switch" aria-checked={on} aria-label={label ? undefined : ariaLabel} id={fid} onClick={toggle} disabled={disabled} className="vx-switch">
