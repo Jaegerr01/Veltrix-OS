@@ -95,6 +95,14 @@ export default function VaultWorkspace() {
     setMode('edit');
   };
 
+  // Command palette / shortcuts deep-link: /memory?new=1 opens a blank note.
+  React.useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') !== '1') return;
+    const t = setTimeout(() => { newNote(); window.history.replaceState(null, '', window.location.pathname); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const update = (patch: Partial<Draft>) => { setDraft(d => ({ ...d, ...patch })); setDirty(true); };
 
   const save = React.useCallback(async () => {

@@ -213,7 +213,7 @@ export default function TasksPage() {
       />
 
       {/* Kanban Board Grid */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 'var(--space-5)', alignItems: 'start' }}>
+      <section className="vx-kanban" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 'var(--space-5)', alignItems: 'start' }}>
         {columns.map((col) => (
           <div
             key={col.name}

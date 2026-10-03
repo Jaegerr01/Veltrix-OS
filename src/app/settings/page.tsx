@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Button, Input, Switch, VxIcon, PostelSpinner, useAppearance } from '@/components/ds';
+import { Button, Input, Skeleton, Switch, VxIcon, useAppearance } from '@/components/ds';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
 import { db } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/components/AuthGate';
@@ -154,19 +155,23 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <PostelSpinner message="Accessing secure core profile..." />
+      <div className="vx-stack" role="status" aria-label="Loading settings">
+        <Skeleton width={260} height={30} />
+        <Skeleton height={220} />
+        <Skeleton height={220} />
       </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
+      <OnboardingChecklist variant="health" />
+
       {/* Dynamic page card */}
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)', alignItems: 'stretch', maxWidth: 1200 }}>
         {/* Operator Profile */}
         <div style={settingsCard} className="vx-glass flex flex-col gap-6">
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Operator Profile</div>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Operator Profile</h2>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)' }}>
             <div 
@@ -229,7 +234,7 @@ export default function SettingsPage() {
         {/* Preferences */}
         <div style={settingsCard} className="vx-glass flex flex-col justify-between gap-6">
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 'var(--space-4)' }}>Preferences</div>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 'var(--space-4)' }}>Preferences</h2>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {PREF_DEFS.map((p, i) => (
                 <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '14px 0', borderBottom: i < PREF_DEFS.length - 1 ? '1px solid var(--hairline)' : 'none' }}>
@@ -254,7 +259,7 @@ export default function SettingsPage() {
 
         {/* Developer Integrations */}
         <div style={settingsCard} className="vx-glass flex flex-col gap-6">
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Developer Integrations</div>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Developer Integrations</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               API keys and tokens (GEMINI_API_KEY, email credentials) are server environment variables - set them in
@@ -278,7 +283,7 @@ export default function SettingsPage() {
         {/* Appearance & Theme (Accent Palette & Background Color) */}
         <div style={{ ...settingsCard, gridColumn: '1 / -1' }} className="vx-glass flex flex-col gap-6">
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Appearance &amp; Theme</div>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Appearance &amp; Theme</h2>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Customize the visual command environment</span>
           </div>
 
