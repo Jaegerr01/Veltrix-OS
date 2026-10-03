@@ -42,7 +42,7 @@ const SECTIONS = [
   { key: 'hook', label: 'Hook', timing: '0–2s', color: 'text-neon-purple' },
   { key: 'agitate', label: 'Agitate', timing: '2–8s', color: 'text-neon-orange' },
   { key: 'mechanism', label: 'Mechanism', timing: '8–18s', color: 'text-neon-cyan' },
-  { key: 'proof', label: 'Proof', timing: '18–25s', color: 'text-neon-blue' },
+  { key: 'proof', label: 'Proof', timing: '18–25s', color: 'text-neon-cyan' },
   { key: 'cta', label: 'CTA', timing: '25–30s', color: 'text-neon-green' },
   { key: 'caption', label: 'Caption', timing: '', color: 'text-white/60' },
   { key: 'hashtags', label: 'Hashtags', timing: '', color: 'text-neon-pink' },

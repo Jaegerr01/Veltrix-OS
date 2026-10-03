@@ -19,6 +19,7 @@ export function EmptyState({
   body,
   action,
   compact = false,
+  level = 3,
   style,
 }: {
   icon?: VxIconName;
@@ -29,8 +30,11 @@ export function EmptyState({
   action?: React.ReactNode;
   /** Tighter padding, for inside a column or card rather than a full page. */
   compact?: boolean;
+  /** Heading level; use 2 on pages with no h2 above this block so heading order stays valid. */
+  level?: 2 | 3;
   style?: React.CSSProperties;
 }) {
+  const Heading = level === 2 ? 'h2' : 'h3';
   return (
     <div
       style={{
@@ -63,7 +67,7 @@ export function EmptyState({
         <VxIcon name={icon} size={20} />
       </span>
 
-      <h3
+      <Heading
         style={{
           fontFamily: 'var(--font-display)',
           fontSize: compact ? 'var(--text-base)' : 'var(--text-lg)',
@@ -72,7 +76,7 @@ export function EmptyState({
         }}
       >
         {title}
-      </h3>
+      </Heading>
 
       {body ? (
         <p

@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import { Client } from '@/lib/types';
 import { authFetch } from '@/lib/authFetch';
 import StatusBadge from './StatusBadge';
-import RoiReportModal from './RoiReportModal';
 import { Briefcase, Mail, Phone, ExternalLink, DollarSign, TrendingUp, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/Toast';
 import type { ComponentProps } from 'react';
+import dynamic from 'next/dynamic';
+
+const RoiReportModal = dynamic(() => import('./RoiReportModal'), { ssr: false });
 
 interface ClientCardProps {
   client: Client;

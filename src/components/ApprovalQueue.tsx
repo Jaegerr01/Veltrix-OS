@@ -166,8 +166,11 @@ export default function ApprovalQueue() {
                   )}
                 </div>
                 <button
+                  type="button"
+                  aria-label={expanded ? `Hide details for ${req.title}` : `Show details for ${req.title}`}
+                  aria-expanded={expanded}
                   onClick={() => setExpandedId(expanded ? null : req.id)}
-                  className="p-1 rounded-lg hover:bg-white/5 text-white/25 hover:text-white/60 transition-colors cursor-pointer shrink-0"
+                  className="vx-tap p-1 rounded-lg hover:bg-white/5 text-white/25 hover:text-white/60 transition-colors cursor-pointer shrink-0"
                 >
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>

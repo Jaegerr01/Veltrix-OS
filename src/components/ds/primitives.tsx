@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 
 /* ============================================================
    PostelOS Design System primitives — ported from _ds_bundle.js
@@ -167,8 +168,7 @@ export function Avatar({
           }}
         >
           {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <Image src={src} alt={name} width={px} height={px} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             children || initials
           )}

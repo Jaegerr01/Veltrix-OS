@@ -6,11 +6,13 @@ import { StatCard, AgentCard } from '@/components/ds';
 import { AGENT_ICONS } from '@/components/ds/agents';
 import ApprovalQueue from '@/components/ApprovalQueue';
 import GoalCascadePanel from '@/components/GoalCascadePanel';
-import ScraperControl from '@/components/ScraperControl';
 import { useAgentRoster } from '@/components/useAgentRoster';
 import { db } from '@/lib/db';
 import type { Lead, OutreachMessage, Followup, Proposal, AgentLog } from '@/lib/types';
 import { asErr } from '@/lib/errors';
+import dynamic from 'next/dynamic';
+
+const ScraperControl = dynamic(() => import('@/components/ScraperControl'), { ssr: false });
 
 /**
  * Command Center. Every number on this page is computed from the database at load time.

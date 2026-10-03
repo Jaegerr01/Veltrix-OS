@@ -1,4 +1,4 @@
-﻿import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { signIn, resetMock } from './helpers';
 import { rows, apiGet } from './util';
 

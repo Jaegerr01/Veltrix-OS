@@ -273,7 +273,7 @@ export default function ReelIntelPage() {
           {historyLoading ? (
             <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: 'var(--space-4) 0' }}>Loading…</div>
           ) : history.length === 0 ? (
-            <EmptyState compact icon="play" title="No reels analyzed yet" body="Paste a reel URL above to start your intel library." />
+            <EmptyState compact level={2} icon="play" title="No reels analyzed yet" body="Paste a reel URL above to start your intel library." />
           ) : (
             history.map((h) => (
               <div key={h.id} style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)', marginBottom: 'var(--space-3)' }}>

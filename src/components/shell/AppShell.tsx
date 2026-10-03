@@ -6,10 +6,14 @@ import { documentTitle, NAV_ROUTES } from '@/lib/nav';
 import { useAuth } from '@/components/AuthGate';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
-import CommandPalette from './CommandPalette';
-import ShortcutsHelp from './ShortcutsHelp';
 import SetupBanner from '@/components/SetupBanner';
-import VoiceAssistant from '@/components/VoiceAssistant';
+import dynamic from 'next/dynamic';
+
+const VoiceAssistant = dynamic(() => import('@/components/VoiceAssistant'), { ssr: false });
+
+const ShortcutsHelp = dynamic(() => import('./ShortcutsHelp'), { ssr: false });
+
+const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false });
 
 const isTyping = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;
@@ -77,7 +81,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <Topbar navOpen={navOpen} onToggleNav={() => setNavOpen(o => !o)} onOpenPalette={() => setPaletteOpen(true)} />
           <main id="main-content" ref={contentRef} tabIndex={-1} className="vx-content">
             <SetupBanner />
-            <div key={pathname} className="vx-page">{children}</div>
+            <div key={pathname} className="vx-page vx-page-enter">{children}</div>
           </main>
         </div>
       </div>

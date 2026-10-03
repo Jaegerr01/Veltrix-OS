@@ -198,10 +198,10 @@ export default function OrbitalCommand() {
           }}
         />
         <div
-          {...clickable(() => {
-            sphereRef.current?.pulse();
-            window.dispatchEvent(new Event('postelos-toggle-voice'));
-          })}
+          role="button"
+          tabIndex={0}
+          onClick={() => { sphereRef.current?.pulse(); window.dispatchEvent(new Event('postelos-toggle-voice')); }}
+          onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); sphereRef.current?.pulse(); window.dispatchEvent(new Event('postelos-toggle-voice')); } }}
           style={{
             position: 'absolute',
             left: '50%',

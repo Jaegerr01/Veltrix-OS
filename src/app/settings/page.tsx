@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Button, Input, Skeleton, Switch, VxIcon, useAppearance } from '@/components/ds';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import { db } from '@/lib/db';
@@ -176,7 +177,7 @@ export default function SettingsPage() {
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)' }}>
             <div 
-              {...clickable(() => fileInputRef.current?.click())}
+              role="button" tabIndex={0} onClick={() => fileInputRef.current?.click()} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileInputRef.current?.click(); } }}
               style={{
                 position: 'relative',
                 width: 88,
@@ -190,8 +191,7 @@ export default function SettingsPage() {
               }}
             >
               {avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <Image src={avatar} alt="Avatar" width={88} height={88} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'var(--ink-600)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', alignContent: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-display)', fontSize: 11 }}>Photo</div>
               )}

@@ -3,11 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
-import ScraperControl from '@/components/ScraperControl';
-import ScraperImport from '@/components/ScraperImport';
 import PageSkeleton from '@/components/PageSkeleton';
 import { clickable } from '@/lib/a11y';
 import DialogOverlay from '@/components/DialogOverlay';
+import dynamic from 'next/dynamic';
+
+const ScraperImport = dynamic(() => import('@/components/ScraperImport'), { ssr: false });
+
+const ScraperControl = dynamic(() => import('@/components/ScraperControl'), { ssr: false });
 
 const STAGE_KEYS = {
   prospecting: ['New', 'Researched'],
