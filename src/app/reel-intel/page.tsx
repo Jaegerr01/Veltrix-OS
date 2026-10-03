@@ -87,7 +87,7 @@ export default function ReelIntelPage() {
   const [note, setNote] = React.useState('');
   const [analyzing, setAnalyzing] = React.useState(false);
   const [result, setResult] = React.useState<ReelIntelResult | null>(null);
-  const [savedToObsidian, setSavedToObsidian] = React.useState(false);
+  const [savedToVault, setSavedToVault] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryNote[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(true);
   const toast = useToast();
@@ -137,8 +137,8 @@ export default function ReelIntelPage() {
       const data = await res.json();
       if (data.success) {
         setResult(data.data);
-        setSavedToObsidian(!!data.savedToObsidian);
-        toast.success('Nova: analysis complete', data.savedToObsidian ? 'Saved to your Obsidian vault.' : 'Saved to your notes.');
+        setSavedToVault(!!data.savedToVault);
+        toast.success('Nova: analysis complete', data.savedToVault ? 'Saved to your Memory Vault (Reel Intel folder).' : 'Saved to your notes.');
         setUrl('');
         setNote('');
         loadHistory();
@@ -210,7 +210,7 @@ export default function ReelIntelPage() {
                   </span>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', color: 'var(--text-strong)', textTransform: 'uppercase' }}>{result.topic}</span>
                 </div>
-                {savedToObsidian && (
+                {savedToVault && (
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--signal-400)' }}>saved to vault</span>
                 )}
               </div>

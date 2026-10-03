@@ -335,7 +335,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         // full email, and files it as an approval request in Barry's queue.
         // The send executes only after Barry approves — and even then the
         // guarded sender (kill switch, daily cap, blacklist) still applies.
-        // Doctrine: Obsidian → Entity/VELTRIX Constitution.md, Article 3.
+        // Doctrine: PostelOS Constitution (Memory Vault note "Constitution"), Article 3.
         let queuedInfo = '';
         let queuedForApproval = false;
 

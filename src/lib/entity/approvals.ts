@@ -4,7 +4,7 @@ import type { ApprovalRequest, EntityDepartment, ApprovalRequestType, OutreachSe
 /**
  * Entity Phase 1 — the propose-then-approve backbone.
  *
- * Doctrine (Obsidian → Entity/VELTRIX Constitution.md, Article 3):
+ * Doctrine (PostelOS Constitution (Memory Vault note "Constitution"), Article 3):
  * every action that crosses the entity's boundary into the world becomes an
  * approval request. Barry approves, edits, or rejects. Nothing external
  * executes without a decision.

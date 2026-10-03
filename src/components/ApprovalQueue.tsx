@@ -3,7 +3,7 @@
 // Entity Phase 1 — Barry's Approval Queue.
 // Every autonomous external action lands here as a decision-ready card:
 // context, exact payload, agent confidence. Approve / Edit & Approve / Reject.
-// Doctrine: Obsidian → Entity/VELTRIX Constitution.md (Article 3).
+// Doctrine: PostelOS Constitution (Memory Vault note "Constitution") (Article 3).
 
 import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';

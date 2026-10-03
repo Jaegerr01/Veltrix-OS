@@ -1,6 +1,6 @@
 -- Entity Phase 2 — Goal Cascade migration (standalone, idempotent).
 -- Run in the Supabase SQL Editor after the approval_requests migration.
--- Doctrine: Obsidian vault → Entity/Goal Cascade.md
+-- Doctrine: Memory Vault
 
 create table if not exists public.entity_goals (
   id uuid primary key default gen_random_uuid(),

@@ -1,6 +1,6 @@
 -- Entity Phase 1 — Approval Queue migration (standalone, idempotent).
 -- Run this in the Supabase SQL Editor. Safe to run more than once.
--- Full context: Obsidian vault → Entity/Command OS Implementation Roadmap.md
+-- Full context: Memory Vault
 
 create table if not exists public.approval_requests (
   id uuid primary key default gen_random_uuid(),

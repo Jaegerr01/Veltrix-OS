@@ -231,7 +231,7 @@ Priority order. Do explicit asks first, verify after each, don't break the build
     via `db.updateTask`; "New Task" creates via `db.addTask`.
 13. **Leads** — real pipeline from `db.getLeads()` grouped by status.
 14. **Revenue** — real KPIs + trend + channel mix from `db.getRevenue()` / profile.
-15. **Memory** — real feed from `db.getMemories()`; connectors → `/api/obsidian/sync`.
+15. **Memory** — real feed from `db.getMemories()`; built-in Memory Vault UI (`/memory`, `/api/memory`; see CLAUDE.md).
 16. **Reports** — real daily reports from `db.getDailyReports()`.
 17. **System Status** — real health from `/api/health` (integrations + env checklist).
 

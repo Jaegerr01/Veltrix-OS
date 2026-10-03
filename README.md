@@ -2,7 +2,7 @@
 
 **PostelOS — the AI command center by Postel Studio.**
 
-An always-on AI command center: a roster of specialist agents (CEO/Chief of Staff, Revenue, Sales, Lead Research, Outreach, Follow-up, Proposal, Content, Delivery, Memory, Reel Intel) coordinated by one operator console. It handles the lead pipeline end to end (scrape → research → outreach → proposal → approval queue → guarded send), tracks revenue against a target, keeps a searchable memory vault synced from Obsidian, and speaks through a voice assistant.
+An always-on AI command center: a roster of specialist agents (CEO/Chief of Staff, Revenue, Sales, Lead Research, Outreach, Follow-up, Proposal, Content, Delivery, Memory, Reel Intel) coordinated by one operator console. It handles the lead pipeline end to end (scrape → research → outreach → proposal → approval queue → guarded send), tracks revenue against a target, keeps a built-in, searchable Memory Vault (markdown notes with folders, tags and [[wiki-links]], Supabase-backed, importable/exportable as .md files), and speaks through a voice assistant.
 
 > Formerly "Veltrix Command OS". Rebranded to PostelOS / Postel Studio — see [Rebrand notes](#rebrand-notes).
 

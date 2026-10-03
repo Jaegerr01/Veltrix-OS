@@ -58,8 +58,6 @@ export default function SettingsPage() {
   });
 
   // Developer Integrations state (paths only - API keys/tokens live in server env vars, never in the browser)
-  const [githubRepo, setGithubRepo] = React.useState('');
-  const [obsidianPath, setObsidianPath] = React.useState('');
   const [scraperPath, setScraperPath] = React.useState('');
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -95,8 +93,8 @@ export default function SettingsPage() {
 
       // Purge secrets older versions stored in the browser.
       ['vx_claude_key', 'vx_gemini_key', 'vx_github_token'].forEach((k) => localStorage.removeItem(k));
-      setGithubRepo(localStorage.getItem('vx_github_repo') || '');
-      setObsidianPath(localStorage.getItem('vx_obsidian_path') || '');
+      // The external vault integration was removed (PostelOS has a built-in Memory Vault); purge its old keys.
+      ['vx_github_repo', 'vx_obsidian_path'].forEach((k) => localStorage.removeItem(k));
       setScraperPath(localStorage.getItem('vx_scraper_path') || '');
 
       setLoading(false);
@@ -134,8 +132,6 @@ export default function SettingsPage() {
       localStorage.setItem('vx_preferences', JSON.stringify(prefs));
 
       // Persist developer integrations
-      localStorage.setItem('vx_github_repo', githubRepo);
-      localStorage.setItem('vx_obsidian_path', obsidianPath);
       localStorage.setItem('vx_scraper_path', scraperPath);
 
       toast.success('Settings Saved', 'System profile and visual preferences updated successfully.');
@@ -261,25 +257,9 @@ export default function SettingsPage() {
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Developer Integrations</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-              API keys and tokens (GEMINI_API_KEY, GITHUB_TOKEN, email credentials) are server environment variables - set them in
+              API keys and tokens (GEMINI_API_KEY, email credentials) are server environment variables - set them in
               <code> .env.local </code> or Netlify, not here. They are intentionally not stored in the browser.
             </div>
-            <Input
-              label="Obsidian GitHub Repository"
-              value={githubRepo}
-              onChange={(e) => setGithubRepo(e.target.value)}
-              placeholder="username/vault-repo"
-              size="md"
-              style={{ width: '100%' }}
-            />
-            <Input
-              label="Local Obsidian Vault Disk Path"
-              value={obsidianPath}
-              onChange={(e) => setObsidianPath(e.target.value)}
-              placeholder="C:\path\to\your\obsidian-vault"
-              size="md"
-              style={{ width: '100%' }}
-            />
             <Input
               label="Local Maps Scraper Script Path"
               value={scraperPath}

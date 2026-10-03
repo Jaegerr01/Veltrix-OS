@@ -393,7 +393,7 @@ export interface CommunityMetric {
 // ─── Entity Phase 1 — Approval Queue ─────────────────────────────────────────
 // Every autonomous EXTERNAL action (email, publish, spend…) becomes an
 // ApprovalRequest and executes only after Barry approves.
-// Doctrine: Obsidian vault → Entity/VELTRIX Constitution.md (Article 3).
+// Doctrine: PostelOS Constitution (Memory Vault note "Constitution") (Article 3).
 
 export type ApprovalRequestType =
   | 'outreach_send'
@@ -451,7 +451,7 @@ export interface RecordSendPayload {
 
 // ─── Entity Phase 2 — Goal Cascade ───────────────────────────────────────────
 // BHAG → quarter → month → week → day. Drafted by the Core, ratified by Barry
-// through the Approval Queue. Doctrine: Obsidian → Entity/Goal Cascade.md.
+// through the Approval Queue. Doctrine: Memory Vault.
 
 export type EntityGoalLevel = 'bhag' | 'quarter' | 'month' | 'week' | 'day';
 export type EntityGoalStatus = 'draft' | 'ratified' | 'active' | 'completed' | 'missed';

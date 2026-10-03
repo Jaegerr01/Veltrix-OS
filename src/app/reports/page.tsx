@@ -77,7 +77,7 @@ export default function ReportsPage() {
         closed_revenue: closedRevenue,
         pipeline_value: pipelineValue,
         revenue_gap: gap,
-        top_priority: newLeads.length > 0 ? `Outreach to ${newLeads[0]} and other prospects.` : 'Index Obsidian brain for new strategy signals.',
+        top_priority: newLeads.length > 0 ? `Outreach to ${newLeads[0]} and other prospects.` : 'Review pending approvals and open follow-ups.',
         leads_to_contact: newLeads,
         followups_due: pendingFollows,
         content_to_post: 'Compose post: "Why local practices are bleeding customers by neglecting automated booking receptionists."',

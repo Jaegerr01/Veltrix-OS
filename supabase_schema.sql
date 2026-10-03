@@ -362,7 +362,7 @@ create table if not exists public.community_metrics (
 
 -- 22. approval_requests (Entity Phase 1 — propose-then-approve queue.
 --     Every autonomous EXTERNAL action becomes a card here and executes
---     only after Barry approves. See Obsidian: Entity/VELTRIX Constitution.)
+--     only after Barry approves. See PostelOS Constitution (Memory Vault note "Constitution").)
 create table if not exists public.approval_requests (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { journalToVault } from '@/lib/db/vault';
 import { gemini, geminiConfigured, isQuotaError, QUOTA_MESSAGE } from '@/lib/ai/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
@@ -48,41 +49,12 @@ function extractShortcode(url: string): string | null {
   return match ? match[1] : null;
 }
 
-// ── Write note to Obsidian vault (local dev only) ────────────────────────────
+// -- Save the analysis into the built-in Memory Vault (folder "Reel Intel") --
 
-async function writeToObsidian(title: string, content: string): Promise<boolean> {
-  const vaultPath = process.env.OBSIDIAN_VAULT_PATH;
-  if (!vaultPath) return false;
-
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
-
-    const reelIntelDir = path.join(vaultPath, 'Reel Intel');
-    if (!fs.existsSync(reelIntelDir)) {
-      fs.mkdirSync(reelIntelDir, { recursive: true });
-    }
-
-    const safeTitle = title.replace(/[<>:"/\\|?*]/g, '-').substring(0, 80);
-    const filename = `${safeTitle}.md`;
-    const filepath = path.join(reelIntelDir, filename);
-
-    fs.writeFileSync(filepath, content, 'utf-8');
-    return true;
-  } catch (err) {
-    console.warn('Failed to write to Obsidian vault:', err);
-    return false;
-  }
-}
-
-// ── Build Obsidian markdown note ─────────────────────────────────────────────
-
-function buildObsidianNote(url: string, result: ReelIntelResult): string {
+function buildReelNote(url: string, result: ReelIntelResult): string {
   const date = new Date().toISOString().split('T')[0];
   const tags = result.tags.map(t => `#${t.replace(/\s+/g, '-')}`).join(' ');
-
-  let md = `---\nsource: instagram-reel\nurl: ${url}\ncreator: ${result.creator}\ntopic: ${result.topic}\ndate: ${date}\ntags: [${result.tags.map(t => `"${t}"`).join(', ')}]\n---\n\n`;
-  md += `# ${result.summary.split('.')[0]}\n\n`;
+  let md = `# ${result.summary.split('.')[0]}\n\n`;
   md += `> **Source**: [Instagram Reel](${url})  \n`;
   md += `> **Creator**: ${result.creator}  \n`;
   md += `> **Topic**: ${result.topic}  \n`;
@@ -95,8 +67,12 @@ function buildObsidianNote(url: string, result: ReelIntelResult): string {
     md += `- **[${s.area}]** ${s.action} _(${s.priority} priority)_\n`;
   });
   md += `\n${tags}\n`;
-
   return md;
+}
+
+async function saveToVault(title: string, content: string, tags: string[]): Promise<boolean> {
+  const saved = await journalToVault({ title, body: content, folder: 'Reel Intel', tags: ['reel-intel', ...tags], agent: 'reelIntel' });
+  return saved !== null;
 }
 
 // ── POST handler ─────────────────────────────────────────────────────────────
@@ -238,16 +214,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Write to Obsidian vault (local dev only)
-    const obsidianNote = buildObsidianNote(url, result);
+    // File the brief in the built-in Memory Vault (best effort; the analysis itself is already saved above)
+    const reelNote = buildReelNote(url, result);
     const safeTitle = `${result.topic} - ${result.creator} - ${new Date().toISOString().split('T')[0]}`;
-    const savedToObsidian = await writeToObsidian(safeTitle, obsidianNote);
+    const savedToVault = await saveToVault(safeTitle, reelNote, result.tags.slice(0, 5));
 
     return NextResponse.json({
       success: true,
       data: result,
       noteId,
-      savedToObsidian,
+      savedToVault,
       metadata: {
         author: authorName,
         caption: caption || null,
