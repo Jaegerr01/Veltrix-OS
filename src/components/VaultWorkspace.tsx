@@ -8,6 +8,7 @@ import { titleKey } from '@/lib/vault/links';
 import { buildFolderTree, wikiTargetFromHref, wikiToMarkdownLinks, type FolderNode } from '@/lib/vault/wikiMarkdown';
 import type { VaultNote, VaultNoteMeta, VaultSearchHit } from '@/lib/vault/types';
 import { clickable } from '@/lib/a11y';
+import { useToast } from '@/components/Toast';
 
 type Detail = {
   note: VaultNote;
@@ -30,6 +31,7 @@ async function api<T = Record<string, unknown>>(url: string, init?: RequestInit)
 }
 
 export default function VaultWorkspace() {
+  const toast = useToast();
   const [notes, setNotes] = React.useState<VaultNoteMeta[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [fatal, setFatal] = React.useState<string | null>(null);
@@ -68,19 +70,19 @@ export default function VaultWorkspace() {
   }, [query]);
 
   const openNote = React.useCallback(async (id: string) => {
-    if (dirty && !window.confirm('Discard unsaved changes?')) return;
+    if (dirty && !(await toast.confirm('Discard unsaved changes?', 'Your edits to this note have not been saved.', { confirmLabel: 'Discard', danger: true }))) return;
     const r = await api<Detail>(`/api/memory/${id}`);
     if (!r.success) { setMsg({ ok: false, text: r.error || 'Could not open that note.' }); return; }
     setDetail(r as unknown as Detail);
     setDraft(toDraft((r as unknown as Detail).note));
     setDirty(false);
     setMode('edit');
-  }, [dirty]);
+  }, [dirty, toast]);
 
   const openByTitle = async (title: string) => {
     const hit = notes.find(n => titleKey(n.title) === titleKey(title));
     if (hit) return openNote(hit.id);
-    if (window.confirm(`"${title}" does not exist yet. Create it?`)) {
+    if (await toast.confirm(`"${title}" does not exist yet`, 'Create it as a new note?', { confirmLabel: 'Create note' })) {
       setDetail(null);
       setDraft({ ...EMPTY, title });
       setDirty(true);
@@ -88,8 +90,8 @@ export default function VaultWorkspace() {
     }
   };
 
-  const newNote = (path = '') => {
-    if (dirty && !window.confirm('Discard unsaved changes?')) return;
+  const newNote = async (path = '') => {
+    if (dirty && !(await toast.confirm('Discard unsaved changes?', 'Your edits to this note have not been saved.', { confirmLabel: 'Discard', danger: true }))) return;
     setDetail(null);
     setDraft({ ...EMPTY, path });
     setDirty(false);
@@ -138,7 +140,8 @@ export default function VaultWorkspace() {
   };
 
   const remove = async () => {
-    if (!draft.id || !window.confirm(`Delete "${draft.title}"? This cannot be undone.`)) return;
+    if (!draft.id) return;
+    if (!(await toast.confirm(`Delete "${draft.title}"?`, 'This permanently deletes the note and cannot be undone.', { confirmLabel: 'Delete note', danger: true }))) return;
     const r = await api(`/api/memory/${draft.id}`, { method: 'DELETE' });
     if (!r.success) { setMsg({ ok: false, text: r.error || 'Delete failed.' }); return; }
     setMsg({ ok: true, text: 'Note deleted.' });
