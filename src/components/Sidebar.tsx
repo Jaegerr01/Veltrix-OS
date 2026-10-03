@@ -18,6 +18,7 @@ type NavItem = { group?: string; label?: string; icon?: VxIconName; path?: strin
 
 const NAV_DEFS: NavItem[] = [
   { label: 'Dashboard', icon: 'grid', path: '/' },
+  { label: 'CEO Console', icon: 'crown', path: '/ceo' },
   { label: 'Command Center', icon: 'terminal', path: '/command-center' },
   { label: 'Revenue', icon: 'dollar', path: '/revenue' },
   { group: 'Pipeline' },

@@ -31,7 +31,7 @@ export { PostelLogo } from './PostelLogo';
 export type { PostelLogoProps } from './PostelLogo';
 
 /* Data / context */
-export { AGENT_DEFS, STATUS_COLOR, STATUS_LABEL, ACTIVITY_DEFS } from './agents';
-export type { AgentDef, ActivityDef } from './agents';
+export { AGENT_ICONS, STATUS_COLOR, STATUS_LABEL } from './agents';
+export type { AgentDef } from './agents';
 export { AppearanceProvider, useAppearance } from './AppearanceProvider';
 export type { AppearanceContextType } from './AppearanceProvider';

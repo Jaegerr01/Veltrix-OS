@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Badge } from './primitives';
 import { VxIcon } from './VxIcon';
 import CeoSphere, { type CeoSphereHandle } from './CeoSphere';
-import { AGENT_DEFS, STATUS_COLOR } from './agents';
+import { AGENT_ICONS, STATUS_COLOR } from './agents';
+import { useAgentRoster } from '../useAgentRoster';
 
 /**
  * Hero "Orbital Command" view — the signature screen. A central animated
@@ -21,6 +22,9 @@ export default function OrbitalCommand() {
   const tiltRef = React.useRef({ x: 0, y: 0 });
   const [tilt, setTilt] = React.useState({ x: 0, y: 0 });
   const sphereRef = React.useRef<CeoSphereHandle>(null);
+  // Live roster: status/metrics come from the tasks table (no seeded numbers).
+  const { agents: roster } = useAgentRoster();
+  const AGENT_DEFS = roster.map((a) => ({ ...a, iconName: (AGENT_ICONS[a.id] ?? 'sparkle') as import('./VxIcon').VxIconName }));
   const N = AGENT_DEFS.length;
 
   const [voiceState, setVoiceState] = React.useState({ isListening: false, isSpeaking: false });
@@ -74,15 +78,15 @@ export default function OrbitalCommand() {
           Orbital Network
         </div>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>
-          {N} specialist agents, coordinated by ARIA
+          {N} agents, coordinated by the CEO
         </div>
       </div>
       <div style={{ position: 'absolute', top: 'var(--space-6)', right: 'var(--space-6)', zIndex: 3, display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
         <Badge tone="active" dot>
-          {AGENT_DEFS.filter((a) => a.status === 'active').length} of {N} active
+          {AGENT_DEFS.filter((a) => a.status === 'busy').length} working now
         </Badge>
         <div
-          onClick={() => router.push('/command-center')}
+          onClick={() => router.push('/ceo')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -102,7 +106,7 @@ export default function OrbitalCommand() {
           <span style={{ display: 'flex' }}>
             <VxIcon name="plus" size={16} color="#fff" />
           </span>
-          Add Agent
+          Open CEO Console
         </div>
       </div>
 
@@ -237,7 +241,8 @@ export default function OrbitalCommand() {
           return (
             <div
               key={a.id}
-              onClick={() => router.push('/command-center')}
+              title={`${a.role} - ${a.metric} done`}
+              onClick={() => router.push('/ceo')}
               style={{
                 position: 'absolute',
                 left: `calc(50% + ${x}px)`,

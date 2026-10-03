@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/components/AuthGate';
 import { SUPPORT_EMAIL } from '@/lib/brand';
+import { EmailPanel, AiConnectionPanel } from '@/components/SystemConnections';
 
 const settingsCard: React.CSSProperties = {
   padding: 'var(--space-6)',
@@ -25,8 +26,8 @@ const PRESETS: Record<string, { name: string; swatch: string; accent: string }> 
 
 const PREF_DEFS = [
   { key: 'desktop', name: 'Desktop Notifications', desc: 'Alerts for agent events & deals' },
-  { key: 'voice', name: 'Voice Commands', desc: 'CEO agent listens for wake word' },
-  { key: 'autopilot', name: 'Full Autopilot', desc: 'Agents act without approval' },
+  { key: 'voice', name: 'Voice Commands', desc: 'ARIA voice assistant (push-to-talk / hands-free toggle)' },
+  { key: 'autopilot', name: 'Autopilot drafting', desc: 'Agents draft and queue work on their own. Emails still wait for your approval.' },
   { key: 'weekly', name: 'Weekly Reports', desc: 'Emailed performance summary' },
 ] as const;
 
@@ -56,10 +57,7 @@ export default function SettingsPage() {
     weekly: true,
   });
 
-  // Developer Integrations state
-  const [claudeKey, setClaudeKey] = React.useState('');
-  const [geminiKey, setGeminiKey] = React.useState('');
-  const [githubToken, setGithubToken] = React.useState('');
+  // Developer Integrations state (paths only - API keys/tokens live in server env vars, never in the browser)
   const [githubRepo, setGithubRepo] = React.useState('');
   const [obsidianPath, setObsidianPath] = React.useState('');
   const [scraperPath, setScraperPath] = React.useState('');
@@ -95,9 +93,8 @@ export default function SettingsPage() {
         } catch {}
       }
 
-      setClaudeKey(localStorage.getItem('vx_claude_key') || '');
-      setGeminiKey(localStorage.getItem('vx_gemini_key') || '');
-      setGithubToken(localStorage.getItem('vx_github_token') || '');
+      // Purge secrets older versions stored in the browser.
+      ['vx_claude_key', 'vx_gemini_key', 'vx_github_token'].forEach((k) => localStorage.removeItem(k));
       setGithubRepo(localStorage.getItem('vx_github_repo') || '');
       setObsidianPath(localStorage.getItem('vx_obsidian_path') || '');
       setScraperPath(localStorage.getItem('vx_scraper_path') || '');
@@ -137,9 +134,6 @@ export default function SettingsPage() {
       localStorage.setItem('vx_preferences', JSON.stringify(prefs));
 
       // Persist developer integrations
-      localStorage.setItem('vx_claude_key', claudeKey);
-      localStorage.setItem('vx_gemini_key', geminiKey);
-      localStorage.setItem('vx_github_token', githubToken);
       localStorage.setItem('vx_github_repo', githubRepo);
       localStorage.setItem('vx_obsidian_path', obsidianPath);
       localStorage.setItem('vx_scraper_path', scraperPath);
@@ -158,7 +152,7 @@ export default function SettingsPage() {
       'This will permanently shut down all active agents and archive telemetry. This action is irreversible.'
     );
     if (confirm) {
-      toast.warning('Initiating shutdown...', 'Command OS workspace decommissioned.');
+      toast.info('Not available', 'Decommission is not implemented, so nothing was changed. To pause outbound email set OUTREACH_SEND_ENABLED=false.');
     }
   };
 
@@ -266,33 +260,10 @@ export default function SettingsPage() {
         <div style={settingsCard} className="vx-glass flex flex-col gap-6">
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Developer Integrations</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Input
-              label="Claude API Key"
-              type="password"
-              value={claudeKey}
-              onChange={(e) => setClaudeKey(e.target.value)}
-              placeholder="sk-ant-..."
-              size="md"
-              style={{ width: '100%' }}
-            />
-            <Input
-              label="Gemini API Key"
-              type="password"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-              placeholder="AIzaSy..."
-              size="md"
-              style={{ width: '100%' }}
-            />
-            <Input
-              label="GitHub Personal Access Token"
-              type="password"
-              value={githubToken}
-              onChange={(e) => setGithubToken(e.target.value)}
-              placeholder="github_pat_..."
-              size="md"
-              style={{ width: '100%' }}
-            />
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              API keys and tokens (GEMINI_API_KEY, GITHUB_TOKEN, email credentials) are server environment variables - set them in
+              <code> .env.local </code> or Netlify, not here. They are intentionally not stored in the browser.
+            </div>
             <Input
               label="Obsidian GitHub Repository"
               value={githubRepo}
@@ -319,6 +290,10 @@ export default function SettingsPage() {
             />
           </div>
         </div>
+
+        <AiConnectionPanel />
+
+        <EmailPanel />
 
         {/* Appearance & Theme (Accent Palette & Background Color) */}
         <div style={{ ...settingsCard, gridColumn: '1 / -1' }} className="vx-glass flex flex-col gap-6">
