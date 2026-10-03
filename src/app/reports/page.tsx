@@ -65,7 +65,8 @@ export default function ReportsPage() {
 
       const closedRevenue = revenue.reduce((sum, r) => sum + (r.amount || 0), 0);
       const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status) && !!p.provider_message_id).reduce((sum, p) => sum + (p.price || 0), 0);
-      const target = 6000;
+      const profile = await db.getBusinessProfile();
+      const target = profile.target_monthly_revenue || 6000; // your configured monthly target (Settings/profile)
       const gap = Math.max(0, target - closedRevenue);
 
       const newLeads = leads.filter(l => l.status === 'New').slice(0, 3).map(l => l.business_name);
@@ -80,7 +81,7 @@ export default function ReportsPage() {
         top_priority: newLeads.length > 0 ? `Outreach to ${newLeads[0]} and other prospects.` : 'Review pending approvals and open follow-ups.',
         leads_to_contact: newLeads,
         followups_due: pendingFollows,
-        content_to_post: 'Compose post: "Why local practices are bleeding customers by neglecting automated booking receptionists."',
+        content_to_post: 'No post planned - ask Ryan (Content agent) in the CEO Console for ideas.',
         recommended_action: newLeads.length > 0 ? 'Draft customized outreach messaging for your newly scraped leads.' : 'Activate Maps Scraper to index local prospects.',
       });
 
