@@ -15,12 +15,11 @@ const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)', fontSize: 12
 const h: React.CSSProperties = { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' };
 
 function Row({ label, ok, children }: { label: string; ok?: boolean | null; children?: React.ReactNode }) {
-  const color = ok === true ? 'var(--signal-400)' : ok === false ? 'var(--danger-400)' : 'var(--text-dim)';
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--hairline)' }}>
-      <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flex: '0 0 auto', alignSelf: 'center' }} />
-      <span style={{ width: 150, flex: '0 0 auto', fontSize: 12.5, color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ ...mono, color: 'var(--text-body)', wordBreak: 'break-word' }}>{children}</span>
+    <div className="vx-kv">
+      <span className="vx-kv__dot" data-tone={ok === true ? 'ok' : ok === false ? 'bad' : 'none'} />
+      <span className="vx-kv__label">{label}</span>
+      <span className="vx-kv__value">{children}</span>
     </div>
   );
 }
