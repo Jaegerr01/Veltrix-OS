@@ -26,7 +26,7 @@ const s = vi.hoisted(() => {
 });
 vi.mock('../db', () => ({ db: s.db }));
 
-import { deliverRecord, approveAndDeliver } from './delivery';
+import { deliverRecord, approveAndDeliver, markManuallySent } from './delivery';
 import type { SendResult } from './send';
 
 const ok = (id = '<msg-1@gmail>'): SendResult => ({ delivered: true, blocked: false, provider: 'gmail-smtp', messageId: id, attempts: 1 });
@@ -143,3 +143,22 @@ describe('deliverRecord - truthful state machine', () => {
     expect(s.state.messages[0].approval_status).toBe('Approved');
   });
 });
+
+describe('markManuallySent - owner attestation', () => {
+  it('records provider=manual proof for a social DM and is excluded from the email cap', async () => {
+    s.state.messages[0].channel = 'LinkedIn';
+    s.state.messages[0].status = 'Approved';
+    const r = await markManuallySent('outreach', 'M1');
+    expect(r.outcome).toBe('sent');
+    expect(s.state.messages[0]).toMatchObject({ status: 'Sent', provider: 'manual', provider_message_id: 'manual:M1' });
+    const { isConfirmedSendToday } = await import('./usage');
+    expect(isConfirmedSendToday(s.state.messages[0])).toBe(false);
+  });
+
+  it('refuses to attest an Email-channel message (email needs provider confirmation)', async () => {
+    const r = await markManuallySent('outreach', 'M1');
+    expect(r.outcome).toBe('not_approved');
+    expect(s.state.messages[0].status).toBe('Approved');
+  });
+});
+

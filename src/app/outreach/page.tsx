@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
+import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
 
 interface Lead {
   id: string;
@@ -14,9 +15,13 @@ interface OutreachMessage {
   lead_id: string;
   channel: 'Email' | 'LinkedIn' | 'Instagram' | 'WhatsApp' | 'Facebook' | 'Discord';
   message: string;
-  status: 'Draft' | 'Approved' | 'Sent' | 'Replied' | 'Failed';
+  status: 'Draft' | 'Approved' | 'Sending' | 'Sent' | 'Replied' | 'Failed';
   approval_status: 'Pending Approval' | 'Approved' | 'Rejected';
   sent_at?: string;
+  provider?: string | null;
+  provider_message_id?: string | null;
+  error?: string | null;
+  attempts?: number;
   created_at: string;
 }
 
@@ -118,6 +123,8 @@ export default function OutreachPage() {
     }
   };
 
+  const { busyId, notice, setNotice, run } = useSendAction(fetchData);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -129,8 +136,8 @@ export default function OutreachPage() {
   // Filter messages by activeTab
   const filteredMessages = messages.filter((m) => {
     if (activeTab === 'Draft') return m.status === 'Draft';
-    if (activeTab === 'Approved') return m.status === 'Approved';
-    return m.status === 'Sent' || m.status === 'Replied' || m.status === 'Failed';
+    if (activeTab === 'Approved') return ['Approved', 'Sending', 'Failed'].includes(m.status);
+    return m.status === 'Sent' || m.status === 'Replied';
   });
 
   const getChannelColor = (ch: OutreachMessage['channel']) => {
@@ -147,8 +154,9 @@ export default function OutreachPage() {
         subtitle="Manage automated and manual customer outreach drafts, review queues, and channel deliveries."
         stats={[
           { value: String(messages.filter(m => m.status === 'Draft').length), label: 'DRAFTS', color: 'var(--text-dim)' },
-          { value: String(messages.filter(m => m.status === 'Approved').length), label: 'APPROVED QUEUE', color: 'var(--cyan-300)' },
-          { value: String(messages.filter(m => ['Sent', 'Replied'].includes(m.status)).length), label: 'SENT DELIVERIES', color: 'var(--signal-400)' },
+          { value: String(messages.filter(m => ['Approved', 'Sending'].includes(m.status)).length), label: 'APPROVED - NOT SENT', color: 'var(--cyan-300)' },
+          { value: String(messages.filter(m => m.status === 'Failed').length), label: 'FAILED', color: 'var(--danger-400)' },
+          { value: String(messages.filter(m => ['Sent', 'Replied'].includes(m.status) && !!m.provider_message_id).length), label: 'CONFIRMED SENT', color: 'var(--signal-400)' },
         ]}
         action={
           <div
@@ -195,10 +203,12 @@ export default function OutreachPage() {
               transition: 'color 0.2s ease',
             }}
           >
-            {tab}
+            {tab === 'Approved' ? 'Ready / Failed' : tab}
           </div>
         ))}
       </div>
+
+      <Notice notice={notice} onClose={() => setNotice(null)} />
 
       {/* Message Feed */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 'var(--space-6)' }}>
@@ -220,9 +230,12 @@ export default function OutreachPage() {
                 >
                   {msg.channel.toUpperCase()}
                 </span>
-                <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                  {new Date(msg.created_at).toLocaleDateString()}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <SendStateBadge record={msg.approval_status === 'Rejected' && msg.status !== 'Sent' ? { ...msg, status: 'Rejected' } : msg} />
+                  <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                    {new Date(msg.created_at).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
 
               <div>
@@ -250,10 +263,15 @@ export default function OutreachPage() {
                 </div>
               </div>
 
+              <SendDetails record={msg} />
+
               {/* Action Toolbar */}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-                {msg.status === 'Draft' && (
+                {msg.status === 'Draft' && msg.approval_status !== 'Rejected' && (
                   <>
+                    {msg.channel === 'Email' && (
+                      <SendButton label="Approve & send" tone="info" busy={busyId === msg.id} onClick={() => run('outreach', msg.id)} title="Approves this message and sends it through your email provider now" />
+                    )}
                     <button
                       onClick={() => handleUpdateStatus(msg.id, { status: 'Approved', approval_status: 'Approved' })}
                       style={{
@@ -284,21 +302,14 @@ export default function OutreachPage() {
                     </button>
                   </>
                 )}
-                {msg.status === 'Approved' && (
-                  <button
-                    onClick={() => handleUpdateStatus(msg.id, { status: 'Sent', sent_at: new Date().toISOString() })}
-                    style={{
-                      background: 'rgba(76,215,246,0.1)',
-                      border: '1px solid rgba(76,215,246,0.2)',
-                      color: 'var(--cyan-300)',
-                      fontSize: 11,
-                      padding: '4px 12px',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Send Now
-                  </button>
+                {msg.status === 'Approved' && msg.channel === 'Email' && (
+                  <SendButton label="Send now" tone="info" busy={busyId === msg.id} onClick={() => run('outreach', msg.id)} />
+                )}
+                {msg.status === 'Failed' && (
+                  <SendButton label="Retry send" tone="warn" busy={busyId === msg.id} onClick={() => run('outreach', msg.id, { retry: true })} />
+                )}
+                {['Draft', 'Approved'].includes(msg.status) && msg.channel !== 'Email' && msg.approval_status !== 'Rejected' && (
+                  <SendButton label="Mark sent (I sent it)" tone="ok" busy={busyId === msg.id} onClick={() => run('outreach', msg.id, { manual: true })} title={`${msg.channel} is sent by you by hand. This records your confirmation - the app did not send it.`} />
                 )}
               </div>
             </div>

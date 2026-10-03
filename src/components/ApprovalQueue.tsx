@@ -26,16 +26,22 @@ export default function ApprovalQueue() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedText, setEditedText] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const toast = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authFetch('/api/entity/approvals?status=pending');
-      const data = await res.json();
-      if (data.success) setRequests(data.requests || []);
-    } catch {
-      // silent — panel shows empty state
+      // pending = waiting for a decision; failed = approved but the action did NOT happen (retryable)
+      const [p, f] = await Promise.all([
+        authFetch('/api/entity/approvals?status=pending').then(r => r.json()),
+        authFetch('/api/entity/approvals?status=failed').then(r => r.json()),
+      ]);
+      if (p.success || f.success) setRequests([...(f.requests || []), ...(p.requests || [])]);
+      else setLoadError(p.error || f.error || 'Could not load the approval queue.');
+      if (p.success || f.success) setLoadError(null);
+    } catch (e: any) {
+      setLoadError(`Could not load the approval queue: ${e?.message || 'network error'}`);
     } finally {
       setLoading(false);
     }
@@ -55,9 +61,13 @@ export default function ApprovalQueue() {
         body: JSON.stringify({ decision, editedPayload }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.executed === false) {
+        // Approved, but the action did NOT happen. Say so plainly and keep the card for retry.
+        toast.error('Approved - but NOT sent', data.error || data.executionNote || 'The action did not complete.');
+        await load();
+      } else if (data.success) {
         if (decision === 'approve') {
-          toast.success('Approved', data.executionNote || 'Action executed.');
+          toast.success('Done', data.executionNote || 'Action executed.');
         } else {
           toast.info('Rejected', 'The entity will learn from this.');
         }
@@ -102,7 +112,11 @@ export default function ApprovalQueue() {
         </button>
       </div>
 
-      {requests.length === 0 && !loading && (
+      {loadError && (
+        <div className="rounded-lg border border-red-400/30 bg-red-400/5 p-2.5 text-[11px] font-mono text-red-300">{loadError}</div>
+      )}
+
+      {requests.length === 0 && !loading && !loadError && (
         <div className="py-8 text-center text-[11px] font-mono text-white/25">
           ✓ Queue clear — nothing awaiting your decision
         </div>
@@ -140,6 +154,11 @@ export default function ApprovalQueue() {
                     )}
                   </div>
                   <h4 className="text-[13px] font-semibold text-white mt-1.5 leading-snug">{req.title}</h4>
+                  {req.status === 'failed' && (
+                    <p className="text-[11px] mt-1 font-mono text-red-300 break-words">
+                      Approved earlier, but NOT sent: {req.execution_result || 'the action failed'}. Fix the cause (see Settings → Email), then retry.
+                    </p>
+                  )}
                   {req.recommendation && (
                     <p className="text-[11px] text-neon-cyan/70 mt-0.5 font-sans">↳ {req.recommendation}</p>
                   )}
@@ -222,7 +241,7 @@ export default function ApprovalQueue() {
                     onClick={() => decide(req, 'approve')}
                     className="flex items-center gap-1.5 text-[11px] font-mono text-neon-green bg-neon-green/10 border border-neon-green/25 px-3 py-1.5 rounded-lg hover:bg-neon-green/20 transition-colors cursor-pointer disabled:opacity-40"
                   >
-                    <Check size={11} /> {busy ? 'Executing…' : isSocialDM ? 'I sent it — mark Sent' : 'Approve'}
+                    <Check size={11} /> {busy ? 'Executing…' : isSocialDM ? 'I sent it — mark Sent' : req.status === 'failed' ? 'Retry send' : req.type.endsWith('_send') ? 'Approve & send' : 'Approve'}
                   </button>
                 )}
                 {!editing && payload.text !== undefined && (

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
+import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
 
 interface Lead {
   id: string;
@@ -15,7 +16,12 @@ interface Proposal {
   client_id?: string;
   title: string;
   price: number;
-  status: 'Draft' | 'Sent' | 'Viewed' | 'Accepted' | 'Rejected' | 'Needs Revision';
+  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Sending' | 'Sent' | 'Failed' | 'Viewed' | 'Accepted' | 'Rejected' | 'Needs Revision';
+  provider?: string | null;
+  provider_message_id?: string | null;
+  sent_at?: string | null;
+  error?: string | null;
+  attempts?: number | null;
   timeline?: string;
   problem?: string;
   solution?: string;
@@ -144,6 +150,8 @@ export default function ProposalsPage() {
     }
   };
 
+  const { busyId, notice, setNotice, run } = useSendAction(fetchData);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -153,7 +161,7 @@ export default function ProposalsPage() {
   }
 
   // Filter into Kanban columns
-  const drafts = proposals.filter((p) => ['Draft', 'Needs Revision'].includes(p.status));
+  const drafts = proposals.filter((p) => ['Draft', 'Needs Revision', 'Pending Approval', 'Approved', 'Sending', 'Failed'].includes(p.status));
   const sent = proposals.filter((p) => ['Sent', 'Viewed'].includes(p.status));
   const accepted = proposals.filter((p) => p.status === 'Accepted');
   const rejected = proposals.filter((p) => p.status === 'Rejected');
@@ -162,8 +170,8 @@ export default function ProposalsPage() {
   const closedWonValue = accepted.reduce((sum, p) => sum + (p.price || 0), 0);
 
   const columns = [
-    { name: 'Drafts', tone: 'var(--text-dim)', proposals: drafts, count: drafts.length },
-    { name: 'Sent / Pending', tone: 'var(--cyan-300)', proposals: sent, count: sent.length },
+    { name: 'Not sent yet', tone: 'var(--text-dim)', proposals: drafts, count: drafts.length },
+    { name: 'Sent (delivered)', tone: 'var(--cyan-300)', proposals: sent, count: sent.length },
     { name: 'Accepted (Won)', tone: 'var(--signal-400)', proposals: accepted, count: accepted.length },
     { name: 'Rejected', tone: 'var(--danger-400)', proposals: rejected, count: rejected.length },
   ];
@@ -204,6 +212,8 @@ export default function ProposalsPage() {
           </div>
         }
       />
+
+      <Notice notice={notice} onClose={() => setNotice(null)} />
 
       {/* Kanban Board */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-5)', alignItems: 'start' }}>
@@ -251,27 +261,22 @@ export default function ProposalsPage() {
                     <h5 style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>
                       {prop.title}
                     </h5>
+                    <div><SendStateBadge record={prop} /></div>
+                    <SendDetails record={prop} />
                     <p style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
                       Prospect: <span style={{ color: 'var(--violet-200)' }}>{getLeadName(prop.lead_id)}</span>
                     </p>
 
                     {/* Action buttons */}
                     <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
-                      {['Draft', 'Needs Revision'].includes(prop.status) && (
-                        <button
-                          onClick={() => handleUpdateStatus(prop.id, 'Sent')}
-                          style={{
-                            background: 'rgba(76,215,246,0.1)',
-                            border: '1px solid rgba(76,215,246,0.2)',
-                            color: 'var(--cyan-300)',
-                            fontSize: 10.5,
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Send Offer
-                        </button>
+                      {['Draft', 'Needs Revision', 'Pending Approval', 'Approved'].includes(prop.status) && (
+                        <>
+                          <SendButton label="Approve & send" tone="info" busy={busyId === prop.id} onClick={() => run('proposals', prop.id)} title="Approves and emails this proposal to the lead now" />
+                          <SendButton label="Mark sent (I sent it)" tone="ok" busy={busyId === prop.id} onClick={() => run('proposals', prop.id, { manual: true })} title="You handed it over outside the app. Records your confirmation only." />
+                        </>
+                      )}
+                      {prop.status === 'Failed' && (
+                        <SendButton label="Retry send" tone="warn" busy={busyId === prop.id} onClick={() => run('proposals', prop.id, { retry: true })} />
                       )}
                       {['Sent', 'Viewed'].includes(prop.status) && (
                         <>

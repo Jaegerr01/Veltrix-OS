@@ -176,3 +176,28 @@ export async function approveAndDeliver(kind: DeliveryKind, id: string, opts: { 
   }
   return deliverRecord(kind, id, opts);
 }
+
+/**
+ * Owner attestation: "I sent this myself, outside the app" (LinkedIn/Instagram DM, WhatsApp, a proposal
+ * handed over on a call...). Recorded as provider='manual' with an id of `manual:<recordId>` so the UI
+ * labels it honestly, it never counts toward the email daily cap, and the DB proof constraint holds.
+ * Refused for Email-channel outreach: for email, only a provider-confirmed send counts.
+ */
+export async function markManuallySent(kind: DeliveryKind, id: string): Promise<DeliveryOutcome> {
+  const rec = await loadRecord(kind, id);
+  if (!rec) return { outcome: 'not_found', message: `${kind} record not found.` };
+  if ((rec.status as string) === 'Sent') return { outcome: 'already_sent', message: 'Already recorded as sent.' };
+  if (kind === 'outreach' && (rec as OutreachMessage).channel === 'Email') {
+    return { outcome: 'not_approved', message: 'Email must be sent through the app so delivery can be confirmed. Use "Approve & send".' };
+  }
+  const sentAt = new Date().toISOString();
+  await patchRecord(kind, id, {
+    status: 'Sent', provider: 'manual', provider_message_id: `manual:${id}`, sent_at: sentAt, error: null,
+    ...(kind === 'outreach' ? { approval_status: 'Approved' } : {}),
+  });
+  const leadId = (rec as { lead_id?: string }).lead_id;
+  const lead = leadId ? (await db.getLeads()).find(l => l.id === leadId) : undefined;
+  if (lead) await bookkeepAfterSend(kind, lead, 'Marked as sent manually by the owner (not sent by PostelOS).');
+  await db.logAgentAction(AGENT[kind], 'Marked Sent (manual)', `${kind}Id=${id}`, 'Owner attested the message was sent outside the app.', 'Success');
+  return { outcome: 'sent', message: 'Recorded as sent manually (owner-attested).', provider: 'manual', providerMessageId: `manual:${id}` };
+}

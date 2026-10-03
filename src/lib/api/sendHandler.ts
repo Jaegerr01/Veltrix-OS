@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit, rateLimitResponse } from '@/lib/auth/rateLimit';
-import { approveAndDeliver, type DeliveryKind } from '@/lib/email/delivery';
+import { approveAndDeliver, markManuallySent, type DeliveryKind } from '@/lib/email/delivery';
 
 const bodySchema = z.object({
   id: z.string().min(1).max(100).optional(),
   messageId: z.string().min(1).max(100).optional(), // legacy field name used by the Outreach page
   retry: z.boolean().optional(),
+  manual: z.boolean().optional(), // owner attests they sent it outside the app (non-email only)
 });
 
 /**
@@ -30,7 +31,7 @@ export function makeSendHandler(kind: DeliveryKind) {
     }
 
     try {
-      const r = await approveAndDeliver(kind, id, { retry: parsed.data.retry });
+      const r = parsed.data.manual ? await markManuallySent(kind, id) : await approveAndDeliver(kind, id, { retry: parsed.data.retry });
       const delivered = r.outcome === 'sent' || r.outcome === 'already_sent';
       const http =
         delivered ? 200 :
