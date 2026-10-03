@@ -418,7 +418,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
 
           queuedForApproval = true;
           approvalId = request.id;
-          queuedInfo = `Approval request ${request.id} filed in Barry's queue.`;
+          queuedInfo = `Approval request ${request.id} filed in the approval queue.`;
         }
 
         await addTaskIfStandalone({
@@ -436,8 +436,8 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
 
         resultText = queuedForApproval
           ? (isEmailChannel
-            ? `**Emma (Outreach Agent)**: Hey Alex! I coordinated with Olivia on a custom proposal for **${lead.business_name}** and composed the full email. Per the Constitution it's now in **Barry's Approval Queue** — one click and it sends (guardrails still on). ${queuedInfo}`
-            : `**Emma (Outreach Agent)**: Hey Alex! I wrote a ${channel} DM for **${lead.business_name}** — it's in **Barry's Approval Queue** as an assisted send: he approves, copies, opens the profile, and sends in seconds. ${queuedInfo}`)
+            ? `**Emma (Outreach Agent)**: Hey Alex! I coordinated with Olivia on a custom proposal for **${lead.business_name}** and composed the full email. Per the Constitution it's now in **the Approval Queue** — one click and it sends (guardrails still on). ${queuedInfo}`
+            : `**Emma (Outreach Agent)**: Hey Alex! I wrote a ${channel} DM for **${lead.business_name}** — it's in **the Approval Queue** as an assisted send: he approves, copies, opens the profile, and sends in seconds. ${queuedInfo}`)
           : isAuto
             ? `**Emma (Outreach Agent)**: I drafted the outreach for **${lead.business_name}** but couldn't queue a send: no email on record for this lead.\n\nIt's waiting in the Outbox under "Pending Approval".`
             : `**Emma (Outreach Agent)**: Hey Alex! I've generated the outreach draft message for **${lead.business_name}** via ${channel}.\n\nYou can review it in the Outbox under "Pending Approval". Let me know if you want any edits!`;

@@ -218,4 +218,14 @@ test.describe('truthful status (no fake green)', () => {
     await page.goto('/revenue');
     await expect(page.locator('main')).toContainText('$' + total.toLocaleString('en-US'));
   });
+  test('approval queue title comes from the saved profile name (no hardcoded person) @sec-truth', async ({ page }) => {
+    await page.goto('/command-center');
+    const h = page.getByRole('heading', { level: 2, name: /Approval Queue/ });
+    await expect(h).toBeVisible();
+    await expect(h).not.toContainText(/Barry|Berry/);
+    await expect(h).toContainText(/^\s*Approval Queue/);
+    await page.evaluate(() => localStorage.setItem('vx_display_name', 'Berry'));
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 2, name: /Approval Queue/ })).toContainText("Berry's Approval Queue");
+  });
 });

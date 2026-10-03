@@ -1,6 +1,6 @@
 'use client';
 
-// Entity Phase 1 — Barry's Approval Queue.
+// Entity Phase 1 — Approval Queue (titled from the saved profile name).
 // Every autonomous external action lands here as a decision-ready card:
 // context, exact payload, agent confidence. Approve / Edit & Approve / Reject.
 // Doctrine: PostelOS Constitution (Memory Vault note "Constitution") (Article 3).
@@ -12,6 +12,7 @@ import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
 import type { ApprovalRequest } from '@/lib/types';
 import { asErr } from '@/lib/errors';
+import { approvalQueueTitle, DISPLAY_NAME_KEY } from '@/lib/displayName';
 
 const DEPT_COLORS: Record<string, string> = {
   revenue: 'text-neon-purple bg-neon-purple/10 border-neon-purple/20',
@@ -28,6 +29,11 @@ export default function ApprovalQueue() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedText, setEditedText] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [title, setTitle] = useState('Approval Queue');
+  useEffect(() => {
+    const id = setTimeout(() => setTitle(approvalQueueTitle(localStorage.getItem(DISPLAY_NAME_KEY))), 0);
+    return () => clearTimeout(id);
+  }, []);
   const toast = useToast();
 
   const load = useCallback(async () => {
@@ -98,7 +104,7 @@ export default function ApprovalQueue() {
           <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.18em]">Entity · Propose-then-Approve</p>
           <h2 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
             <ShieldCheck size={15} className="text-neon-purple" />
-            Barry&apos;s Approval Queue
+            {title}
             <span className="text-[11px] font-mono font-normal text-neon-purple bg-neon-purple/10 px-1.5 py-0.5 rounded-full border border-neon-purple/20">
               {requests.length}
             </span>
