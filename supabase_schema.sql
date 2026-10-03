@@ -5,30 +5,9 @@
 create extension if not exists "uuid-ossp";
 create extension if not exists vector;
 
--- Clean reset existing tables to avoid conflict with legacy column structures
-drop table if exists public.community_metrics cascade;
-drop table if exists public.ad_campaigns cascade;
-drop table if exists public.content_ideas cascade;
-drop table if exists public.expenses cascade;
-drop table if exists public.daily_reports cascade;
-drop table if exists public.offers cascade;
-drop table if exists public.goals cascade;
-drop table if exists public.agent_memory cascade;
-drop table if exists public.notes cascade;
-drop table if exists public.activities cascade;
-drop table if exists public.revenue cascade;
-drop table if exists public.tasks cascade;
-drop table if exists public.projects cascade;
-drop table if exists public.proposals cascade;
-drop table if exists public.followups cascade;
-drop table if exists public.outreach_messages cascade;
-drop table if exists public.lead_scores cascade;
-drop table if exists public.leads cascade;
-drop table if exists public.profiles cascade;
-drop table if exists public.clients cascade;
-drop table if exists public.users cascade;
-drop function if exists public.match_notes(vector, float, int, uuid) cascade;
-drop function if exists public.handle_new_user() cascade;
+-- NOTE: this file is NON-DESTRUCTIVE (create ... if not exists). The old "drop table ... cascade" reset block
+-- was moved to RESET_DEV_ONLY.sql so running this against a database with data can no longer wipe it.
+-- Incremental changes live in migrations/ (see migrations/README.md).
 
 -- 1. users (public table linking auth.users)
 create table if not exists public.users (
