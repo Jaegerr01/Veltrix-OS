@@ -193,7 +193,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
   // 2. Auth Screen — mirrors the Postel splash: black stage, glowing orb, light ribbons
   if (!user) {
     return (
-      <div className="vx-root vx-login text-foreground">
+      <main className="vx-root vx-login text-foreground">
         <div className="vx-login__stars" aria-hidden="true" />
         <div className="vx-login__ribbon vx-login__ribbon--tl" aria-hidden="true" />
         <div className="vx-login__ribbon vx-login__ribbon--br" aria-hidden="true" />
@@ -224,6 +224,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
             {/* Email input */}
             <Input
               type="email"
+              autoComplete="email"
               required
               label="Email Address"
               placeholder="you@example.com"
@@ -236,6 +237,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
             {/* Password input */}
             <Input
               type="password"
+              autoComplete="current-password"
               required
               label="Password"
               placeholder="••••••••"
@@ -291,7 +293,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
             </button>
           </div>)}
         </div>
-      </div>
+      </main>
     );
   }
 
