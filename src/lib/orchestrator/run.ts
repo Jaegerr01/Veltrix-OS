@@ -4,6 +4,8 @@ import { executeAgent } from '../agents/router';
 import { AGENTS } from '../agents/agents';
 import { loadCatalogueAgent } from '../agents/catalogue';
 import { buildBusinessContext } from '../context/buildBusinessContext';
+import { journalToVault } from '../db/vault';
+import type { AgentNoteInput } from '../vault/service';
 import { gemini } from '../ai/gemini';
 import { isAiError, type AiErrorCode } from '../ai/errors';
 import { planInstruction, type Llm, type PlanContext, type PlannedTask } from './plan';
@@ -69,6 +71,8 @@ export interface Deps {
   getContext: () => Promise<PlanContext>;
   now: () => number;
   newRunId: () => string;
+  /** Best-effort write to the Memory Vault (decision log). Must never throw. */
+  journal: (note: AgentNoteInput) => Promise<unknown>;
 }
 
 export function defaultDeps(): Deps {
@@ -85,6 +89,7 @@ export function defaultDeps(): Deps {
         projects: projects.map(p => ({ id: p.id, project_name: p.project_name, status: p.status })),
       };
     },
+    journal: journalToVault,
     now: () => Date.now(),
     newRunId: () => (globalThis.crypto as Crypto).randomUUID(),
   };
@@ -297,6 +302,25 @@ export async function orchestrate(opts: OrchestrateOptions): Promise<RunResult> 
   try {
     await deps.db.logAgentAction('Alex (CEO Agent)', 'CEO Orchestration', JSON.stringify({ runId, instruction: opts.instruction.slice(0, 200), source: opts.source }), summary, ok ? 'Success' : 'Failure');
   } catch { /* logging never masks results */ }
+
+  // Decision log in the Memory Vault (real task outcomes only; best effort).
+  try {
+    const when = new Date(deps.now());
+    const stamp = when.toISOString().slice(0, 16).replace('T', ' ');
+    await deps.journal({
+      title: `CEO run ${stamp} - ${opts.instruction.replace(/\s+/g, ' ').slice(0, 50)}`,
+      folder: 'Decisions',
+      tags: ['decision', 'ceo-run'],
+      agent: 'ceo',
+      body: [
+        `**Instruction (${opts.source}):** ${opts.instruction.slice(0, 500)}`,
+        '',
+        `**Result:** ${summary}`,
+        '',
+        ...tasks.map(t => `- [${t.status}] ${t.agent}: ${t.title}${t.error ? ` - ERROR: ${String(t.error).slice(0, 200)}` : ''}`),
+      ].join('\n'),
+    });
+  } catch { /* journaling never masks results */ }
 
   const result: RunResult = { ok, runId, reply: plan.reply, summary, tasks, remaining };
   emit?.({ type: 'done', result });

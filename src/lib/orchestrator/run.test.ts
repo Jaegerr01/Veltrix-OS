@@ -7,6 +7,7 @@ vi.mock('../agents/executor', () => ({ runAgentLogic: vi.fn() }));
 vi.mock('../agents/router', () => ({ executeAgent: vi.fn() }));
 vi.mock('../context/buildBusinessContext', () => ({ buildBusinessContext: vi.fn() }));
 vi.mock('../ai/gemini', () => ({ gemini: { callJson: vi.fn() } }));
+vi.mock('../db/vault', () => ({ journalToVault: vi.fn(), vault: {} }));
 
 import { orchestrate, continueRun, type Deps, type RunTask } from './run';
 
@@ -24,6 +25,7 @@ function makeEnv(plan: unknown | Error, opts: { runAgent?: Deps['runAgent']; now
   };
   const runAgent = opts.runAgent ?? vi.fn(async () => ({ success: true, result: 'ok' }));
   const events: any[] = [];
+  const journal = vi.fn(async (_note: { title: string; folder?: string; body: string; agent?: string }) => null as unknown);
   const deps: Partial<Deps> = {
     llm, db: db as any, runAgent: runAgent as any,
     consult: vi.fn(async () => 'consulted answer'),
@@ -32,10 +34,11 @@ function makeEnv(plan: unknown | Error, opts: { runAgent?: Deps['runAgent']; now
       leads: [{ id: 'L1', business_name: 'Acme Dental', status: 'Qualified', email: 'a@acme.com' }, { id: 'L2', business_name: 'Beta Co', status: 'New' }],
       projects: [{ id: 'P1', project_name: 'Site', status: 'Design' }],
     }),
+    journal,
     now: opts.now ?? (() => Date.now()),
     newRunId: () => '11111111-1111-4111-8111-111111111111',
   };
-  return { rows, db, llm, deps, runAgent: runAgent as ReturnType<typeof vi.fn>, events, emit: (e: any) => events.push(e) };
+  return { rows, db, llm, deps, journal, runAgent: runAgent as ReturnType<typeof vi.fn>, events, emit: (e: any) => events.push(e) };
 }
 
 const go = (env: ReturnType<typeof makeEnv>, instruction = 'Research Acme then draft outreach', extra: Record<string, unknown> = {}) =>
@@ -120,6 +123,28 @@ describe('orchestrator - decomposition & assignment', () => {
     const r = await go(env);
     expect(r.tasks.every(t => t.status === 'failed' && /Circular/.test(t.error!))).toBe(true);
     expect(env.runAgent).not.toHaveBeenCalled();
+  });
+});
+
+describe('orchestrator - Memory Vault decision log', () => {
+  it('writes a Decisions note describing the real outcomes of a run (best effort)', async () => {
+    const env = makeEnv({ reply: '', tasks: [{ key: 't1', agent: 'leadResearch', title: 'Research Acme Dental', params: { leadId: 'L1' }, priority: 'High', dependsOn: [] }] });
+    await go(env);
+    expect(env.journal).toHaveBeenCalledTimes(1);
+    const note = env.journal.mock.calls[0][0];
+    expect(note).toMatchObject({ folder: 'Decisions', agent: 'ceo' });
+    expect(note.body).toContain('[done] leadResearch: Research Acme Dental');
+  });
+  it('a failing vault never breaks or masks the run result', async () => {
+    const env = makeEnv({ reply: '', tasks: [{ key: 't1', agent: 'leadResearch', title: 'Research Acme Dental', params: { leadId: 'L1' }, priority: 'High', dependsOn: [] }] });
+    env.journal.mockRejectedValue(new Error('vault down'));
+    const r = await go(env);
+    expect(r.ok).toBe(true);
+  });
+  it('no vault note when nothing was planned (a plain question)', async () => {
+    const env = makeEnv({ reply: 'Hello', tasks: [] });
+    await go(env);
+    expect(env.journal).not.toHaveBeenCalled();
   });
 });
 

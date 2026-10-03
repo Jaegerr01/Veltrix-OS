@@ -3,6 +3,7 @@ import { gemini } from '../gemini';
 import { AGENTS } from './agents';
 import { loadCatalogueAgent, findCatalogueAgents } from './catalogue';
 import { isAiError } from '../ai/errors';
+import { vault, journalToVault } from '../db/vault';
 import { leadBlock, INSTRUCTION_HIERARCHY } from '../ai/untrusted';
 
 export interface AgentRunContext {
@@ -264,6 +265,14 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           tags: ['lead-scoring', lead.business_name.toLowerCase().replace(/\s+/g, '-')],
           importance: 7,
           source: 'Lead Research Agent'
+        });
+
+        await journalToVault({
+          title: `Lead - ${lead.business_name}`,
+          folder: 'Leads',
+          body: `Score: ${scoreResult.total_score}/10\n\n${scoreResult.reasoning}`,
+          tags: ['lead-learning'],
+          agent: 'leadResearch',
         });
 
         const profile = await db.getBusinessProfile();
@@ -621,15 +630,27 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
       }
 
       case 'memory': {
-        const { query } = params;
+        const { query, note } = params;
+        // Write path: Leo files a note in the built-in Memory Vault (agents may only write agent-sourced notes).
+        if (note && note.title && note.body) {
+          const saved = await vault.agentWrite({ title: String(note.title), body: String(note.body), folder: note.folder, tags: note.tags, mode: note.mode === 'append' ? 'append' : 'create', agent: 'memory' });
+          resultText = `**Leo (Memory Manager Agent)**: Saved "${saved.title}" to the Memory Vault (${saved.path || 'root'}).`;
+          logPayload = { vaultNoteId: saved.id };
+          break;
+        }
         if (!query) {
-          return { success: false, error: 'query is required for Memory Manager Agent' };
+          return { success: false, error: 'query (to search) or note {title, body} (to save) is required for Memory Manager Agent' };
         }
         const memories = await db.searchMemories(query);
+        const vaultNotes = await vault.agentRead(String(query), 4).catch(() => []);
         resultText = `**Leo (Memory Manager Agent)**: Hello Alex. I've searched our core database for "${query}" and recovered ${memories.length} relevant log entries:\n\n` +
           (memories.length === 0
             ? 'No matching memories or tags found.'
             : memories.map((m, i) => `${i+1}. **[${m.type}]** ${m.content} (Importance: ${m.importance}/10)`).join('\n\n'));
+
+        if (vaultNotes.length > 0) {
+          resultText += `\n\n**Memory Vault notes:**\n` + vaultNotes.map(n => `- **${n.title}**${n.path ? ` (${n.path})` : ''} [${n.source}]: ${n.body.replace(/\s+/g, ' ').slice(0, 280)}`).join('\n');
+        }
 
         // Leo also indexes the AgentLand catalogue, so library-tier specialists
         // (not advertised in the CEO roster) stay findable and callable by slug.
@@ -668,7 +689,8 @@ Suggest a 6-item progress roadmap with clear checkboxes to mark in our delivery 
           return { success: false, error: 'query is required for Support Agent' };
         }
         const memories = await db.searchMemories(query);
-        const docsContext = memories.map(m => m.content).join('\n');
+        const vaultDocs = await vault.agentRead(String(query), 3).catch(() => []);
+        const docsContext = [...memories.map(m => m.content), ...vaultDocs.map(n => `${n.title}: ${n.body}`)].join('\n');
 
         const prompt = `
 User Question: "${query}"
