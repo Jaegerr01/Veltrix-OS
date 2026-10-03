@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
 import PageSkeleton from '@/components/PageSkeleton';
+import { clickable } from '@/lib/a11y';
 
 interface Client {
   id: string;
@@ -196,7 +197,7 @@ export default function ProjectsPage() {
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -312,7 +313,7 @@ export default function ProjectsPage() {
                       {clientTasks.map((t) => (
                         <div
                           key={t.id}
-                          onClick={() => handleToggleTask(t.id, t.status)}
+                          {...clickable(() => handleToggleTask(t.id, t.status))}
                           style={{
                             display: 'flex',
                             alignItems: 'center',

@@ -9,6 +9,7 @@ import { useAuth } from '@/components/AuthGate';
 import { SUPPORT_EMAIL } from '@/lib/brand';
 import { EmailPanel, AiConnectionPanel } from '@/components/SystemConnections';
 import { asErr } from '@/lib/errors';
+import { clickable } from '@/lib/a11y';
 
 const settingsCard: React.CSSProperties = {
   padding: 'var(--space-6)',
@@ -175,7 +176,7 @@ export default function SettingsPage() {
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)' }}>
             <div 
-              onClick={() => fileInputRef.current?.click()}
+              {...clickable(() => fileInputRef.current?.click())}
               style={{
                 position: 'relative',
                 width: 88,
@@ -298,7 +299,7 @@ export default function SettingsPage() {
                   return (
                     <div
                       key={k}
-                      onClick={() => setTheme(k)}
+                      {...clickable(() => setTheme(k))}
                       style={{
                         position: 'relative',
                         display: 'flex',

@@ -7,6 +7,7 @@ import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
 import PageSkeleton from '@/components/PageSkeleton';
+import { clickable } from '@/lib/a11y';
 
 interface Lead {
   id: string;
@@ -191,7 +192,7 @@ export default function ProposalsPage() {
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',

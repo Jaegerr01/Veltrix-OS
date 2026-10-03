@@ -6,6 +6,8 @@ import { db } from '@/lib/db';
 import ScraperControl from '@/components/ScraperControl';
 import ScraperImport from '@/components/ScraperImport';
 import PageSkeleton from '@/components/PageSkeleton';
+import { clickable } from '@/lib/a11y';
+import DialogOverlay from '@/components/DialogOverlay';
 
 const STAGE_KEYS = {
   prospecting: ['New', 'Researched'],
@@ -125,7 +127,7 @@ export default function LeadsPage() {
         ]}
         action={
           <div
-            onClick={() => setIsScraperOpen(true)}
+            {...clickable(() => setIsScraperOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -185,7 +187,7 @@ export default function LeadsPage() {
                 col.leads.map((deal) => (
                   <div
                     key={deal.id}
-                    onClick={() => setSelectedLead(deal)}
+                    {...clickable(() => setSelectedLead(deal))}
                     style={{
                       padding: 'var(--space-4)',
                       borderRadius: 'var(--radius-md)',
@@ -271,12 +273,7 @@ export default function LeadsPage() {
 
       {/* Lead Details Modal */}
       {selectedLead && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedLead(null);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Lead details" onClose={() => setSelectedLead(null)}>
           <div
             className="vx-glass max-w-xl w-full p-6 rounded-2xl border border-white/[0.08]"
             style={{ background: 'var(--grad-panel)' }}
@@ -361,7 +358,7 @@ export default function LeadsPage() {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   );

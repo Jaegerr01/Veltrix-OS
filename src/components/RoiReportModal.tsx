@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, TrendingUp, Calendar, CheckSquare, DollarSign, BarChart2, Zap, Send, Loader2 } from 'lucide-react';
 import { Client } from '@/lib/types';
+import DialogOverlay from '@/components/DialogOverlay';
 
 interface RoiMetrics {
   setup_paid: number;
@@ -104,10 +105,11 @@ export default function RoiReportModal({ report, onClose, onSendEmail, canSendEm
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <DialogOverlay label="Client ROI report" onClose={onClose}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        aria-hidden="true"
         onClick={onClose}
       />
 
@@ -200,6 +202,6 @@ export default function RoiReportModal({ report, onClose, onSendEmail, canSendEm
           </div>
         </div>
       </div>
-    </div>
+    </DialogOverlay>
   );
 }

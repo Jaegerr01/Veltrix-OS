@@ -8,6 +8,7 @@ import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
 import PageSkeleton from '@/components/PageSkeleton';
 import { useToast } from '@/components/Toast';
+import { clickable } from '@/lib/a11y';
 
 interface Lead {
   id: string;
@@ -165,7 +166,7 @@ export default function OutreachPage() {
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -194,7 +195,7 @@ export default function OutreachPage() {
         {(['Draft', 'Approved', 'Sent'] as const).map((tab) => (
           <div
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            {...clickable(() => setActiveTab(tab))}
             style={{
               fontFamily: 'var(--font-display)',
               fontSize: 13.5,

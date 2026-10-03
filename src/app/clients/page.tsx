@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
 import PageSkeleton from '@/components/PageSkeleton';
+import { clickable } from '@/lib/a11y';
 
 interface Client {
   id: string;
@@ -146,7 +147,7 @@ export default function ClientsPage() {
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -178,7 +179,7 @@ export default function ClientsPage() {
               key={c.id}
               className="vx-glass hover:border-white/20"
               style={clientCard}
-              onClick={() => setSelectedClient(c)}
+              {...clickable(() => setSelectedClient(c))}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.04em' }}>
@@ -343,12 +344,7 @@ export default function ClientsPage() {
 
       {/* Client Details Modal */}
       {selectedClient && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedClient(null);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Client details" onClose={() => setSelectedClient(null)}>
           <div
             className="vx-glass max-w-md w-full p-6 rounded-2xl border border-white/[0.08]"
             style={{ background: 'var(--grad-panel)' }}
@@ -417,7 +413,7 @@ export default function ClientsPage() {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { PageHeaderCard, VxIcon } from '@/components/ds';
+import { clickable } from '@/lib/a11y';
 
 /**
  * Content — ported from the "isContent" view of the design prototype:
@@ -92,7 +93,7 @@ export default function ContentPage() {
             <span style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 'var(--lh-normal)' }}>The AI will write a complete post with hook lines and post text customized for your potential clients.</span>
           </div>
           <div
-            onClick={writePosts}
+            {...clickable(writePosts)}
             style={{ textAlign: 'center', padding: '13px 0', borderRadius: 'var(--radius-md)', background: 'var(--grad-brand)', color: '#fff', fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: 'var(--glow-violet)', opacity: writing ? 0.7 : 1 }}
           >
             {writing ? 'Writing…' : 'Write Posts with AI'}

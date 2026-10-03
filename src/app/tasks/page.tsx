@@ -18,6 +18,7 @@ import {
 import { useToast } from '@/components/Toast';
 import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
+import { clickable } from '@/lib/a11y';
 
 interface Task {
   id: string;
@@ -190,7 +191,7 @@ export default function TasksPage() {
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',

@@ -7,6 +7,7 @@ import { VxIcon } from './VxIcon';
 import CeoSphere, { type CeoSphereHandle } from './CeoSphere';
 import { AGENT_ICONS, STATUS_COLOR } from './agents';
 import { useAgentRoster } from '../useAgentRoster';
+import { clickable } from '@/lib/a11y';
 
 /**
  * Hero "Orbital Command" view — the signature screen. A central animated
@@ -86,7 +87,7 @@ export default function OrbitalCommand() {
           {AGENT_DEFS.filter((a) => a.status === 'busy').length} working now
         </Badge>
         <div
-          onClick={() => router.push('/ceo')}
+          {...clickable(() => router.push('/ceo'))}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -197,10 +198,10 @@ export default function OrbitalCommand() {
           }}
         />
         <div
-          onClick={() => {
+          {...clickable(() => {
             sphereRef.current?.pulse();
             window.dispatchEvent(new Event('postelos-toggle-voice'));
-          }}
+          })}
           style={{
             position: 'absolute',
             left: '50%',
@@ -242,7 +243,7 @@ export default function OrbitalCommand() {
             <div
               key={a.id}
               title={`${a.role} - ${a.metric} done`}
-              onClick={() => router.push('/ceo')}
+              {...clickable(() => router.push('/ceo'))}
               style={{
                 position: 'absolute',
                 left: `calc(50% + ${x}px)`,
