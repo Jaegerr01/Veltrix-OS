@@ -35,7 +35,7 @@ export function rateLimitResponse(rl: RateLimitResult) {
 
 /**
  * Postgres-backed sliding-window rate limit (table: rate_limit_events,
- * migrations/2026-07-24_rate_limit_events.sql). Replaces the old in-memory
+ * migrations/2026-10-02_002_core_tables.sql). Replaces the old in-memory
  * Map, which reset per serverless instance and was not a real limit in
  * production — every cold-started function had its own empty counter.
  *

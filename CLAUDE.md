@@ -149,7 +149,7 @@ Chain: **Scraper import → Daniel → Emma → Olivia → Approval Queue → gu
    reject). Approval executes `sendOutreachEmail` — guardrails STILL apply.
    Rejected cards never execute. Failed/refused sends stay Draft — never
    phantom "Sent". Requires the `approval_requests` table
-   (`migrations/2026-07-12_approval_requests.sql`).
+   (`migrations/2026-10-02_002_core_tables.sql`).
 5. `lib/email/send.ts` guardrails (autonomous flag): `OUTREACH_SEND_ENABLED=false`
    kill switch · `OUTREACH_DAILY_CAP` (default 15) · `OUTREACH_BLACKLIST` (emails/
    domains). Provider order: Gmail (`GMAIL_USER`+`GMAIL_APP_PASSWORD`) → Resend.

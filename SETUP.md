@@ -25,7 +25,8 @@ Without this, every agent fails at step 1 and the whole pipeline stalls.
    - **service_role key** (secret!) → `SUPABASE_SERVICE_ROLE_KEY`
 3. Open **SQL Editor → New query**, paste the entire contents of **`supabase_schema.sql`** (in this repo), and **Run**. This creates the `leads`, `notes`, `agent_memory`, and other tables.
    - If you later see a leads-table error on `/health`, also run **`fix_leads_schema.sql`**.
-   - Also run **`migrations/2026-07-12_approval_requests.sql`**, **`migrations/2026-07-12_entity_goals.sql`**, and **`migrations/2026-07-24_rate_limit_events.sql`** — same SQL Editor, same "paste and Run."
+   - Then apply the numbered migrations in the order listed in **`migrations/README.md`** (001 send-state -> DATA_CORRECTION_ONE_TIME_NOT_AUTORUN -> 002 core tables -> 003 task orchestration). The three older 2026-07 files are superseded by 002.
+   - (legacy note) previously: **`migrations/superseded/*`** — same SQL Editor, same "paste and Run."
 
 ---
 
