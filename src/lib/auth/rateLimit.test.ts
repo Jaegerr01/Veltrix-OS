@@ -95,7 +95,7 @@ describe('checkRateLimit', () => {
     }
   });
 
-  it('fails open if the count query errors', async () => {
+  it('fails CLOSED by default if the count query errors (send/AI routes)', async () => {
     const client = {
       from: () => ({
         delete: () => ({ eq: () => ({ lt: () => Promise.resolve({ error: null }) }) }),
@@ -105,6 +105,20 @@ describe('checkRateLimit', () => {
     };
     const checkRateLimit = await loadRateLimit(client);
     const r = await checkRateLimit('user:e', { limit: 1 });
+    expect(r.allowed).toBe(false);
+    expect(r.unavailable).toBe(true);
+  });
+
+  it('fails open on a limiter error only when a route opts out (failClosed:false)', async () => {
+    const client = {
+      from: () => ({
+        delete: () => ({ eq: () => ({ lt: () => Promise.resolve({ error: null }) }) }),
+        select: () => ({ eq: () => ({ gte: () => Promise.resolve({ count: null, error: new Error('table missing') }) }) }),
+        insert: () => Promise.resolve({ error: null }),
+      }),
+    };
+    const checkRateLimit = await loadRateLimit(client);
+    const r = await checkRateLimit('user:e', { limit: 1, failClosed: false });
     expect(r.allowed).toBe(true);
   });
 });

@@ -12,6 +12,7 @@ import { getMemories, addMemory, searchMemories } from './memory';
 import { getAgentLogs, logAgentAction, getToolLogs, logToolAction } from './agents';
 import { getChatMessages, addChatMessage, clearChatMessages } from './chat';
 import { getContentIdeas, addContentIdea, updateContentIdea, getDailyReports, addDailyReport } from './content';
+import { claimForSending } from './sendState';
 import { getApprovalRequests, addApprovalRequest, updateApprovalRequest } from './approvals';
 import { getEntityGoals, addEntityGoal, updateEntityGoal } from './entityGoals';
 
@@ -33,6 +34,9 @@ export const db = {
   syncBusinessProfileToMemory,
   syncGoalToMemory,
   syncOfferToMemory,
+
+  // Send-state machine (atomic claim: Approved -> Sending)
+  claimForSending,
 
   // Leads & Lead Scores
   getLeads,

@@ -38,29 +38,22 @@ export const getUserId = async (): Promise<string> => {
       // Ignore errors during build / non-request paths
     }
 
-    // Server-side with no user JWT (cron jobs, pipeline, autopilot)
-    // Fall back to the account owner identified by NOTIFY_EMAIL
-    try {
-      const ownerEmail = process.env.NOTIFY_EMAIL;
-      if (ownerEmail) {
+    // Server-side with no user JWT (cron jobs, pipeline, autopilot):
+    // act as the account owner identified by OWNER_EMAIL (or legacy NOTIFY_EMAIL).
+    // We NEVER fall back to "the first user in the table" - with more than one account
+    // that would silently read/write another person's data.
+    const ownerEmail = (process.env.OWNER_EMAIL || process.env.NOTIFY_EMAIL || '').trim().toLowerCase();
+    if (ownerEmail) {
+      try {
         const { supabaseAdmin } = await import('../supabase/admin');
-        const { data } = await supabaseAdmin.auth.admin.listUsers({ perPage: 50 });
-        const owner = data?.users?.find((u: any) => u.email === ownerEmail) ?? data?.users?.[0];
+        const { data } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+        const owner = data?.users?.find((u: any) => (u.email || '').toLowerCase() === ownerEmail);
         if (owner?.id) return owner.id;
+      } catch (e) {
+        // Admin lookup failed - fall through to the explicit error below
       }
-    } catch (e) {
-      // Admin lookup failed — fall through to public users table check
     }
-
-    try {
-      const { supabaseAdmin } = await import('../supabase/admin');
-      if (supabaseAdmin) {
-        const { data } = await supabaseAdmin.from('users').select('id').limit(1);
-        if (data && data[0]?.id) return data[0].id;
-      }
-    } catch (e) {
-      // ignore
-    }
+    throw new Error('Cannot determine the owner account: set OWNER_EMAIL to the email you sign in with.');
   }
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -69,6 +62,43 @@ export const getUserId = async (): Promise<string> => {
   }
   return user.id;
 };
+
+/** True when a PostgREST/Postgres error says one of `cols` does not exist (migration not applied yet). */
+export function isMissingColumnError(e: any, cols: string[]): boolean {
+  if (!e) return false;
+  const msg = `${e.message || ''} ${e.details || ''} ${e.hint || ''}`;
+  const looksMissing = e.code === 'PGRST204' || e.code === '42703' || /column|schema cache/i.test(msg);
+  return looksMissing && cols.some(c => msg.includes(c));
+}
+
+/**
+ * Run a write with `payload`; if it fails only because optional (not-yet-migrated) columns are
+ * missing, retry once without them. Lets the app keep working before Barry applies the
+ * send-state migration, without ever hiding other errors.
+ */
+export async function withOptionalColumns<R extends { data: any; error: any }>(
+  payload: Record<string, any>,
+  optional: string[],
+  run: (p: Record<string, any>) => PromiseLike<R>
+): Promise<R> {
+  const first = await run(payload);
+  if (!first.error || !isMissingColumnError(first.error, optional)) return first;
+  console.warn('[db] optional columns missing (' + optional.join(',') + ') - apply migrations/2026-10-02_001_send_state.sql');
+  const stripped: Record<string, any> = { ...payload };
+  for (const c of optional) delete stripped[c];
+  return run(stripped);
+}
+
+/**
+ * Hard invariant: nothing may be written as 'Sent' without proof of delivery.
+ * The only legitimate writers are lib/email/delivery.ts (provider message id) and the
+ * owner-attested manual channel (provider='manual').
+ */
+export function assertTruthfulSent(table: string, updates: { status?: string | null; provider_message_id?: string | null }) {
+  if (updates.status === 'Sent' && !updates.provider_message_id) {
+    throw new Error(`Refusing to mark ${table} as Sent without a provider_message_id (no confirmed delivery).`);
+  }
+}
 
 export function checkSchemaError(e: any) {
   if (!e) return;

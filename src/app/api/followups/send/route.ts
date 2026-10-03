@@ -1,2 +1,2 @@
 import { makeSendHandler } from '@/lib/api/sendHandler';
-export const POST = makeSendHandler('outreach');
+export const POST = makeSendHandler('followup');

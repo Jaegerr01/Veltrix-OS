@@ -103,9 +103,14 @@ export interface OutreachMessage {
   lead_id: string;
   channel: 'Email' | 'LinkedIn' | 'Instagram' | 'WhatsApp' | 'Facebook' | 'Discord';
   message: string;
-  status: 'Draft' | 'Approved' | 'Sent' | 'Replied' | 'Failed';
+  /** Draft -> Approved -> Sending -> Sent (needs provider_message_id + sent_at) | Failed (error). */
+  status: 'Draft' | 'Approved' | 'Sending' | 'Sent' | 'Replied' | 'Failed';
   approval_status: 'Pending Approval' | 'Approved' | 'Rejected';
-  sent_at?: string;
+  sent_at?: string | null;
+  provider?: string | null;
+  provider_message_id?: string | null;
+  error?: string | null;
+  attempts?: number;
   created_at: string;
 }
 
@@ -116,7 +121,13 @@ export interface Followup {
   followup_date: string;
   followup_type: string; // Soft Reminder, Value-based, Final Check-in, Re-engagement
   message?: string;
-  status: 'Pending' | 'Drafted' | 'Approved' | 'Sent' | 'Completed' | 'Skipped';
+  /** Pending/Drafted -> Approved -> Sending -> Sent (needs provider_message_id) | Failed. Completed/Skipped are manual. */
+  status: 'Pending' | 'Drafted' | 'Approved' | 'Sending' | 'Sent' | 'Failed' | 'Completed' | 'Skipped';
+  sent_at?: string | null;
+  provider?: string | null;
+  provider_message_id?: string | null;
+  error?: string | null;
+  attempts?: number;
   created_at: string;
   updated_at: string;
 }
@@ -148,7 +159,13 @@ export interface Proposal {
   timeline?: string;
   price: number;
   payment_terms?: string;
-  status: 'Draft' | 'Sent' | 'Viewed' | 'Accepted' | 'Rejected' | 'Needs Revision';
+  /** Draft -> Pending Approval -> Approved -> Sending -> Sent (needs provider_message_id) | Failed; then Viewed/Accepted/Rejected/Needs Revision. */
+  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Sending' | 'Sent' | 'Failed' | 'Viewed' | 'Accepted' | 'Rejected' | 'Needs Revision';
+  sent_at?: string | null;
+  provider?: string | null;
+  provider_message_id?: string | null;
+  error?: string | null;
+  attempts?: number;
   created_at: string;
   updated_at: string;
 }
@@ -200,9 +217,19 @@ export interface Task {
   title: string;
   description?: string;
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
-  status: 'Pending' | 'In Progress' | 'Completed' | 'Blocked' | 'Needs Approval';
+  /** Pending = queued, In Progress = running, Completed = done, Failed = errored (see `error`). */
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Failed' | 'Blocked' | 'Needs Approval';
   due_date?: string;
   result?: string;
+  /** Orchestration (migration 003) */
+  run_id?: string | null;
+  depends_on?: string[] | null;
+  requires_approval?: boolean;
+  approval_request_id?: string | null;
+  error?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_by?: string | null;
   related_goal_id?: string;
   related_lead_id?: string;
   related_client_id?: string;
@@ -368,6 +395,7 @@ export interface CommunityMetric {
 
 export type ApprovalRequestType =
   | 'outreach_send'
+  | 'followup_send'
   | 'proposal_send'
   | 'publish'
   | 'spend'
@@ -391,7 +419,8 @@ export type ApprovalRequestStatus =
   | 'approved'
   | 'approved_edited'
   | 'rejected'
-  | 'expired';
+  | 'expired'
+  | 'failed'; // approved, but executing the action failed (e.g. email provider error) - can be retried
 
 /** Payload for type = 'outreach_send'.
  *  channel 'Email' → executes automatically on approval (guarded send).
@@ -406,6 +435,16 @@ export interface OutreachSendPayload {
   profileUrl?: string; // social profile / search URL (social channels)
   subject?: string;
   text: string;
+}
+
+/** Payload for type = 'followup_send' / 'proposal_send' (email only). */
+export interface RecordSendPayload {
+  leadId?: string;
+  followupId?: string;
+  proposalId?: string;
+  to?: string;
+  subject?: string;
+  text?: string;
 }
 
 // ─── Entity Phase 2 — Goal Cascade ───────────────────────────────────────────

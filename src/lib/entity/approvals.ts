@@ -1,5 +1,5 @@
 import { db } from '../db';
-import type { ApprovalRequest, EntityDepartment, ApprovalRequestType, OutreachSendPayload } from '../types';
+import type { ApprovalRequest, EntityDepartment, ApprovalRequestType, OutreachSendPayload, RecordSendPayload } from '../types';
 
 /**
  * Entity Phase 1 — the propose-then-approve backbone.
@@ -11,9 +11,11 @@ import type { ApprovalRequest, EntityDepartment, ApprovalRequestType, OutreachSe
  *
  * Two invariants this module enforces:
  *  1. A rejected card NEVER executes.
- *  2. Approval does NOT bypass the hard guardrails — approved outreach still
- *     goes through sendOutreachEmail's kill switch, daily cap, and blacklist.
+ *  2. Approval does NOT bypass the hard guardrails — approved sends still
+ *     go through the kill switch, daily cap, and blacklist (lib/email/send.ts).
  *     (Barry approved the message; the guardrails protect the domain.)
+ *  3. An approval whose execution did not really happen is recorded as 'failed'
+ *     (with the reason), never as a success. It can be retried.
  */
 
 export async function requestApproval(opts: {
@@ -52,6 +54,8 @@ export interface DecisionResult {
   success: boolean;
   request?: ApprovalRequest | null;
   executionNote?: string;
+  /** false when the approved action did NOT actually happen (see executionNote). */
+  executed?: boolean;
   error?: string;
 }
 
@@ -72,7 +76,7 @@ export async function decideApprovalRequest(opts: {
   const all = await db.getApprovalRequests();
   const request = all.find(r => r.id === id);
   if (!request) return { success: false, error: 'Approval request not found.' };
-  if (request.status !== 'pending') {
+  if (request.status !== 'pending' && request.status !== 'failed') {
     return { success: false, error: `Request already ${request.status}.` };
   }
 
@@ -97,11 +101,20 @@ export async function decideApprovalRequest(opts: {
   // ── Approve: execute the action ──────────────────────────────────────────
   const effectivePayload = editedPayload ?? request.payload;
   let executionNote = '';
+  let ok = true;
 
   try {
     switch (request.type) {
       case 'outreach_send': {
-        executionNote = await executeOutreachSend(effectivePayload as unknown as OutreachSendPayload);
+        ({ ok, note: executionNote } = await executeOutreachSend(effectivePayload as unknown as OutreachSendPayload));
+        break;
+      }
+      case 'followup_send': {
+        ({ ok, note: executionNote } = await executeRecordSend('followup', effectivePayload as unknown as RecordSendPayload));
+        break;
+      }
+      case 'proposal_send': {
+        ({ ok, note: executionNote } = await executeRecordSend('proposal', effectivePayload as unknown as RecordSendPayload));
         break;
       }
       case 'goal_ratification': {
@@ -116,11 +129,12 @@ export async function decideApprovalRequest(opts: {
         executionNote = 'Approved as decision of record (no automated execution for this type yet).';
     }
   } catch (err: any) {
+    ok = false;
     executionNote = `Execution failed: ${err?.message || err}`;
   }
 
   const updated = await db.updateApprovalRequest(id, {
-    status: editedPayload ? 'approved_edited' : 'approved',
+    status: !ok ? 'failed' : editedPayload ? 'approved_edited' : 'approved',
     decision_payload: effectivePayload,
     execution_result: executionNote,
     decided_at: now,
@@ -131,63 +145,58 @@ export async function decideApprovalRequest(opts: {
     'Approval Granted',
     `requestId=${id}, type=${request.type}, edited=${!!editedPayload}`,
     executionNote,
-    executionNote.startsWith('Execution failed') ? 'Failure' : 'Success'
+    ok ? 'Success' : 'Failure'
   );
 
-  return { success: true, request: updated, executionNote };
+  return { success: true, request: updated, executionNote, executed: ok };
 }
+
+interface ExecOutcome { ok: boolean; note: string }
 
 /**
  * Execute an approved outreach send.
- * Email → guarded automatic send; "Sent" only if it verifiably left.
- * Social channels (LinkedIn/Instagram/Discord/…) → assisted send: Barry's
- * approval IS his attestation that he copied + sent the DM himself, so we
- * mark it Sent and move the lead to Contacted. No bot automation on social.
+ * Email -> guarded send through lib/email/delivery.ts; the message becomes Sent ONLY with a
+ *          provider message id, otherwise Failed (provider error) or Approved (blocked) - never phantom-Sent.
+ * Social channels (LinkedIn/Instagram/Discord/...) -> assisted send: Barry's approval IS his attestation
+ *          that he copied + sent the DM himself (provider='manual'). No bot automation on social.
  */
-async function executeOutreachSend(payload: OutreachSendPayload): Promise<string> {
-  const { leadId, outreachMessageId, channel, to, subject, text, profileUrl } = payload;
+async function executeOutreachSend(payload: OutreachSendPayload): Promise<ExecOutcome> {
+  const { leadId, outreachMessageId, channel, text, profileUrl } = payload;
   if (!text) throw new Error('Payload missing message text.');
 
-  // ── Social channels: assisted send ────────────────────────────────────────
   if (channel && channel !== 'Email') {
     if (outreachMessageId) {
+      const ts = new Date().toISOString();
       await db.updateOutreachMessage(outreachMessageId, {
         approval_status: 'Approved',
         status: 'Sent',
-        sent_at: new Date().toISOString(),
+        sent_at: ts,
+        provider: 'manual',
+        provider_message_id: `manual:${outreachMessageId}`,
         message: text,
       });
     }
-    if (leadId) {
-      await db.updateLead(leadId, { status: 'Contacted' });
-    }
-    return `${channel} DM confirmed sent by Barry (assisted send)${profileUrl ? ` → ${profileUrl}` : ''}. Lead moved to Contacted.`;
+    if (leadId) await db.updateLead(leadId, { status: 'Contacted' });
+    return { ok: true, note: `${channel} DM marked sent by Barry (manual, owner-attested)${profileUrl ? ` -> ${profileUrl}` : ''}. Lead moved to Contacted.` };
   }
 
-  // ── Email: guarded automatic send ─────────────────────────────────────────
-  if (!to) throw new Error('Payload missing recipient email.');
+  if (!outreachMessageId) throw new Error('Payload missing outreachMessageId.');
+  // Persist any edits Barry made, then approve + deliver via the single send pipeline.
+  await db.updateOutreachMessage(outreachMessageId, { message: text, approval_status: 'Approved', status: 'Approved', error: null });
+  const { deliverRecord } = await import('../email/delivery');
+  const r = await deliverRecord('outreach', outreachMessageId, { retry: true });
+  return { ok: r.outcome === 'sent' || r.outcome === 'already_sent', note: r.message };
+}
 
-  const { sendOutreachEmail } = await import('../email/send');
-
-  // autonomous:true keeps the kill switch / daily cap / blacklist active.
-  // Barry approved the CONTENT; the guardrails protect the sending domain.
-  const result = await sendOutreachEmail({ to, subject: subject || 'Outreach from PostelOS', text, autonomous: true });
-
-  if (result.delivered) {
-    if (outreachMessageId) {
-      await db.updateOutreachMessage(outreachMessageId, {
-        approval_status: 'Approved',
-        status: 'Sent',
-        sent_at: new Date().toISOString(),
-        message: text, // persist Barry's edits if any
-      });
-    }
-    if (leadId) {
-      await db.updateLead(leadId, { status: 'Proposal Sent' });
-    }
-    return `Delivered via ${result.provider} to ${to}.`;
+async function executeRecordSend(kind: 'followup' | 'proposal', payload: RecordSendPayload): Promise<ExecOutcome> {
+  const id = kind === 'followup' ? payload.followupId : payload.proposalId;
+  if (!id) throw new Error(`Payload missing ${kind}Id.`);
+  if (kind === 'followup') {
+    await db.updateFollowup(id, { ...(payload.text ? { message: payload.text } : {}), status: 'Approved', error: null });
+  } else {
+    await db.updateProposal(id, { status: 'Approved', error: null });
   }
-
-  // Not delivered — message stays Draft, lead status untouched. Never phantom-Sent.
-  return `NOT delivered — ${result.reason}. Message remains Draft.`;
+  const { deliverRecord } = await import('../email/delivery');
+  const r = await deliverRecord(kind, id, { retry: true });
+  return { ok: r.outcome === 'sent' || r.outcome === 'already_sent', note: r.message };
 }

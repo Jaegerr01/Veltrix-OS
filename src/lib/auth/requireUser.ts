@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { getOwnerEmail } from '@/lib/auth/owner';
 
 export interface AuthedUser {
   id: string;
@@ -19,6 +20,25 @@ export async function requireUser(req: Request): Promise<AuthResult> {
     try {
       const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
       if (user && !error) {
+        // Owner allowlist: this is a single-operator system. Any other (e.g. self-registered)
+        // account is a valid Supabase user but must not reach any API.
+        const owner = getOwnerEmail();
+        if (!owner && process.env.NODE_ENV === 'production') {
+          console.error('[auth] OWNER_EMAIL is not set - refusing all requests.');
+          return {
+            user: null,
+            response: NextResponse.json(
+              { success: false, error: 'Server misconfigured: set OWNER_EMAIL to the email you sign in with.' },
+              { status: 403 }
+            ),
+          };
+        }
+        if (owner && (user.email || '').toLowerCase() !== owner) {
+          return {
+            user: null,
+            response: NextResponse.json({ success: false, error: 'This account is not authorized for this workspace.' }, { status: 403 }),
+          };
+        }
         return { user: { id: user.id, email: user.email }, response: null };
       }
     } catch (e) {
