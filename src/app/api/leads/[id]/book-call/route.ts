@@ -13,6 +13,9 @@ export async function POST(
   if (auth.response) return auth.response;
 
   const { id: leadId } = await params;
+  if (!/^[0-9a-zA-Z_-]{8,64}$/.test(leadId)) {
+    return NextResponse.json({ success: false, error: 'Invalid lead id.' }, { status: 400 });
+  }
 
   try {
     // Update lead status

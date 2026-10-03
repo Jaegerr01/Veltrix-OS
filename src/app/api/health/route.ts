@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { isGeminiConfigured } from '@/lib/ai/gemini';
+import { geminiConfigured } from '@/lib/ai/gemini';
 import { listProviders, selectProvider } from '@/lib/email/config';
 import { requireUser } from '@/lib/auth/requireUser';
 
@@ -88,7 +88,7 @@ export async function GET(req: Request) {
     : { ok: false, detail: 'SUPABASE_SERVICE_ROLE_KEY missing — server-side agent writes will fail.' };
 
   // ── Gemini (the agents' brains) ────────────────────────────────────────────
-  if (!isGeminiConfigured) {
+  if (!geminiConfigured()) {
     checks.gemini = { ok: false, detail: 'GEMINI_API_KEY missing — every agent will fail at stage 1 and the pipeline stalls.' };
   } else if (deep) {
     try {

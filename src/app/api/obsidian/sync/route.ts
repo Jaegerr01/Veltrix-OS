@@ -1,3 +1,4 @@
+import { requireUser } from '@/lib/auth/requireUser';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -105,12 +106,9 @@ async function collectNotesFromDisk(): Promise<VaultNote[]> {
 // ── Auth helper — get user_id from Authorization header ──────────────────────
 
 async function getUserId(req: NextRequest): Promise<string | null> {
-  if (!supabaseAdmin) return null;
-  const authHeader = req.headers.get('authorization') ?? '';
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  if (!token) return null;
-  const { data } = await supabaseAdmin.auth.getUser(token);
-  return data.user?.id ?? null;
+  // requireUser = validated JWT + OWNER_EMAIL allowlist (same gate as every other API route).
+  const auth = await requireUser(req);
+  return auth.response ? null : auth.user.id;
 }
 
 // ── Routes ───────────────────────────────────────────────────────────────────

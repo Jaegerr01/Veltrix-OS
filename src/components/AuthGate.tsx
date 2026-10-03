@@ -21,6 +21,21 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Public registration is OFF unless explicitly enabled. PostelOS is a single-owner system (see OWNER_EMAIL);
+// the server also rejects any signed-in user who is not the owner, so this only removes a dead-end button.
+const ALLOW_SIGNUP = process.env.NEXT_PUBLIC_ALLOW_SIGNUP === 'true';
+
+/** True only for requests to THIS app's own /api/ routes (never third-party URLs that merely contain "/api/"). */
+export function isSameOriginApi(input: RequestInfo | URL, origin: string): boolean {
+  try {
+    const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+    const u = new URL(raw, origin);
+    return u.origin === origin && u.pathname.startsWith('/api/');
+  } catch {
+    return false;
+  }
+}
+
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -56,8 +71,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     const originalFetch = window.fetch;
     window.fetch = async (input, init) => {
       // Avoid intercepting requests to the Supabase API itself to prevent infinite recursion
-      const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : '');
-      const isLocalApi = url.startsWith('/api/') || url.includes('/api/') || (typeof window !== 'undefined' && url.includes(window.location.origin + '/api/'));
+      const isLocalApi = isSameOriginApi(input, window.location.origin);
       
       if (isLocalApi) {
         try {
@@ -94,6 +108,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isDbOnline || submitting) return;
+    if (isSignUp && !ALLOW_SIGNUP) { setErrorMsg('Registration is disabled for this workspace.'); return; }
 
     setErrorMsg('');
     setSuccessMsg('');
@@ -263,7 +278,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
           {/* Social logins (Google, Microsoft) temporarily removed — provider setup issues, see SETUP.md §2b */}
 
           {/* Toggle Login/Signup */}
-          <div className="text-center pt-6">
+          {ALLOW_SIGNUP && (<div className="text-center pt-6">
             <button
               onClick={() => {
                 setIsSignUp(!isSignUp);
@@ -274,7 +289,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
             >
               {isSignUp ? 'Already registered? Login here' : 'Need operator account? Register here'}
             </button>
-          </div>
+          </div>)}
         </div>
       </div>
     );

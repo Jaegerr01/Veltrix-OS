@@ -13,7 +13,6 @@ function readGeminiKey(): string {
  * which made /api/health report Gemini as configured on a deployment that had
  * no key at all, and let /api/reel-intel past its own precondition.
  */
-export const isGeminiConfigured = readGeminiKey().length > 0;
 
 /** Reads the environment NOW. Use this (not the load-time constant above) for anything user-facing. */
 export function geminiConfigured(): boolean {

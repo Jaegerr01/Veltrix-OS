@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { gemini, isGeminiConfigured, isQuotaError, QUOTA_MESSAGE } from '@/lib/ai/gemini';
+import { gemini, geminiConfigured, isQuotaError, QUOTA_MESSAGE } from '@/lib/ai/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
   }
 
-  if (!isGeminiConfigured) {
+  if (!geminiConfigured()) {
     return NextResponse.json({ success: false, error: 'Gemini API key not configured.' }, { status: 500 });
   }
 
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { url } = body;
 
-    if (!url || typeof url !== 'string') {
+    if (!url || typeof url !== 'string' || url.length > 2048) {
       return NextResponse.json({ success: false, error: 'URL is required.' }, { status: 400 });
     }
 

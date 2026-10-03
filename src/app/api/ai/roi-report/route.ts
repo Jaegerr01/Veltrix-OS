@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { gemini } from '@/lib/ai/gemini';
@@ -25,9 +26,9 @@ export async function POST(req: Request) {
   let sendEmail = false;
 
   try {
-    const body = await req.json().catch(() => ({}));
-    clientId = body.clientId || '';
-    sendEmail = body.sendEmail === true;
+    const parsedBody = z.object({ clientId: z.string().min(1).max(100), sendEmail: z.boolean().optional() }).safeParse(await req.json().catch(() => null));
+    clientId = parsedBody.success ? parsedBody.data.clientId : '';
+    sendEmail = parsedBody.success && parsedBody.data.sendEmail === true;
 
     if (!clientId) {
       return NextResponse.json({ success: false, error: 'clientId is required.' }, { status: 400 });

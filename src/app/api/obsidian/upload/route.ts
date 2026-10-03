@@ -1,3 +1,4 @@
+import { requireUser } from '@/lib/auth/requireUser';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -7,11 +8,8 @@ const MAX_FILES = 500;
 const MAX_FILE_BYTES = 1_000_000; // 1 MB per markdown note
 
 async function getUserId(req: NextRequest): Promise<string | null> {
-  if (!supabaseAdmin) return null;
-  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
-  if (!token) return null;
-  const { data } = await supabaseAdmin.auth.getUser(token);
-  return data.user?.id ?? null;
+  const auth = await requireUser(req);
+  return auth.response ? null : auth.user.id;
 }
 
 export async function POST(req: NextRequest) {

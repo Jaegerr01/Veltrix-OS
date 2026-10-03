@@ -29,7 +29,8 @@ export const getUserId = async (): Promise<string> => {
         const { supabaseAdmin } = await import('../supabase/admin');
         // Skip CRON_SECRET tokens — those are not user JWTs
         const cronSecret = process.env.CRON_SECRET;
-        if (!cronSecret || token !== cronSecret) {
+        const { safeEqual } = await import('../auth/cron');
+        if (!cronSecret || !safeEqual(token, cronSecret)) {
           const { data: { user } } = await supabaseAdmin.auth.getUser(token);
           if (user) return user.id;
         }

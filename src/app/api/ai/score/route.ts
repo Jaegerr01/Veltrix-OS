@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { gemini } from '@/lib/gemini';
@@ -11,8 +12,8 @@ export async function POST(req: Request) {
   if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
   let leadId = '';
   try {
-    const body = await req.json().catch(() => ({}));
-    leadId = body.leadId || '';
+    const parsedBody = z.object({ leadId: z.string().min(1).max(100) }).safeParse(await req.json().catch(() => null));
+    leadId = parsedBody.success ? parsedBody.data.leadId : '';
     if (!leadId) {
       return NextResponse.json({ success: false, error: 'leadId is required' }, { status: 400 });
     }

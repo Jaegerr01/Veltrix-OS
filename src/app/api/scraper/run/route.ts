@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth/requireUser';
@@ -26,12 +27,17 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const niche = String(body.niche || '').trim();
-    const location = String(body.location || '').trim();
-    const limit = Math.min(Number(body.limit) || 20, 100);
-    const research = body.research !== false;
-    const sheets = body.sheets === true;
+    const parsedBody = z.object({
+      niche: z.string().trim().max(120).default(''), location: z.string().trim().max(120).default(''),
+      limit: z.coerce.number().int().min(1).max(100).default(20),
+      research: z.boolean().optional(), sheets: z.boolean().optional(),
+    }).safeParse(await req.json().catch(() => ({})));
+    if (!parsedBody.success) {
+      return NextResponse.json({ success: false, error: 'Invalid scraper request: ' + parsedBody.error.issues[0]?.message }, { status: 400 });
+    }
+    const { niche, location, limit } = parsedBody.data;
+    const research = parsedBody.data.research !== false;
+    const sheets = parsedBody.data.sheets === true;
 
     if (!niche || !location) {
       return NextResponse.json({ success: false, error: 'niche and location are required.' }, { status: 400 });
