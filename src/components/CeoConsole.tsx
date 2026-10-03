@@ -62,7 +62,7 @@ function TaskLine({ title, status, priority, due, output, error }: { title: stri
       {error && <div style={{ ...mono, color: 'var(--danger-400)', marginTop: 4, wordBreak: 'break-word' }}>{error}</div>}
       {output && (
         <div style={{ marginTop: 4 }}>
-          <span onClick={() => setOpen(!open)} style={{ ...mono, fontSize: 11, color: 'var(--cyan-300)', cursor: 'pointer' }}>{open ? 'Hide output' : 'Show output'}</span>
+          <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} style={{ ...mono, fontSize: 11, color: 'var(--cyan-300)', cursor: 'pointer', background: 'none', border: 0, padding: 0, minHeight: 24 }}>{open ? 'Hide output' : 'Show output'}</button>
           {open && <pre style={{ ...mono, whiteSpace: 'pre-wrap', color: 'var(--text-body)', marginTop: 4, maxHeight: 260, overflow: 'auto' }}>{output}</pre>}
         </div>
       )}

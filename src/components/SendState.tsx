@@ -112,7 +112,7 @@ export function Notice({ notice, onClose }: { notice: { ok: boolean; text: strin
   return (
     <div role="status" style={{ padding: '10px 14px', borderRadius: 8, background: t.bg, border: `1px solid ${t.bd}`, color: t.fg, fontSize: 12.5, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
       <span style={{ wordBreak: 'break-word' }}>{notice.text}</span>
-      <span onClick={onClose} style={{ cursor: 'pointer' }}>×</span>
+      <button type="button" aria-label="Dismiss message" onClick={onClose} style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit', minWidth: 32, minHeight: 32 }}>&times;</button>
     </div>
   );
 }

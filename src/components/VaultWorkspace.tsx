@@ -7,6 +7,7 @@ import { readZip, bytesToText } from '@/lib/vault/zip';
 import { titleKey } from '@/lib/vault/links';
 import { buildFolderTree, wikiTargetFromHref, wikiToMarkdownLinks, type FolderNode } from '@/lib/vault/wikiMarkdown';
 import type { VaultNote, VaultNoteMeta, VaultSearchHit } from '@/lib/vault/types';
+import { clickable } from '@/lib/a11y';
 
 type Detail = {
   note: VaultNote;
@@ -197,7 +198,7 @@ export default function VaultWorkspace() {
 
   const renderNote = (n: VaultNoteMeta, keyPrefix = '') => (
     <div key={keyPrefix + n.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: 8, cursor: 'pointer', background: draft.id === n.id ? 'rgba(139,92,246,0.18)' : 'transparent' }}>
-      <span onClick={() => openNote(n.id)} style={{ flex: 1, fontSize: 12.5, color: 'var(--text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={n.path ? `${n.path}/${n.title}` : n.title}>
+      <span {...clickable(() => openNote(n.id))} style={{ flex: 1, fontSize: 12.5, color: 'var(--text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={n.path ? `${n.path}/${n.title}` : n.title}>
         {n.title}
       </span>
       {n.source !== 'user' && <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: n.source === 'agent' ? 'var(--cyan-300)' : 'var(--violet-300)' }}>{n.source}</span>}
@@ -207,7 +208,7 @@ export default function VaultWorkspace() {
 
   const renderFolder = (node: FolderNode, depth: number): React.ReactNode => (
     <div key={node.path} style={{ marginLeft: depth ? 12 : 0 }}>
-      <div onClick={() => setFolderFilter(folderFilter === node.path ? null : node.path)} style={{ fontSize: 12, fontWeight: 600, padding: '4px 6px', cursor: 'pointer', color: folderFilter === node.path ? 'var(--violet-300)' : 'var(--text-muted)' }}>
+      <div {...clickable(() => setFolderFilter(folderFilter === node.path ? null : node.path))} style={{ fontSize: 12, fontWeight: 600, padding: '4px 6px', cursor: 'pointer', color: folderFilter === node.path ? 'var(--violet-300)' : 'var(--text-muted)' }}>
         ▸ {node.name}
       </div>
       {notes.filter(n => n.path === node.path && (!tagFilter || n.tags.includes(tagFilter))).map(n => renderNote(n))}
@@ -246,7 +247,7 @@ export default function VaultWorkspace() {
             <div>
               <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>{hits.length} result{hits.length === 1 ? '' : 's'} for &quot;{query.trim()}&quot;</div>
               {hits.map(h => (
-                <div key={h.id} onClick={() => openNote(h.id)} style={{ padding: '6px 8px', borderRadius: 8, cursor: 'pointer' }}>
+                <div key={h.id} {...clickable(() => openNote(h.id))} style={{ padding: '6px 8px', borderRadius: 8, cursor: 'pointer' }}>
                   <div style={{ fontSize: 12.5, color: 'var(--text-strong)' }}>{h.title}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{h.snippet}</div>
                 </div>
@@ -263,7 +264,7 @@ export default function VaultWorkspace() {
                 </div>
               )}
               {pinned.length > 0 && (<><div style={{ fontSize: 11, color: 'var(--warn-400)', fontWeight: 700, margin: '4px 6px' }}>PINNED</div>{pinned.map(n => renderNote(n, 'p'))}</>)}
-              <div onClick={() => setFolderFilter(null)} style={{ fontSize: 11, fontWeight: 700, margin: '10px 6px 4px', color: 'var(--text-dim)', cursor: 'pointer' }}>ALL NOTES {folderFilter !== null ? `(folder: ${folderFilter} - click to clear)` : ''}</div>
+              <div {...clickable(() => setFolderFilter(null))} style={{ fontSize: 11, fontWeight: 700, margin: '10px 6px 4px', color: 'var(--text-dim)', cursor: 'pointer' }}>ALL NOTES {folderFilter !== null ? `(folder: ${folderFilter} - click to clear)` : ''}</div>
               {notes.filter(n => !n.path && (!tagFilter || n.tags.includes(tagFilter))).map(n => renderNote(n))}
               {tree.map(f => renderFolder(f, 0))}
               {notes.length === 0 && !fatal && <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: 8 }}>The vault is empty. Create a note or import markdown files.</div>}
@@ -324,13 +325,13 @@ export default function VaultWorkspace() {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4 }}>BACKLINKS ({detail.backlinks.length})</div>
                 {detail.backlinks.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No notes link here yet. Use [[{detail.note.title}]] in another note.</div>}
-                {detail.backlinks.map(b => <div key={b.id} onClick={() => openNote(b.id)} style={{ fontSize: 12.5, cursor: 'pointer', color: 'var(--violet-300)' }}>{b.path ? b.path + '/' : ''}{b.title}</div>)}
+                {detail.backlinks.map(b => <div key={b.id} {...clickable(() => openNote(b.id))} style={{ fontSize: 12.5, cursor: 'pointer', color: 'var(--violet-300)' }}>{b.path ? b.path + '/' : ''}{b.title}</div>)}
               </div>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4 }}>LINKS OUT ({detail.outgoing.length})</div>
                 {detail.outgoing.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>This note links to nothing.</div>}
                 {detail.outgoing.map(o => (
-                  <div key={o.title} onClick={() => openByTitle(o.title)} style={{ fontSize: 12.5, cursor: 'pointer', color: o.exists ? 'var(--violet-300)' : 'var(--warn-400)' }}>
+                  <div key={o.title} {...clickable(() => openByTitle(o.title))} style={{ fontSize: 12.5, cursor: 'pointer', color: o.exists ? 'var(--violet-300)' : 'var(--warn-400)' }}>
                     {o.title}{o.exists ? '' : ' (not created yet)'}
                   </div>
                 ))}

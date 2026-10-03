@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
+import DialogOverlay from '@/components/DialogOverlay';
 
 interface Client {
   id: string;
@@ -250,12 +251,7 @@ export default function ClientsPage() {
 
       {/* Add Client Modal */}
       {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Register new client profile" onClose={() => setIsModalOpen(false)}>
           <form
             onSubmit={handleAddClient}
             className="vx-glass max-w-lg w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
@@ -265,9 +261,7 @@ export default function ClientsPage() {
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>
                 Register New Client Profile
               </h3>
-              <span style={{ cursor: 'pointer', fontSize: 20, color: 'var(--text-muted)' }} onClick={() => setIsModalOpen(false)}>
-                ×
-              </span>
+              <button type="button" aria-label="Close dialog" onClick={() => setIsModalOpen(false)} style={{ cursor: 'pointer', fontSize: 22, lineHeight: 1, color: 'var(--text-muted)', background: 'none', border: 0, minWidth: 44, minHeight: 44 }}>&times;</button>
             </div>
 
             {formError && (
@@ -344,7 +338,7 @@ export default function ClientsPage() {
               Ratify Client Contract
             </button>
           </form>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* Client Details Modal */}

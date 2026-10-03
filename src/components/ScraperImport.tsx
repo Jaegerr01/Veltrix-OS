@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { authFetch } from '@/lib/authFetch';
 import { X, Upload, FileJson, Radar, CheckCircle2, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { asErr } from '@/lib/errors';
+import DialogOverlay from '@/components/DialogOverlay';
 
 /**
  * ScraperImport — bridge between Barry's Python Google Maps scraper and the
@@ -182,10 +183,9 @@ export default function ScraperImport({ onClose, onImported }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+    <DialogOverlay label="Fetch leads: scraper import" onClose={onClose}>
       <div
         className="glass-panel w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 p-6 space-y-5"
-        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -322,6 +322,6 @@ export default function ScraperImport({ onClose, onImported }: Props) {
           </>
         )}
       </div>
-    </div>
+    </DialogOverlay>
   );
 }

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
+import DialogOverlay from '@/components/DialogOverlay';
 
 interface Client {
   id: string;
@@ -364,12 +365,7 @@ export default function ProjectsPage() {
 
       {/* New Project Modal */}
       {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Create project" onClose={() => setIsModalOpen(false)}>
           <form
             onSubmit={handleCreateProject}
             className="vx-glass max-w-md w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
@@ -379,9 +375,7 @@ export default function ProjectsPage() {
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>
                 Initialize New Implementation Project
               </h3>
-              <span style={{ cursor: 'pointer', fontSize: 20, color: 'var(--text-muted)' }} onClick={() => setIsModalOpen(false)}>
-                ×
-              </span>
+              <button type="button" aria-label="Close dialog" onClick={() => setIsModalOpen(false)} style={{ cursor: 'pointer', fontSize: 22, lineHeight: 1, color: 'var(--text-muted)', background: 'none', border: 0, minWidth: 44, minHeight: 44 }}>&times;</button>
             </div>
 
             {formError && (
@@ -469,7 +463,7 @@ export default function ProjectsPage() {
               Deploy Project Roadmap
             </button>
           </form>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   );
