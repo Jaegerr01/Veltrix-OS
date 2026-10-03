@@ -80,8 +80,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="vx-main">
           <Topbar navOpen={navOpen} onToggleNav={() => setNavOpen(o => !o)} onOpenPalette={() => setPaletteOpen(true)} />
           <main id="main-content" ref={contentRef} tabIndex={-1} className="vx-content">
-            <SetupBanner />
             <div key={pathname} className="vx-page vx-page-enter">{children}</div>
+            <SetupBanner />
           </main>
         </div>
       </div>

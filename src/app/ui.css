@@ -135,7 +135,7 @@ input[type="checkbox"], input[type="radio"] { min-width: 24px; min-height: 24px;
 input[type="range"] { min-height: 24px; }
 button:not(.vx-linkbtn), [role="button"] { min-width: 24px; min-height: 24px; }
 .vx-tap { display: inline-flex; align-items: center; min-height: 32px; }
-@media (pointer: coarse) { .vx-tap { min-height: 44px; } }
+@media (pointer: coarse), (max-width: 1023px) { .vx-tap { min-height: 44px; min-width: 44px; justify-content: center; } }
 
 /* ---- responsive fallbacks for legacy inline grid layouts (inline styles carry the desktop columns) ---- */
 @media (max-width: 700px) {

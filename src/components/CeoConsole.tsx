@@ -62,7 +62,7 @@ function TaskLine({ title, status, priority, due, output, error }: { title: stri
       {error && <div style={{ ...mono, color: 'var(--danger-400)', marginTop: 4, wordBreak: 'break-word' }}>{error}</div>}
       {output && (
         <div style={{ marginTop: 4 }}>
-          <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} style={{ ...mono, fontSize: 11, color: 'var(--cyan-300)', cursor: 'pointer', background: 'none', border: 0, padding: 0, minHeight: 24 }}>{open ? 'Hide output' : 'Show output'}</button>
+          <button type="button" className="vx-tap" aria-expanded={open} onClick={() => setOpen(!open)} style={{ ...mono, fontSize: 11, color: 'var(--cyan-300)', cursor: 'pointer', background: 'none', border: 0, padding: 0, minHeight: 24 }}>{open ? 'Hide output' : 'Show output'}</button>
           {open && <pre style={{ ...mono, whiteSpace: 'pre-wrap', color: 'var(--text-body)', marginTop: 4, maxHeight: 260, overflow: 'auto' }}>{output}</pre>}
         </div>
       )}
@@ -162,21 +162,29 @@ export default function CeoConsole() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-      {statusErr && <div style={{ ...card, ...mono, color: 'var(--danger-400)' }}>{statusErr}</div>}
-      {aiDown && (
-        <div role="alert" style={{ ...card, borderColor: 'rgba(239,68,68,0.4)' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--danger-400)' }}>The AI is not connected - the CEO cannot plan or run anything.</div>
-          <div style={{ ...mono, color: 'var(--text-body)', marginTop: 6, lineHeight: 1.6 }}>
-            {status.ai.envVar} is not set on the server. Fix: add <b>{status.ai.envVar}</b> (a Google AI Studio key) to <b>.env.local</b> and restart the dev server,
-            or to <b>Netlify → Site configuration → Environment variables</b> and redeploy. Then use Settings → <Link href="/settings#ai-panel" style={{ color: 'var(--cyan-300)' }}>Test AI connection</Link>.
+      {/* One fixed-height status slot: loading, down and connected states all occupy it, so nothing below shifts. */}
+      <div style={{ minHeight: 84 }}>
+        {statusErr && <div role="alert" style={{ ...card, ...mono, padding: '12px 16px', color: 'var(--danger-400)' }}>{statusErr}</div>}
+        {aiDown && (
+          <div role="alert" style={{ ...card, padding: '12px 16px', borderColor: 'rgba(239,68,68,0.4)' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--danger-400)' }}>The AI is not connected - the CEO cannot plan or run anything.</div>
+            <div style={{ ...mono, color: 'var(--text-body)', marginTop: 4, lineHeight: 1.5 }}>
+              <b>{status.ai.envVar}</b> is not set on the server. Add it to <b>.env.local</b> (or your host's environment variables) and restart, then use <Link href="/settings#ai-panel" style={{ color: 'var(--cyan-300)' }}>Test AI connection</Link> in Settings.
+            </div>
           </div>
-        </div>
-      )}
-      {status?.ai.configured && (
-        <div style={{ ...mono, color: 'var(--text-dim)' }}>
-          AI connected (model {status.ai.model}) · {status.tasks.queued} queued · {status.tasks.running} running · {status.tasks.needsApproval} need approval · {status.tasks.failed} failed · {status.approvalsPending} approval{status.approvalsPending === 1 ? '' : 's'} pending
-        </div>
-      )}
+        )}
+        {status?.ai.configured && (
+          <div style={{ ...card, padding: '12px 16px' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--signal-400)' }}>AI connected</div>
+            <div style={{ ...mono, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.5 }}>
+              model {status.ai.model} · {status.tasks.queued} queued · {status.tasks.running} running · {status.tasks.needsApproval} need approval · {status.tasks.failed} failed · {status.approvalsPending} approval{status.approvalsPending === 1 ? '' : 's'} pending
+            </div>
+          </div>
+        )}
+        {!status && !statusErr && (
+          <div style={{ ...card, ...mono, padding: '12px 16px', color: 'var(--text-dim)' }}>Checking the AI connection...</div>
+        )}
+      </div>
 
       <section style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <label className="vx-eyebrow" htmlFor="ceo-input">Instruction for the CEO agent</label>

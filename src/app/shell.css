@@ -199,3 +199,5 @@
   .vx-nav__link { min-height: 48px; }
 }
 .vx-side__card-text { min-height: 3.4em; }
+
+@media (min-width: 1024px) { .vx-topbar__actions .vx-chip { min-width: 9.75rem; } .vx-searchbtn__kbd { min-width: 3.4rem; text-align: right; } }

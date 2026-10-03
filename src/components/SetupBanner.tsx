@@ -9,7 +9,7 @@ import { useWorkspaceStatus } from '@/lib/status/useWorkspaceStatus';
 const KEY = 'postelos-setup-dismissed';
 
 /**
- * Compact reminder on every page except the dashboard (which shows the full checklist) while
+ * Compact reminder, pinned to the bottom of the content (so its late arrival can never push the page down), on every page except the dashboard (which shows the full checklist) while
  * the workspace is not fully configured. Driven by the real /api/workspace/status.
  * Renders nothing while loading, on error, or when setup is complete.
  */
@@ -28,7 +28,7 @@ export default function SetupBanner() {
   const next = steps.find(s => !s.done);
 
   return (
-    <div className="vx-callout" data-tone="warn" role="region" aria-label="Setup reminder" style={{ marginBottom: 'var(--space-4)' }}>
+    <div className="vx-callout" data-tone="warn" role="region" aria-label="Setup reminder" style={{ position: 'sticky', bottom: 'calc(var(--space-4) + env(safe-area-inset-bottom, 0px))', marginTop: 'var(--space-4)', paddingRight: 84, zIndex: 20, background: 'var(--ink-800)', boxShadow: 'var(--shadow-lg)' }}>
       <VxIcon name="alert" size={18} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <p className="vx-callout__title">Setup incomplete - {done} of {total} steps done</p>
