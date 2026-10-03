@@ -2,98 +2,88 @@
 
 import React from 'react';
 import { VxIcon, type VxIconName } from '@/components/ds';
+import { authFetch } from '@/lib/authFetch';
+import { useWorkspaceStatus } from '@/lib/status/useWorkspaceStatus';
+import { deriveHealth, type HealthPayload } from '@/lib/status/health';
 
 /**
- * System Status — ported from the "isSystemStatus" view of the design
- * prototype: an "all systems operational" banner, integration cards, and
- * the environment-variable checklist.
+ * System Status. Every tile is derived from real probes: /api/health (live database query, env presence,
+ * provider selection) and /api/workspace/status (the same source as the top bar and setup checklist).
+ * Nothing is hardcoded green; with no data a tile says "Checking..." and missing config is amber/red with the
+ * exact variable names (never values).
  */
 
-const cmdCard: React.CSSProperties = {
-  padding: 'var(--space-6)',
-  borderRadius: 'var(--radius-xl)',
-  background: 'var(--grad-panel)',
-  border: '1px solid var(--border-default)',
-  boxShadow: 'var(--shadow-lg), var(--sheen-top)',
-};
-
-const INTEGRATIONS: { name: string; desc: string; icon: VxIconName }[] = [
-  { name: 'Database (Supabase)', desc: 'Connected and the leads table is reachable.', icon: 'grid' },
-  { name: 'Server Writes (Service Role)', desc: 'Service-role client initialized.', icon: 'shield' },
-  { name: 'Agent Brains (Gemini)', desc: 'GEMINI_API_KEY present. Add ?deep=1 to confirm it is valid with a live call.', icon: 'brain' },
-  { name: 'Email Delivery (Resend)', desc: 'Configured with sender PostelOS <noreply@resend.dev>.', icon: 'mail' },
-];
-
-const ENV_VARS: [string, boolean][] = [
-  ['GEMINI_API_KEY', true],
-  ['NEXT_PUBLIC_SUPABASE_URL', true],
-  ['NEXT_PUBLIC_SUPABASE_ANON_KEY', true],
-  ['SUPABASE_SERVICE_ROLE_KEY', true],
-  ['RESEND_API_KEY', true],
-  ['RESEND_FROM_EMAIL', true],
-  ['NOTIFY_EMAIL', true],
-  ['CRON_SECRET', true],
-  ['NEXT_PUBLIC_SITE_URL', false],
-];
+const CARD_ICON: Record<string, VxIconName> = { database: 'grid', writes: 'shield', ai: 'brain', email: 'mail' };
 
 export default function HealthPage() {
+  const { status, refresh } = useWorkspaceStatus();
+  const [health, setHealth] = React.useState<HealthPayload | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [deepNote, setDeepNote] = React.useState<string | null>(null);
+
+  const load = React.useCallback(async (deep = false) => {
+    setBusy(true); setError(null);
+    try {
+      const res = await authFetch(deep ? '/api/health?deep=1' : '/api/health', { cache: 'no-store' });
+      const body = await res.json().catch(() => null);
+      // 503 still carries the full report when the caller is signed in; only a body without checks is an error.
+      if (body && body.checks && body.env) {
+        setHealth(body as HealthPayload);
+        if (deep) setDeepNote(body.checks.gemini?.ok ? 'Live AI call succeeded.' : 'Live AI call failed - see the AI card.');
+      } else setError(res.status === 401 ? 'Sign in again to read system status.' : `Health report unavailable (HTTP ${res.status}).`);
+    } catch { setError('Could not reach the server.'); }
+    setBusy(false);
+  }, []);
+  React.useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); }, [load]);
+
+  const view = deriveHealth(health, status);
+  const refreshAll = () => { void load(); void refresh(); };
+
   return (
     <>
-      {/* Banner */}
-      <section
-        className="vx-glass"
-        style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)', padding: 'var(--space-6)', borderRadius: 'var(--radius-xl)', background: 'linear-gradient(135deg, rgba(46,230,160,0.10), rgba(46,230,160,0.02))', border: '1px solid rgba(46,230,160,0.28)', boxShadow: 'var(--shadow-lg)' }}
-      >
-        <span style={{ width: 52, height: 52, flex: '0 0 auto', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--signal-400)', background: 'rgba(46,230,160,0.12)', border: '1px solid rgba(46,230,160,0.3)' }}>
-          <VxIcon name="shield" size={26} />
-        </span>
+      <section className="vx-glass vx-health__banner" data-tone={error ? 'bad' : view.overall} aria-live="polite">
+        <span className="vx-health__icon"><VxIcon name={view.overall === 'ok' ? 'shield' : view.overall === 'unknown' ? 'refresh' : 'alert'} size={26} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-strong)' }}>All systems operational</div>
-          <div style={{ fontSize: 13.5, color: 'var(--text-muted)', marginTop: 4 }}>All critical systems are live. The autonomous pipeline can run end-to-end.</div>
+          <h2 className="vx-health__headline">{error ? 'System status unavailable' : view.headline}</h2>
+          <p className="vx-health__detail">{error || view.detail}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 18px', height: 42, borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-default)', color: 'var(--text-body)', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          <span style={{ display: 'flex' }}>
-            <VxIcon name="refresh" size={18} />
-          </span>
-          Refresh
+        <div className="vx-health__actions">
+          <button type="button" className="vx-linkbtn vx-tap" onClick={refreshAll} disabled={busy}>{busy ? 'Checking...' : 'Refresh'}</button>
+          <button type="button" className="vx-linkbtn vx-tap" onClick={() => { setDeepNote(null); void load(true); }} disabled={busy} title="Makes one small real Gemini call to prove the key works">Test AI with a live call</button>
         </div>
       </section>
+      {deepNote ? <p role="status" className="vx-health__detail" style={{ margin: 0 }}>{deepNote}</p> : null}
 
-      {/* Integrations */}
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-5)' }}>
-        {INTEGRATIONS.map((ig) => (
-          <div key={ig.name} className="vx-glass" style={cmdCard}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{ width: 42, height: 42, flex: '0 0 auto', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--signal-400)', background: 'rgba(46,230,160,0.10)', border: '1px solid rgba(46,230,160,0.22)' }}>
-                <VxIcon name={ig.icon} size={22} color="var(--signal-400)" />
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, color: 'var(--text-strong)' }}>{ig.name}</div>
-              </div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--signal-400)', padding: '4px 11px', borderRadius: 999, background: 'rgba(46,230,160,0.10)', border: '1px solid rgba(46,230,160,0.28)' }}>Live</span>
+      <section className="vx-health__grid" aria-label="Integrations">
+        {view.cards.map(c => (
+          <div key={c.id} className="vx-glass vx-health__card" data-tone={c.tone}>
+            <div className="vx-health__cardtop">
+              <span className="vx-health__icon vx-health__icon--sm"><VxIcon name={CARD_ICON[c.id]} size={20} /></span>
+              <h3 className="vx-health__name">{c.name}</h3>
+              <span className="vx-health__pill" data-tone={c.tone}>{c.label}</span>
             </div>
-            <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 12, lineHeight: 'var(--lh-normal)' }}>{ig.desc}</div>
+            <p className="vx-health__detail">{c.detail}</p>
+            {c.missing.length ? <p className="vx-health__missing">Missing: {c.missing.map(m => <code key={m}>{m}</code>)}</p> : null}
           </div>
         ))}
       </section>
 
-      {/* Environment variables */}
-      <section className="vx-glass" style={cmdCard}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'var(--space-5)' }}>
-          <span style={{ color: 'var(--violet-300)', display: 'flex' }}>
-            <VxIcon name="gear" size={18} />
-          </span>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Environment Variables</span>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-dim)' }}>(8/9 set)</span>
+      <section className="vx-glass vx-health__envcard" aria-label="Environment variables">
+        <div className="vx-health__envhead">
+          <VxIcon name="gear" size={18} />
+          <h3 className="vx-health__name">Environment variables</h3>
+          <span className="vx-health__count">{health ? `(${view.envSetCount}/${view.env.length} set)` : '(checking...)'}</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px var(--space-8)' }}>
-          {ENV_VARS.map(([name, set]) => (
-            <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid var(--hairline)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-body)' }}>{name}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: set ? 'var(--signal-400)' : 'var(--danger-400)', display: 'flex', alignItems: 'center', gap: 5 }}>{set ? 'set' : 'missing'}</span>
+        <div className="vx-health__envgrid">
+          {view.env.map(r => (
+            <div key={r.name} className="vx-health__envrow">
+              <span className="vx-health__envname">{r.name}</span>
+              <span className="vx-health__pill vx-health__pill--plain" data-tone={r.tone}>{r.label}</span>
             </div>
           ))}
         </div>
+        <p className="vx-health__detail" style={{ marginTop: 'var(--space-4)' }}>Only whether a variable is set is shown, never its value.</p>
       </section>
     </>
   );

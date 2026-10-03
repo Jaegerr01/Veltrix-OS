@@ -169,3 +169,53 @@ test.describe('security and robustness regression (phase 2)', () => {
     await ctx.close();
   });
 });
+
+test.describe('truthful status (no fake green)', () => {
+  test('System Status derives from real probes: with no AI/email config it is red/amber and names the variables @sec-truth @ia-health', async ({ page }) => {
+    await page.goto('/health');
+    const banner = page.locator('.vx-health__banner');
+    await expect(banner).toHaveAttribute('data-tone', /bad|warn/);
+    await expect(page.getByText('All systems operational')).toHaveCount(0);
+    await expect(banner.getByRole('heading', { level: 2 })).toContainText(/need.* attention|warnings/i);
+    const ai = page.locator('.vx-health__card').filter({ hasText: 'Agent brains' });
+    await expect(ai).toHaveAttribute('data-tone', 'bad');
+    await expect(ai.locator('code', { hasText: 'GEMINI_API_KEY' })).toBeVisible();
+    const email = page.locator('.vx-health__card').filter({ hasText: 'Email delivery' });
+    await expect(email).not.toHaveAttribute('data-tone', 'ok');
+    // the top bar, sidebar and System Status all tell the same story
+    await expect(page.getByRole('link', { name: /AI not connected/ }).first()).toBeVisible();
+    // real checks: the database card reflects a live query against the (mock) database
+    await expect(page.locator('.vx-health__card').filter({ hasText: 'Database' })).toHaveAttribute('data-tone', 'ok');
+    const env = page.locator('.vx-health__envrow').filter({ hasText: 'GEMINI_API_KEY' });
+    await expect(env).toContainText(/Missing/);
+  });
+
+  test('setup checklist uses the same source of truth as the top bar (AI + email never complete while unconfigured) @sec-truth @ia-settings-health', async ({ page }) => {
+    await page.goto('/settings');
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    const api = await apiGet(page, '/api/workspace/status');
+    const st = JSON.parse(api.text).status;
+    const step = (id: string) => st.onboarding.steps.find((s: { id: string }) => s.id === id);
+    expect(st.ai.configured).toBe(false);
+    expect(step('ai').done).toBe(st.ai.configured);
+    expect(step('email').done).toBe(st.email.ready);
+    expect(st.email.ready).toBe(false);
+    const done = st.onboarding.steps.filter((s: { done: boolean }) => s.done).length;
+    await expect(page.getByText(new RegExp(String(done) + ' of 8 steps done')).first()).toBeVisible();
+    await expect(page.getByText(/GEMINI_API_KEY is not set/).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /AI not connected/ }).first()).toBeVisible();
+  });
+
+  test('money figures come from real rows only: leads and revenue @sec-truth', async ({ page }) => {
+    const props = await rows('proposals');
+    const out = props.filter(p => (['Sent', 'Viewed'].includes(String(p.status)) && p.provider_message_id) || p.status === 'Accepted').reduce((a, p) => a + Number(p.price || 0), 0);
+    await page.goto('/leads');
+    await expect(page.getByRole('heading', { level: 1, name: 'Leads' })).toBeVisible();
+    const main = page.locator('main');
+    await expect(main).toContainText('$' + (out / 1000).toFixed(1) + 'K');
+    expect(await main.innerText()).not.toMatch(/\$(2,500|1,800|1,200)/);
+    const total = (await rows('revenue')).reduce((a, r) => a + Number(r.amount || 0), 0);
+    await page.goto('/revenue');
+    await expect(page.locator('main')).toContainText('$' + total.toLocaleString('en-US'));
+  });
+});
