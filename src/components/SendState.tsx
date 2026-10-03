@@ -13,6 +13,7 @@ export type SendKind = 'outreach' | 'followups' | 'proposals';
 
 
 import { describeSendState, type SendFields, type Tone } from '@/lib/sendLabels';
+import { useToast } from '@/components/Toast';
 export { describeSendState };
 export type { SendFields };
 
@@ -84,8 +85,16 @@ const btn = (tone: Tone): React.CSSProperties => ({
 });
 
 export function SendButton({ label, tone = 'ok', busy, onClick, title }: { label: string; tone?: Tone; busy?: boolean; onClick: () => void; title?: string }) {
+  const toast = useToast();
+  const manual = /mark sent/i.test(label);
+  const confirmThenRun = async () => {
+    const ok = manual
+      ? await toast.confirm('Mark this as sent?', 'Only confirm if you really sent it yourself - PostelOS cannot verify it and will record it as a manual send.', { confirmLabel: 'Yes, I sent it' })
+      : await toast.confirm('Send this message?', 'It goes out through your configured email provider and cannot be recalled. Approving it first is not enough - this is the final step.', { confirmLabel: 'Send now' });
+    if (ok) onClick();
+  };
   return (
-    <button type="button" disabled={busy} title={title} onClick={onClick} style={{ ...btn(tone), opacity: busy ? 0.6 : 1, cursor: busy ? 'wait' : 'pointer' }}>
+    <button type="button" disabled={busy} title={title} onClick={confirmThenRun} style={{ ...btn(tone), opacity: busy ? 0.6 : 1, cursor: busy ? 'wait' : 'pointer' }}>
       {busy ? 'Working…' : label}
     </button>
   );

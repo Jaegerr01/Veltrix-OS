@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface DailyReport {
   id: string;
@@ -105,9 +106,7 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <PostelSpinner message="Accessing report vaults..." />
-      </div>
+      <PageSkeleton label="Accessing report vaults..." />
     );
   }
 

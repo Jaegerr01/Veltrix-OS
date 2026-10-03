@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface Lead {
   id: string;
@@ -157,9 +158,7 @@ export default function ProposalsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <PostelSpinner message="Connecting to Proposal catalog..." />
-      </div>
+      <PageSkeleton label="Connecting to Proposal catalog..." />
     );
   }
 

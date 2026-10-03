@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatCard, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface RevenueItem {
   id: string;
@@ -75,9 +76,7 @@ export default function RevenuePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <PostelSpinner message="Loading revenue matrices..." />
-      </div>
+      <PageSkeleton label="Loading revenue matrices..." />
     );
   }
 

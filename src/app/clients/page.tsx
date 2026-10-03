@@ -5,6 +5,7 @@ import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface Client {
   id: string;
@@ -124,9 +125,7 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <PostelSpinner message="Accessing CRM database..." />
-      </div>
+      <PageSkeleton label="Accessing CRM database..." />
     );
   }
 

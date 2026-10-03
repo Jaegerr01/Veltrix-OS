@@ -6,6 +6,8 @@ import { db } from '@/lib/db';
 import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
+import PageSkeleton from '@/components/PageSkeleton';
+import { useToast } from '@/components/Toast';
 
 interface Lead {
   id: string;
@@ -52,6 +54,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 export default function OutreachPage() {
+  const toast = useToast();
   const [messages, setMessages] = useState<OutreachMessage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,12 +120,13 @@ export default function OutreachPage() {
     }
   };
 
-  const handleUpdateStatus = async (id: string, updates: Partial<OutreachMessage>) => {
+  const handleUpdateStatus = async (id: string, updates: Partial<OutreachMessage>, undo?: Partial<OutreachMessage>, title?: string) => {
     try {
       await db.updateOutreachMessage(id, updates);
       await fetchData();
+      if (undo) toast.undoable(title ?? 'Message updated', async () => { await db.updateOutreachMessage(id, undo); await fetchData(); });
     } catch (err) {
-      console.warn('Failed to update outreach state:', err);
+      toast.error('Could not update the message', asErr(err).message);
     }
   };
 
@@ -130,9 +134,7 @@ export default function OutreachPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <PostelSpinner message="Synchronizing outreach sequences..." />
-      </div>
+      <PageSkeleton label="Synchronizing outreach sequences..." />
     );
   }
 
@@ -276,7 +278,7 @@ export default function OutreachPage() {
                       <SendButton label="Approve & send" tone="info" busy={busyId === msg.id} onClick={() => run('outreach', msg.id)} title="Approves this message and sends it through your email provider now" />
                     )}
                     <button
-                      onClick={() => handleUpdateStatus(msg.id, { status: 'Approved', approval_status: 'Approved' })}
+                      onClick={() => handleUpdateStatus(msg.id, { status: 'Approved', approval_status: 'Approved' }, { status: 'Draft', approval_status: msg.approval_status }, 'Draft approved (not sent yet)')}
                       style={{
                         background: 'rgba(46,230,160,0.1)',
                         border: '1px solid rgba(46,230,160,0.2)',
@@ -290,7 +292,7 @@ export default function OutreachPage() {
                       Approve
                     </button>
                     <button
-                      onClick={() => handleUpdateStatus(msg.id, { approval_status: 'Rejected' })}
+                      onClick={() => handleUpdateStatus(msg.id, { approval_status: 'Rejected' }, { approval_status: msg.approval_status }, 'Draft rejected')}
                       style={{
                         background: 'rgba(239,68,68,0.06)',
                         border: '1px solid rgba(239,68,68,0.15)',

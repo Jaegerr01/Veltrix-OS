@@ -5,6 +5,7 @@ import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import ScraperControl from '@/components/ScraperControl';
 import ScraperImport from '@/components/ScraperImport';
+import PageSkeleton from '@/components/PageSkeleton';
 
 const STAGE_KEYS = {
   prospecting: ['New', 'Researched'],
@@ -66,9 +67,7 @@ export default function LeadsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <PostelSpinner message="Loading lead database..." />
-      </div>
+      <PageSkeleton label="Loading lead database..." />
     );
   }
 

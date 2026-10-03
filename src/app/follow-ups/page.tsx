@@ -5,6 +5,7 @@ import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import { authFetch } from '@/lib/authFetch';
 import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface Lead {
   id: string;
@@ -153,9 +154,7 @@ export default function FollowUpsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <PostelSpinner message="Loading followup workflows..." />
-      </div>
+      <PageSkeleton label="Loading followup workflows..." />
     );
   }
 

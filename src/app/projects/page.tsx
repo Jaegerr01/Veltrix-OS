@@ -5,6 +5,7 @@ import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface Client {
   id: string;
@@ -176,9 +177,7 @@ export default function ProjectsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <PostelSpinner message="Connecting to Delivery Manager..." />
-      </div>
+      <PageSkeleton label="Connecting to Delivery Manager..." />
     );
   }
 
