@@ -244,6 +244,7 @@ export default function ClientsPage() {
       {isModalOpen && (
         <DialogOverlay label="Register new client profile" onClose={() => setIsModalOpen(false)}>
           <form
+            noValidate
             onSubmit={handleAddClient}
             className="vx-glass max-w-lg w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
             style={{ background: 'var(--grad-panel)' }}
@@ -256,9 +257,7 @@ export default function ClientsPage() {
             </div>
 
             {formError && (
-              <div style={{ color: 'var(--danger-400)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                ⚠️ {formError}
-              </div>
+              <div role="alert" className="vx-callout" data-tone="bad"><div><p className="vx-callout__body">{formError}</p></div></div>
             )}
 
             <div className="grid grid-cols-2 gap-4">

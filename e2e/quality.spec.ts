@@ -31,8 +31,7 @@ test.describe('interaction polish', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await page.locator('body').click({ position: { x: 5, y: 300 } });
-    await page.keyboard.press('Shift+/');
+    await page.keyboard.press('?');
     const dlg = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
     await expect(dlg).toBeVisible();
     await expect(dlg).toContainText(/Ctrl|Cmd/);

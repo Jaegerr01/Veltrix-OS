@@ -41,7 +41,7 @@ test.describe('navigation', () => {
     await nav.getByRole('link', { name: 'Leads' }).click();
     await expect(page).toHaveURL(/\/leads$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Leads' })).toBeVisible();
-    await expect(page).toHaveTitle(/Leads Â· PostelOS/);
+    await expect(page).toHaveTitle(/^Leads\W+PostelOS/);
     await expect(nav.getByRole('link', { name: 'Leads' })).toHaveAttribute('aria-current', 'page');
     // skip link is the first tab stop and moves focus to <main>
     await page.goto('/leads');
@@ -115,7 +115,7 @@ test.describe('outreach approval (mock provider only - nothing can be sent)', ()
     // Confirm -> honest failure because no provider is configured; still not Sent
     await send.click();
     await dlg.getByRole('button', { name: 'Send now' }).click();
-    await expect(page.locator('.vx-toast').filter({ hasText: /not (configured|connected|ready)|no email provider|NOT sent|could not|failed/i }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.vx-toast, [role="status"]').filter({ hasText: /not sent|not (configured|connected|ready)|no email provider|could not|failed/i }).first()).toBeVisible({ timeout: 15000 });
     expect((await rows('outreach_messages')).filter(r => r.status === 'Sent').length).toBe(before);
   });
 });

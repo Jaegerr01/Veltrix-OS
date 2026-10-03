@@ -366,6 +366,7 @@ export default function ProjectsPage() {
       {isModalOpen && (
         <DialogOverlay label="Create project" onClose={() => setIsModalOpen(false)}>
           <form
+            noValidate
             onSubmit={handleCreateProject}
             className="vx-glass max-w-md w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
             style={{ background: 'var(--grad-panel)' }}
@@ -378,9 +379,7 @@ export default function ProjectsPage() {
             </div>
 
             {formError && (
-              <div style={{ color: 'var(--danger-400)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                ⚠️ {formError}
-              </div>
+              <div role="alert" className="vx-callout" data-tone="bad"><div><p className="vx-callout__body">{formError}</p></div></div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
