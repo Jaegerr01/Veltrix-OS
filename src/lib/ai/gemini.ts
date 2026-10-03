@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Lead, LeadScore, Proposal, ContentIdea, Memory } from '../types';
+import { AiError, classifyAiError, notConfigured } from './errors';
+import { INSTRUCTION_HIERARCHY, fence, leadBlock } from './untrusted';
 
 function readGeminiKey(): string {
   const key = process.env.GEMINI_API_KEY || '';
@@ -12,6 +14,11 @@ function readGeminiKey(): string {
  * no key at all, and let /api/reel-intel past its own precondition.
  */
 export const isGeminiConfigured = readGeminiKey().length > 0;
+
+/** Reads the environment NOW. Use this (not the load-time constant above) for anything user-facing. */
+export function geminiConfigured(): boolean {
+  return readGeminiKey().length > 0;
+}
 
 async function getGenAI(): Promise<GoogleGenerativeAI | null> {
   // The key comes from the server environment only. It used to also accept an
@@ -88,59 +95,79 @@ export function parseRetryDelayMs(e: unknown): number | null {
   return Math.ceil(seconds * 1000) + 750;
 }
 
-async function generateText(prompt: string, systemInstruction?: string): Promise<string> {
-  const genAI = await getGenAI();
-  if (!genAI) {
-    throw new Error('Gemini API key is missing. Add GEMINI_API_KEY to settings or environment.');
-  }
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+/** Primary model (GEMINI_MODEL) then fallbacks (GEMINI_FALLBACK_MODELS, default the rolling alias). */
+function modelList(): string[] {
+  const primary = (process.env.GEMINI_MODEL || DEFAULT_MODEL).trim();
+  const extra = (process.env.GEMINI_FALLBACK_MODELS || 'gemini-flash-latest').split(',').map(s => s.trim()).filter(Boolean);
+  return Array.from(new Set([primary, ...extra]));
+}
 
-  const modelsToTry = ['gemini-2.5-flash'];
-  let lastError: any = null;
+/**
+ * Whole-call time budget. The hosting function has a hard wall (Netlify: ~10-26 s). The old code
+ * retried up to 5x and honoured retryDelays of up to 35 s, so one rate-limited call could outlive
+ * the function and the browser saw "Connection Failed" with no explanation. Now: bounded budget,
+ * short inline waits only, and a typed AiError the UI can explain.
+ */
+const deadlineMs = () => Number(process.env.GEMINI_DEADLINE_MS) || 22_000;
+const MAX_INLINE_WAIT_MS = 8_000;
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
-  for (const modelName of modelsToTry) {
-    const maxRetries = 5;
-    let delay = 1500;
+async function generateText(prompt: string, systemInstruction?: string, opts: { json?: boolean } = {}): Promise<string> {
+  const key = readGeminiKey();
+  if (!key) throw notConfigured();
+  const genAI = new GoogleGenerativeAI(key);
+  const system = `${systemInstruction || SYSTEM_CONTEXT}\n\n${INSTRUCTION_HIERARCHY}`;
+  const started = Date.now();
+  const budget = deadlineMs();
+  let last: AiError | null = null;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (const modelName of modelList()) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const remaining = budget - (Date.now() - started);
+      if (remaining < 1500) throw last ?? new AiError('TIMEOUT', 'The AI took too long to answer.', 'Try again.');
       try {
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: systemInstruction || SYSTEM_CONTEXT
-        });
+        const model = genAI.getGenerativeModel(
+          {
+            model: modelName,
+            systemInstruction: system,
+            ...(opts.json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
+          },
+          { timeout: remaining }
+        );
         const result = await model.generateContent(prompt);
         const text = result.response.text();
-        if (!text) {
-          throw new Error('Gemini returned an empty response.');
-        }
+        if (!text || !text.trim()) throw new AiError('UNAVAILABLE', 'Gemini returned an empty answer.', 'Try again.');
         return text;
       } catch (e: any) {
-        lastError = e;
-        console.warn(`Gemini API call failed for model ${modelName} (attempt ${attempt}/${maxRetries}):`, e.message || e);
-        const isTransient = e.message?.includes('503') ||
-                            e.message?.includes('Service Unavailable') ||
-                            e.message?.includes('429') ||
-                            e.message?.includes('Resource Has Exhausted') ||
-                            e.message?.includes('overloaded');
-
-        if (isTransient && attempt < maxRetries) {
-          // Prefer the delay the API itself asks for. The free tier resets on a
-          // rolling ~60s window and commonly returns retryDelay ~26s, whereas the
-          // plain 1.5s→3→6→12 ladder only totals 22.5s — it used to give up a few
-          // seconds BEFORE the quota reopened, turning a wait into a hard failure.
-          const wait = Math.min(parseRetryDelayMs(e) ?? delay, MAX_RETRY_WAIT_MS);
-          await new Promise(resolve => setTimeout(resolve, wait));
-          delay *= 2;
-        } else {
-          break; // Try the next fallback model (if any)
+        const err = classifyAiError(e);
+        last = err;
+        console.warn(`[gemini] ${modelName} attempt ${attempt}/3 failed: ${err.code} - ${String(e?.message || e).slice(0, 200)}`);
+        if (err.code === 'MODEL_NOT_FOUND') break; // try the next model
+        if (err.code === 'QUOTA' || err.code === 'UNAVAILABLE') {
+          const wait = err.retryAfterMs ?? 1200 * attempt;
+          const left = budget - (Date.now() - started);
+          if (attempt < 3 && wait <= MAX_INLINE_WAIT_MS && wait < left - 2000) {
+            await sleep(wait);
+            continue;
+          }
         }
+        throw err;
       }
     }
   }
+  throw last ?? new AiError('UNKNOWN', 'The AI request failed.', 'Check the server log.');
+}
 
-  if (isQuotaError(lastError)) {
-    throw new Error(QUOTA_MESSAGE);
+/** Parse model JSON tolerantly (fences / leading prose); throws AiError('BAD_OUTPUT') if impossible. */
+export function parseJsonLoose(text: string): unknown {
+  const t = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  try { return JSON.parse(t); } catch { /* fall through */ }
+  const a = t.indexOf('{'); const b = t.lastIndexOf('}');
+  if (a >= 0 && b > a) {
+    try { return JSON.parse(t.slice(a, b + 1)); } catch { /* fall through */ }
   }
-  throw new Error(`AI request failed. Check API key, model name, and server logs. Details: ${lastError?.message || lastError}`);
+  throw new AiError('BAD_OUTPUT', 'The AI answered in an unreadable format.', 'Try again; if it repeats, rephrase the request.');
 }
 
 export const gemini = {
@@ -213,12 +240,7 @@ Next Step:
   async scoreLead(lead: Lead): Promise<Omit<LeadScore, 'id' | 'lead_id' | 'created_at'>> {
     const prompt = `
 Analyze this business prospect details and output a JSON lead score:
-Business Name: ${lead.business_name}
-Industry: ${lead.industry || 'Unknown'}
-Website: ${lead.website || 'None'}
-Pain Point: ${lead.pain_point || 'Not specified'}
-Source: ${lead.source || 'Unknown'}
-Notes: ${lead.notes || 'None'}
+${leadBlock(lead)}
 
 Rate the following factors from 1 to 10:
 - website_score (1 is perfect, 10 is terrible website. The worse the website, the higher the score!)
@@ -247,15 +269,7 @@ Output ONLY a raw JSON matching this structure:
       return JSON.parse(cleanJson);
     } catch (e) {
       console.error('Error parsing lead score JSON:', e);
-      return {
-        website_score: 8,
-        branding_score: 7,
-        automation_need_score: 9,
-        ability_to_pay_score: 8,
-        urgency_score: 8,
-        total_score: 8.0,
-        reasoning: 'Fallback lead qualification due to parsing errors. High automation needs indicated.'
-      };
+      throw new AiError('BAD_OUTPUT', 'The AI returned an unreadable lead score.', 'Run the score again.');
     }
   },
 
@@ -271,13 +285,9 @@ Output ONLY a raw JSON matching this structure:
     const prompt = `
 You are Daniel, the Lead Research Agent. Research this prospect using their REAL website content below.
 
-Business: ${lead.business_name}
-Industry: ${lead.industry || 'Unknown'}
-Location: ${lead.location || 'Unknown'}
-Known pain point: ${lead.pain_point || 'None recorded'}
-Existing notes: ${lead.notes || 'None'}
+${leadBlock(lead)}
 
-${siteSection}
+${fence('WEBSITE_CONTENT', siteSection, 8000)}
 
 Produce a research brief. Observations must be SPECIFIC and verifiable from the content above (services they list, missing booking option, outdated copy, no chatbot, weak CTA, etc.) — never invent facts. Personalization hooks are one-line openers Emma (Outreach Agent) can use verbatim.
 
@@ -316,13 +326,9 @@ Output ONLY raw JSON:
     const isDM = channel !== 'Email';
     const prompt = `
 You are Outreach Agent. Draft a personalized ${isDM ? `${channel} DIRECT MESSAGE (DM)` : 'outreach email'} for this lead:
-Lead Name: ${lead.business_name}
-Industry: ${lead.industry || 'Unknown'}
-Website: ${lead.website || 'None'}
-Pain Points: ${lead.pain_point || 'Unknown website/booking leaks'}
-Notes: ${lead.notes || 'None'}
+${leadBlock(lead)}
 Target Offer: ${offerName}
-${researchNotes ? `\nResearch brief from Daniel (Lead Research Agent) — reference these REAL findings:\n${researchNotes}\n` : ''}
+${researchNotes ? `\nResearch brief from Daniel (Lead Research Agent) — reference these REAL findings:\n${fence('RESEARCH_BRIEF', researchNotes, 3000)}\n` : ''}
 Follow these strict rules:
 1. Personalized opening referencing their industry/name${researchNotes ? ' — use a personalization hook from the research brief if one fits' : ''}.
 2. One specific observation${researchNotes ? ' taken from the research brief (real, verifiable)' : ' (e.g. mobile speed, lack of booking chat)'}.
@@ -338,8 +344,7 @@ Follow these strict rules:
   async generateFollowup(lead: Lead, sequenceDay: number): Promise<string> {
     const prompt = `
 You are Follow-up Agent. Draft a follow-up message for:
-Lead: ${lead.business_name}
-Industry: ${lead.industry || 'Unknown'}
+${leadBlock(lead, { includeNotes: false })}
 Days since initial contact: ${sequenceDay}
 
 Follow-up rules by schedule:
@@ -357,11 +362,9 @@ Draft a message for Day ${sequenceDay}. Keep the tone simple, helpful, and confi
   async generateProposal(lead: Lead, offerName: string, price: number): Promise<string> {
     const prompt = `
 You are Proposal Agent. Create a comprehensive, premium business proposal for:
-Client: ${lead.business_name}
-Industry: ${lead.industry || 'Unknown'}
+${leadBlock(lead, { includeNotes: false })}
 Offer Package: ${offerName}
 Agreed/Proposed Price: $${price}
-Client Pain Points: ${lead.pain_point || 'Needs conversion optimization'}
 
 Format as standard markdown with sections:
 - Executive Overview
@@ -399,19 +402,7 @@ Output ONLY a JSON array of 3 ideas matching this schema:
       return JSON.parse(cleanJson);
     } catch (e) {
       console.error('Error parsing content ideas:', e);
-      return [
-        {
-          id: 'ci-mock-1',
-          platform: 'LinkedIn',
-          title: 'The AI Client Booking Leak',
-          hook: 'Is your service business bleeding 20% of its calls?',
-          content: 'Discussing why modern buyers prefer typing to speaking. Explain automated appointment booking widgets.',
-          content_type: 'Text',
-          status: 'Idea',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ] as any;
+      throw new AiError('BAD_OUTPUT', 'The AI returned unreadable content ideas.', 'Try again.');
     }
   },
   async generateRoiReport(params: {
@@ -455,6 +446,10 @@ Tone: executive, confident, data-backed, client-ready. No fluff. Under 180 words
 
   async callRawLLM(prompt: string, systemInstruction?: string): Promise<string> {
     return generateText(prompt, systemInstruction);
+  },
+  /** Structured output: Gemini JSON mode, parsed tolerantly. Callers validate the shape (zod). */
+  async callJson(prompt: string, systemInstruction?: string): Promise<unknown> {
+    return parseJsonLoose(await generateText(prompt, systemInstruction, { json: true }));
   },
   async getEmbedding(text: string): Promise<number[]> {
     const genAI = await getGenAI();

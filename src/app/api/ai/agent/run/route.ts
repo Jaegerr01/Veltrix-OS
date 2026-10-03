@@ -1,27 +1,26 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { runAgentLogic } from '@/lib/agents/executor';
 import { requireUser } from '@/lib/auth/requireUser';
-import { checkRateLimit } from '@/lib/auth/rateLimit';
+import { checkRateLimit, rateLimitResponse } from '@/lib/auth/rateLimit';
+
+const bodySchema = z.object({
+  agentKey: z.string().min(1).max(40),
+  params: z.record(z.string(), z.unknown()).default({}),
+  autonomous: z.boolean().optional(),
+});
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (auth.response) return auth.response;
-  const rl = await checkRateLimit(auth.user.id);
-  if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
-  try {
-    const body = await req.json().catch(() => ({}));
-    const agentKey = body.agentKey || '';
-    const params = body.params || {};
-    const autonomous = body.autonomous || false;
+  const rl = await checkRateLimit(auth.user.id, { limit: 20, windowMs: 60_000, failClosed: true });
+  if (!rl.allowed) return rateLimitResponse(rl);
 
-    const res = await runAgentLogic(agentKey, params, autonomous);
-    if (!res.success) {
-      return NextResponse.json({ success: false, error: res.error }, { status: 400 });
-    }
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ success: false, error: 'agentKey is required.' }, { status: 400 });
 
-    return NextResponse.json({ success: true, result: res.result, simulated: res.simulated });
-  } catch (error: any) {
-    console.error('Error running agent in route:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
+  // `autonomous` only changes whether outward drafts are also queued for approval - the executor never sends.
+  const res = await runAgentLogic(parsed.data.agentKey, parsed.data.params, parsed.data.autonomous ?? false);
+  if (!res.success) return NextResponse.json({ success: false, error: res.error }, { status: 400 });
+  return NextResponse.json({ success: true, result: res.result, needsApproval: res.needsApproval, approvalRequestId: res.approvalRequestId });
 }

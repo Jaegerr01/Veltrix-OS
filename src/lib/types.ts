@@ -230,6 +230,8 @@ export interface Task {
   started_at?: string | null;
   finished_at?: string | null;
   created_by?: string | null;
+  agent_key?: string | null;
+  params?: Record<string, unknown> | null;
   related_goal_id?: string;
   related_lead_id?: string;
   related_client_id?: string;

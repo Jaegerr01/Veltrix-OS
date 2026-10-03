@@ -2,13 +2,34 @@ import { db } from '../db';
 import { gemini } from '../gemini';
 import { AGENTS } from './agents';
 import { loadCatalogueAgent, findCatalogueAgents } from './catalogue';
-import { generateSimulatedResponse } from './router';
+import { isAiError } from '../ai/errors';
 
+export interface AgentRunContext {
+  /** true when the CEO orchestrator drives this run: it owns the task row; outward actions are approval-gated. */
+  orchestrated?: boolean;
+  taskId?: string;
+}
+
+export interface AgentRunResult {
+  success: boolean;
+  result?: string;
+  error?: string;
+  /** set when the agent produced an outward action that now waits in the Approval Queue */
+  approvalRequestId?: string;
+  needsApproval?: boolean;
+}
+
+/**
+ * The single executor for every agent. It never fabricates success: an AI/DB failure comes back as
+ * { success:false, error } with a plain-language message. Outward actions (email) are only ever
+ * drafted + queued here; delivery happens in lib/email/delivery.ts after approval.
+ */
 export async function runAgentLogic(
   agentKey: string,
   params: any,
-  autonomous: boolean = false
-): Promise<{ success: boolean; result?: string; simulated?: boolean; error?: string }> {
+  autonomous: boolean = false,
+  ctx?: AgentRunContext
+): Promise<AgentRunResult> {
   if (!agentKey || !AGENTS[agentKey]) {
     return { success: false, error: 'Valid agentKey is required' };
   }
@@ -16,6 +37,9 @@ export async function runAgentLogic(
   const agent = AGENTS[agentKey];
   let resultText = '';
   let logPayload = {};
+  let approvalId: string | undefined;
+  // When the orchestrator drives a run it owns the task row, so agents must not add duplicates.
+  const addTaskIfStandalone = async (t: Parameters<typeof db.addTask>[0]) => (ctx?.orchestrated ? null : db.addTask(t));
 
   try {
     switch (agentKey) {
@@ -30,38 +54,26 @@ export async function runAgentLogic(
 
         if (!report) {
           const activeLeads = leads.slice(0, 10);
-          let pipelineValue = 0;
-          leads.forEach(l => {
-            if (['Qualified', 'Contacted', 'Replied', 'Call Booked', 'Proposal Sent'].includes(l.status)) {
-              if (l.notes?.toLowerCase().includes('website') || l.notes?.toLowerCase().includes('brand')) {
-                pipelineValue += 1200;
-              } else if (l.notes?.toLowerCase().includes('receptionist') || l.notes?.toLowerCase().includes('bot')) {
-                pipelineValue += 1000;
-              } else {
-                pipelineValue += 1500;
-              }
-            }
-          });
+          // Pipeline = value of proposals that are genuinely open (drafted, awaiting approval, or confirmed sent). Real rows only.
+          const openProposals = await db.getProposals();
+          const pipelineValue = openProposals
+            .filter(p => ['Draft', 'Pending Approval', 'Approved', 'Sending', 'Sent', 'Viewed'].includes(p.status))
+            .reduce((sum, p) => sum + Number(p.price || 0), 0);
 
-          let reportText;
-          try {
-            reportText = await gemini.generateDailyReport(
-              profile.target_monthly_revenue,
-              profile.current_monthly_revenue,
-              pipelineValue,
-              activeLeads,
-              memories
-            );
-          } catch (err: any) {
-            reportText = `PostelOS Daily Command Report\n\nRevenue Target:\n$${profile.target_monthly_revenue}\n\nClosed Revenue:\n$${profile.current_monthly_revenue}\n\nPipeline Value:\n$${pipelineValue}\n\nRevenue Gap:\n$${profile.target_monthly_revenue - profile.current_monthly_revenue}\n\nToday's Top Priority:\nReview warm leads and prepare proposals.\n\nLeads to Contact:\n${activeLeads.slice(0, 3).map((l, i) => `${i+1}. ${l.business_name}`).join('\n')}\n\nFollow-ups Due:\nNone\n\nContent to Post:\nDeploy an AI Receptionist to prevent after-hour appointment leaks.\n\nRecommended Action:\nContact active warm leads.\n\nRisk / Blocker:\nGemini API unavailable. Local fallback generated.\n\nNext Step:\nOpen Potential Clients page.`;
-          }
+          const reportText = await gemini.generateDailyReport(
+            profile.target_monthly_revenue,
+            profile.current_monthly_revenue,
+            pipelineValue,
+            activeLeads,
+            memories
+          );
 
           const lines = reportText.split('\n');
-          let topPriority = 'Review qualified leads and outline sales scripts.';
+          let topPriority = 'See the full report.';
           let leadsToContact: string[] = [];
           let followupsDue: string[] = [];
-          let contentToPost = 'Draft LinkedIn hook for business AI.';
-          let recommendedAction = 'Contact dentist leads.';
+          let contentToPost = '';
+          let recommendedAction = 'See the full report.';
 
           let section = '';
           lines.forEach(line => {
@@ -114,20 +126,17 @@ export async function runAgentLogic(
             source: 'AI CEO'
           });
 
-          await db.addTask({
+          await addTaskIfStandalone({
             agent_name: 'Outreach Agent',
             title: `Perform recommended action: ${recommendedAction.substring(0, 70)}...`,
             description: `Recommended in Daily Report: ${recommendedAction}. Address leads: ${leadsToContact.join(', ')}`,
             priority: 'High',
-            status: autonomous ? 'Completed' : 'Pending',
+            status: 'Pending',
             due_date: todayStr
           });
         }
 
         resultText = `Hey team, Alex here. I've successfully compiled today's Daily Action Plan:\n\n**Top Priority:** ${report.top_priority}\n\n**Recommended Action:** ${report.recommended_action}\n\nLet's get to work! Check the "Daily Summaries" page for the full layout.`;
-        if (autonomous) {
-          resultText += `\n\n[AUTONOMOUS OPERATION COMMITTED]: Recommended action task has been automatically executed and marked completed.`;
-        }
         break;
       }
 
@@ -241,23 +250,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           console.warn('[leadResearch] website research skipped:', err.message);
         }
 
-        let scoreResult;
-        try {
-          scoreResult = await gemini.scoreLead(lead);
-        } catch (err: any) {
-          const hasWebsite = !!lead.website;
-          const hasPainPoints = !!lead.pain_point;
-          scoreResult = {
-            website_score: hasWebsite ? 5 : 9,
-            branding_score: 7,
-            automation_need_score: hasPainPoints ? 9 : 6,
-            ability_to_pay_score: 8,
-            urgency_score: hasPainPoints ? 8 : 5,
-            total_score: 0,
-            reasoning: `Qualifications calculated via local heuristics due to Gemini error: ${err.message}`
-          };
-          scoreResult.total_score = Number(((scoreResult.website_score + scoreResult.branding_score + scoreResult.automation_need_score + scoreResult.ability_to_pay_score + scoreResult.urgency_score) / 5).toFixed(1));
-        }
+        const scoreResult = await gemini.scoreLead(lead); // real AI score or a visible error - never a heuristic stand-in
 
         const nextStatus = scoreResult.total_score >= 7 ? 'Qualified' : 'Researched';
         await db.updateLead(leadId, {
@@ -278,7 +271,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         const isAuto = autonomous || profile.autopilot;
 
         if (isAuto) {
-          await db.addTask({
+          await addTaskIfStandalone({
             agent_name: 'Lead Research Agent',
             title: `Autonomous research completed for ${lead.business_name}`,
             description: `Automatically researched and qualified ${lead.business_name}. Score: ${scoreResult.total_score}/10. Status set to ${nextStatus}.`,
@@ -324,19 +317,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           ? lead.notes.slice(lead.notes.indexOf('[Research Brief'))
           : undefined;
 
-        let messageText;
-        try {
-          messageText = await gemini.generateOutreach(lead, offerName, researchNotes, channel);
-        } catch (err: any) {
-          const contact = lead.contact_name || 'Owner';
-          const business = lead.business_name;
-          const industry = lead.industry || 'your business';
-          if (channel === 'LinkedIn' || channel === 'Instagram') {
-            messageText = `Hi ${contact} - noticed your page for ${business}. Love the work you do in ${industry}! Quick question: do you guys handle after-hours bookings manually, or do you have a bot? We build simple AI receptionists that qualify leads and schedule them 24/7. Open to a 1-min demo video?`;
-          } else {
-            messageText = `Hello ${contact},\n\nI was looking at ${business} online and noticed that patients or clients trying to book appointments after hours might bounce due to a lack of live scheduling assistance.\n\nWe design lightweight AI booking agents specifically for ${industry} services. They handle common FAQs and schedule appointments directly into your calendar 24/7.\n\nWould it be okay to send over a short 90-second video demo of how it looks?\n\nBest,\nPostelOS Partner`;
-          }
-        }
+        const messageText = await gemini.generateOutreach(lead, offerName, researchNotes, channel); // real AI copy or a visible error
 
         const profile = await db.getBusinessProfile();
         const isAuto = autonomous || profile.autopilot;
@@ -360,7 +341,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         });
 
         const isEmailChannel = channel === 'Email';
-        const canQueue = isAuto && (isEmailChannel ? !!lead.email : true);
+        const canQueue = (isAuto || !!ctx?.orchestrated) && (isEmailChannel ? !!lead.email : true);
 
         if (canQueue) {
           // Email gets the full proposal attached; DMs stay short.
@@ -429,10 +410,11 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           });
 
           queuedForApproval = true;
+          approvalId = request.id;
           queuedInfo = `Approval request ${request.id} filed in Barry's queue.`;
         }
 
-        await db.addTask({
+        await addTaskIfStandalone({
           agent_name: 'Outreach Agent',
           title: queuedForApproval
             ? `Awaiting approval: outreach to ${lead.business_name}`
@@ -441,7 +423,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
             ? `Outreach + proposal composed for ${lead.business_name} via ${channel}. ${queuedInfo} Nothing sends until approved.`
             : `Drafted outreach for ${lead.business_name} via ${channel}. Approve in the Outbox to send.`,
           priority: 'High',
-          status: 'Pending',
+          status: queuedForApproval ? 'Needs Approval' : 'Pending',
           related_lead_id: leadId
         });
 
@@ -469,32 +451,54 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         const msgText = await gemini.generateFollowup(lead, Number(sequenceDay));
 
         const profile = await db.getBusinessProfile();
-        const isAuto = autonomous || profile.autopilot;
+        const wantsQueue = autonomous || profile.autopilot || !!ctx?.orchestrated;
 
+        // The draft is ALWAYS just a draft. Sending is a separate, approved, confirmed step
+        // (lib/email/delivery.ts) - this agent never marks anything Sent.
         const newFup = await db.addFollowup({
           lead_id: leadId,
           followup_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], // in 2 days
           followup_type: `Day ${sequenceDay} Follow-up`,
           message: msgText,
-          status: isAuto ? 'Sent' : 'Pending'
+          status: 'Drafted'
         });
 
-        await db.addTask({
+        let noEmail = false;
+        if (wantsQueue) {
+          if (!lead.email) {
+            noEmail = true;
+          } else {
+            const { requestApproval } = await import('../entity/approvals');
+            const request = await requestApproval({
+              type: 'followup_send',
+              department: 'revenue',
+              createdByAgent: 'Lucas (Follow-up Agent)',
+              title: `Send Day ${sequenceDay} follow-up to ${lead.business_name}`,
+              context: `Lead: ${lead.business_name} (${lead.industry || 'unknown industry'}), status ${lead.status}. Day ${sequenceDay} check-in.`,
+              payload: { leadId, followupId: newFup.id, to: lead.email, subject: `Following up - ${lead.business_name}`, text: msgText },
+              recommendation: 'Send. Short, low-pressure check-in.',
+              confidence: 6,
+            });
+            approvalId = request.id;
+          }
+        }
+
+        await addTaskIfStandalone({
           agent_name: 'Follow-up Agent',
-          title: isAuto
-            ? `Autonomous Day ${sequenceDay} follow-up sent to ${lead.business_name}`
-            : `Send Day ${sequenceDay} follow-up to ${lead.business_name}`,
-          description: isAuto
-            ? `Automatically generated and sent Day ${sequenceDay} follow-up to ${lead.business_name}.`
-            : `Follow-up draft is saved. Channel: Check client calendar reminders.`,
+          title: approvalId
+            ? `Awaiting approval: Day ${sequenceDay} follow-up to ${lead.business_name}`
+            : `Review and send Day ${sequenceDay} follow-up to ${lead.business_name}`,
+          description: approvalId
+            ? `Draft saved and filed in the Approval Queue. Nothing has been sent.`
+            : `Follow-up draft is saved on the Follow-ups page. Nothing has been sent.${noEmail ? ' (No email on record for this lead.)' : ''}`,
           priority: 'Medium',
-          status: isAuto ? 'Completed' : 'Pending',
+          status: approvalId ? 'Needs Approval' : 'Pending',
           related_lead_id: leadId
         });
 
-        resultText = isAuto
-          ? `**Lucas (Follow-up Agent)**: Hi Alex, I've autonomously generated and sent the Day ${sequenceDay} follow-up check-in to **${lead.business_name}**.\n\nEverything is logged in the CRM and the task is marked "Completed".`
-          : `**Lucas (Follow-up Agent)**: Hi Alex, I've drafted the Day ${sequenceDay} follow-up check-in message for **${lead.business_name}**:\n\n---\n\n${msgText}\n\n---\n\nI've logged it in the CRM and set up a task for when we're ready to send.`;
+        resultText = approvalId
+          ? `**Lucas (Follow-up Agent)**: I drafted the Day ${sequenceDay} follow-up for **${lead.business_name}** and filed it in the Approval Queue. **Nothing has been sent yet** - it goes out only after you approve it.\n\n---\n\n${msgText}`
+          : `**Lucas (Follow-up Agent)**: I drafted the Day ${sequenceDay} follow-up for **${lead.business_name}**${noEmail ? ' (no email address on record, so it cannot be queued for sending)' : ''}. **Nothing has been sent** - review it on the Follow-ups page.\n\n---\n\n${msgText}`;
         break;
       }
 
@@ -509,16 +513,15 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           return { success: false, error: 'Lead not found' };
         }
 
-        let proposalText;
-        try {
-          proposalText = await gemini.generateProposal(lead, offerName, price);
-        } catch (err: any) {
-          const business = lead.business_name;
-          const industry = lead.industry || 'your business';
-          proposalText = `# Business Proposal: ${offerName} Integration\n\nPrepared for: **${business}**\n\n### Executive Summary\nPostelOS proposes a custom deployment of the **${offerName}** to solve core operational bottlenecks. Local diagnostics indicated critical areas of improvement in lead qualification and response times.\n\n### Solution Overview\n- **Automated Workflow**: Custom FAQs configured based on local ${industry} operations.\n- **Full Availability**: Handles inquiries 24/7, reducing lead bounce rates by 20%.\n- **Pricing Model**: Total setup fee of $${price}.\n\n*Generated via local backup templates.*`;
-        }
+        // Real Gemini output or a visible error - no canned template passed off as AI work.
+        const proposalText = await gemini.generateProposal(lead, offerName, price);
 
-        await db.addProposal({
+        // skipStatusUpdate = "embedded in an outreach email" (the outreach approval carries it).
+        const embedded = !!skipStatusUpdate;
+        const wantsQueue = !embedded && (autonomous || !!ctx?.orchestrated);
+        const canQueue = wantsQueue && !!lead.email;
+
+        const created = await db.addProposal({
           lead_id: leadId,
           title: `${offerName} Proposal - ${lead.business_name}`,
           problem: lead.pain_point || 'Outdated digital interface and conversion leaks.',
@@ -529,31 +532,42 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           timeline: '2-3 weeks',
           price: Number(price),
           payment_terms: '50% upfront retainer, 50% upon deployment',
-          status: autonomous ? 'Sent' : 'Draft'
+          status: canQueue ? 'Pending Approval' : 'Draft'
         });
 
-        if (autonomous && !skipStatusUpdate) {
-          await db.updateLead(leadId, {
-            status: 'Proposal Sent'
+        if (canQueue) {
+          const { requestApproval } = await import('../entity/approvals');
+          const request = await requestApproval({
+            type: 'proposal_send',
+            department: 'revenue',
+            createdByAgent: 'Olivia (Proposal Agent)',
+            title: `Send "${offerName}" proposal ($${price}) to ${lead.business_name}`,
+            context: `Lead: ${lead.business_name} (${lead.industry || 'unknown industry'}), score ${lead.lead_score ?? 'n/a'}/10, status ${lead.status}.`,
+            payload: { leadId, proposalId: created.id, to: lead.email, subject: `Proposal: ${created.title}` },
+            recommendation: 'Review the scope and price, then send.',
+            confidence: 6,
+          });
+          approvalId = request.id;
+        }
+
+        if (!embedded) {
+          await addTaskIfStandalone({
+            agent_name: 'Proposal Agent',
+            title: approvalId
+              ? `Awaiting approval: proposal to ${lead.business_name}`
+              : `Review and send proposal for ${lead.business_name}`,
+            description: approvalId
+              ? `Proposal for ${offerName} ($${price}) drafted and filed in the Approval Queue. Nothing has been sent.`
+              : `Drafted proposal for ${offerName} ($${price}). Nothing has been sent - review it on the Proposals page and press Approve & send.`,
+            priority: 'Medium',
+            status: approvalId ? 'Needs Approval' : 'Pending',
+            related_lead_id: leadId
           });
         }
 
-        await db.addTask({
-          agent_name: 'Proposal Agent',
-          title: autonomous
-            ? `Autonomous proposal sent to ${lead.business_name}`
-            : `Review and finalize proposal for ${lead.business_name}`,
-          description: autonomous
-            ? `Automatically sent proposal for ${offerName} ($${price}) to ${lead.business_name}.`
-            : `Drafted proposal for ${offerName} ($${price}). Click Accept to send to client when ready.`,
-          priority: 'Medium',
-          status: autonomous ? 'Completed' : 'Pending',
-          related_lead_id: leadId
-        });
-
-        resultText = autonomous
-          ? `**Olivia (Proposal Agent)**: Hey Alex, I've autonomously generated and sent the proposal for **${offerName}** ($${price}) to **${lead.business_name}**.\n\nI've moved the proposal to "Sent", updated the lead status to "Proposal Sent", and marked the task "Completed".`
-          : `**Olivia (Proposal Agent)**: Hey Alex, I've drafted the proposal for **${offerName}** ($${price}) for **${lead.business_name}**.\n\nYou can review and finalize the proposal on the Price Quotes page whenever you're ready.`;
+        resultText = approvalId
+          ? `**Olivia (Proposal Agent)**: I drafted the **${offerName}** proposal ($${price}) for **${lead.business_name}** and filed it in the Approval Queue. **Nothing has been sent** - it goes out only after you approve it.`
+          : `**Olivia (Proposal Agent)**: I drafted the **${offerName}** proposal ($${price}) for **${lead.business_name}**. **Nothing has been sent** - review it on the Proposals page and press Approve & send.${wantsQueue && !lead.email ? ' (This lead has no email on record.)' : ''}`;
         break;
       }
 
@@ -697,33 +711,19 @@ Answer the user's question accurately using only the retrieved documentation abo
 
     await db.logAgentAction(
       agent.name,
-      'Run Agent Triggered Autonomously',
+      ctx?.orchestrated ? 'Orchestrated Task Run' : 'Agent Run',
       JSON.stringify({ params }),
       resultText,
       'Success'
     );
 
-    return { success: true, result: resultText };
+    return { success: true, result: resultText, approvalRequestId: approvalId, needsApproval: !!approvalId };
   } catch (error: any) {
     console.error('Error running agent in executor:', error);
+    const message = isAiError(error) ? (error as any).userMessage : String(error?.message || error).slice(0, 300);
     try {
-      const simulated = await generateSimulatedResponse(
-        agentKey,
-        `Run Agent Direct Triggered: ${JSON.stringify(params)}`,
-        error.message || 'AI request failed'
-      );
-      
-      await db.logAgentAction(
-        agent.name,
-        'Run Agent Trigger Fallback Autonomously',
-        JSON.stringify({ params, error: error.message }),
-        simulated.text,
-        'Success'
-      );
-      
-      return { success: true, result: simulated.text, simulated: true };
-    } catch (fallbackError: any) {
-      return { success: false, error: fallbackError.message };
-    }
+      await db.logAgentAction(agent.name, ctx?.orchestrated ? 'Orchestrated Task Run' : 'Agent Run', JSON.stringify({ params }), message, 'Failure');
+    } catch { /* logging must never mask the real error */ }
+    return { success: false, error: message };
   }
 }

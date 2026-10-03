@@ -7,5 +7,7 @@ alter table public.tasks add column if not exists approval_request_id  uuid;
 alter table public.tasks add column if not exists error                text;
 alter table public.tasks add column if not exists started_at           timestamptz;
 alter table public.tasks add column if not exists finished_at          timestamptz;
-alter table public.tasks add column if not exists created_by           text;     -- 'CEO' | 'ARIA' | 'user' | agent name
+alter table public.tasks add column if not exists created_by           text;     -- 'ceo' | 'aria' | 'user'
+alter table public.tasks add column if not exists agent_key            text;     -- executor key: leadResearch, outreach, ...
+alter table public.tasks add column if not exists params               jsonb;    -- exact params the agent runs with (enables resume/retry)
 create index if not exists tasks_run_idx on public.tasks (user_id, run_id);
