@@ -1,3 +1,4 @@
+import { asErr } from '../errors';
 /** Newline-delimited JSON stream response. `run` receives `send` and must resolve when finished. */
 export function ndjsonResponse(run: (send: (event: unknown) => void) => Promise<void>): Response {
   const encoder = new TextEncoder();
@@ -8,7 +9,7 @@ export function ndjsonResponse(run: (send: (event: unknown) => void) => Promise<
       };
       try {
         await run(send);
-      } catch (e: any) {
+      } catch (raw) { const e = asErr(raw);
         send({ type: 'error', error: { code: 'ERROR', message: String(e?.message || e).slice(0, 300) } });
       } finally {
         try { controller.close(); } catch { /* already closed */ }

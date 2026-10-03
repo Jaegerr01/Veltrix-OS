@@ -1,5 +1,6 @@
 'use client';
 
+import { asErr } from '@/lib/errors';
 import React from 'react';
 import Link from 'next/link';
 import { authFetch } from '@/lib/authFetch';
@@ -100,11 +101,11 @@ export default function CeoConsole() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) { setStatus(data.status); setStatusErr(null); }
       else setStatusErr(data.error || `Status check failed (${res.status}).`);
-    } catch (e: any) { setStatusErr(`Could not reach the server: ${e?.message || e}`); }
+    } catch (raw) { const e = asErr(raw); setStatusErr(`Could not reach the server: ${e?.message || e}`); }
   }, []);
 
   const loadBoard = React.useCallback(async () => {
-    try { setBoard(await db.getTasks()); setBoardErr(null); } catch (e: any) { setBoardErr(`Could not load tasks: ${e?.message || e}`); }
+    try { setBoard(await db.getTasks()); setBoardErr(null); } catch (raw) { const e = asErr(raw); setBoardErr(`Could not load tasks: ${e?.message || e}`); }
   }, []);
 
   React.useEffect(() => { loadStatus(); loadBoard(); }, [loadStatus, loadBoard]);
@@ -134,7 +135,7 @@ export default function CeoConsole() {
     try {
       await streamCeo(msg, 'ceo', e => applyEvent(id, e), ac.signal);
       patchTurn(id, t => ({ ...t, running: false }));
-    } catch (e: any) {
+    } catch (raw) { const e = asErr(raw);
       const err = e instanceof CeoRequestError ? e : null;
       patchTurn(id, t => ({ ...t, running: false, error: { code: err?.code || 'ERROR', message: err?.message || String(e?.message || e), hint: err?.hint } }));
     } finally {
@@ -146,7 +147,7 @@ export default function CeoConsole() {
     if (!turn.runId || busy) return;
     setBusy(true); patchTurn(turn.id, t => ({ ...t, running: true }));
     try { await continueCeoRun(turn.runId, e => applyEvent(turn.id, e)); }
-    catch (e: any) { patchTurn(turn.id, t => ({ ...t, error: { code: e?.code || 'ERROR', message: e?.message || String(e), hint: e?.hint } })); }
+    catch (raw) { const e = asErr(raw); patchTurn(turn.id, t => ({ ...t, error: { code: e?.code || 'ERROR', message: e?.message || String(e), hint: e?.hint } })); }
     finally { patchTurn(turn.id, t => ({ ...t, running: false })); setBusy(false); loadBoard(); }
   };
 

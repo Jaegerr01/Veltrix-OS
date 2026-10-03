@@ -52,7 +52,7 @@ export default function VaultWorkspace() {
     setLoading(false);
   }, []);
 
-  React.useEffect(() => { void loadList(); }, [loadList]);
+  React.useEffect(() => { const t = setTimeout(() => { void loadList(); }, 0); return () => clearTimeout(t); }, [loadList]);
 
   // Debounced full-text search
   React.useEffect(() => {
@@ -236,7 +236,7 @@ export default function VaultWorkspace() {
         <div style={{ ...card, padding: 12, maxHeight: '70vh', overflowY: 'auto' }}>
           {hits !== null ? (
             <div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>{hits.length} result{hits.length === 1 ? '' : 's'} for "{query.trim()}"</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>{hits.length} result{hits.length === 1 ? '' : 's'} for &quot;{query.trim()}&quot;</div>
               {hits.map(h => (
                 <div key={h.id} onClick={() => openNote(h.id)} style={{ padding: '6px 8px', borderRadius: 8, cursor: 'pointer' }}>
                   <div style={{ fontSize: 12.5, color: 'var(--text-strong)' }}>{h.title}</div>

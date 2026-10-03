@@ -1,5 +1,6 @@
 'use client';
 
+import { asErr } from '@/lib/errors';
 import React from 'react';
 import { db } from '@/lib/db';
 import { deriveAgentActivity, type AgentActivity } from '@/lib/agentActivity';
@@ -13,7 +14,7 @@ export function useAgentRoster(pollMs = 15000) {
     let live = true;
     const load = async () => {
       try { const t = await db.getTasks(); if (live) { setAgents(deriveAgentActivity(t)); setError(null); setLoaded(true); } }
-      catch (e: any) { if (live) setError(e?.message || 'Could not load agent activity.'); }
+      catch (raw) { const e = asErr(raw); if (live) setError(e?.message || 'Could not load agent activity.'); }
     };
     load();
     const id = setInterval(() => { if (!document.hidden) load(); }, pollMs);

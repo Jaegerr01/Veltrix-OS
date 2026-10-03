@@ -1,3 +1,4 @@
+import { asErr } from '../errors';
 import { authFetch } from '@/lib/authFetch';
 import type { OrchestratorEvent, RunResult, OrchestratorError } from './run';
 
@@ -24,7 +25,7 @@ export function splitNdjson(buf: string): { events: unknown[]; rest: string } {
 }
 
 async function failFrom(res: Response): Promise<CeoRequestError> {
-  const data = await res.json().catch(() => ({} as any));
+  const data = await res.json().catch(() => ({} as { code?: string; error?: string; hint?: string }));
   return new CeoRequestError({ code: data.code, message: data.error || `The server answered ${res.status}.`, hint: data.hint }, res.status);
 }
 
@@ -51,7 +52,7 @@ export async function streamCeo(message: string, source: 'ceo' | 'aria' | 'user'
   let res: Response;
   try {
     res = await authFetch('/api/ceo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, source, stream: true }), signal });
-  } catch (e: any) {
+  } catch (raw) { const e = asErr(raw);
     if (e?.name === 'AbortError') return;
     throw new CeoRequestError({ code: 'NETWORK', message: 'Could not reach the server.', hint: 'Check that the app is running and your connection is up.' });
   }
@@ -63,7 +64,7 @@ export async function continueCeoRun(runId: string, onEvent: (e: OrchestratorEve
   let res: Response;
   try {
     res = await authFetch('/api/ceo/continue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runId }), signal });
-  } catch (e: any) {
+  } catch (raw) { const e = asErr(raw);
     if (e?.name === 'AbortError') return;
     throw new CeoRequestError({ code: 'NETWORK', message: 'Could not reach the server.' });
   }
@@ -76,7 +77,7 @@ export async function askCeoOnce(message: string, source: 'ceo' | 'aria' | 'user
   let res: Response;
   try {
     res = await authFetch('/api/ceo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, source, voice: source === 'aria', stream: false }), signal });
-  } catch (e: any) {
+  } catch (raw) { const e = asErr(raw);
     if (e?.name === 'AbortError') throw e;
     throw new CeoRequestError({ code: 'NETWORK', message: 'Could not reach the server.', hint: 'Check that the app is running and your connection is up.' });
   }

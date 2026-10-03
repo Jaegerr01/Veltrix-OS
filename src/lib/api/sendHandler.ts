@@ -1,3 +1,4 @@
+import { asErr } from '../errors';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/requireUser';
@@ -50,7 +51,7 @@ export function makeSendHandler(kind: DeliveryKind) {
         },
         { status: http }
       );
-    } catch (e: any) {
+    } catch (raw) { const e = asErr(raw);
       console.error(`[send:${kind}]`, e);
       return NextResponse.json({ success: false, error: 'Send failed unexpectedly. Check the server log.' }, { status: 500 });
     }

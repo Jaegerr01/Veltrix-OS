@@ -1,3 +1,4 @@
+import { asErr } from '../errors';
 import { db } from '../db';
 import { sendEmail, type SendResult } from './send';
 import type { Lead, OutreachMessage, Followup, Proposal } from '../types';
@@ -132,7 +133,7 @@ export async function deliverRecord(
   let result: SendResult;
   try {
     result = await send({ to: lead.email, subject, text: body, kind: 'outreach' });
-  } catch (e: any) {
+  } catch (raw) { const e = asErr(raw);
     result = { delivered: false, blocked: false, reason: String(e?.message || e).slice(0, 300), attempts: 1 };
   }
 

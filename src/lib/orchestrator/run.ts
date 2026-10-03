@@ -1,3 +1,4 @@
+import { asErr } from '../errors';
 import { db as realDb } from '../db';
 import { runAgentLogic, type AgentRunResult } from '../agents/executor';
 import { executeAgent } from '../agents/router';
@@ -66,7 +67,7 @@ type DbLike = Pick<typeof realDb, 'addTask' | 'updateTask' | 'getTasks' | 'logAg
 export interface Deps {
   llm: Llm;
   db: DbLike;
-  runAgent: (key: string, params: any, autonomous: boolean, ctx?: { orchestrated?: boolean; taskId?: string }) => Promise<AgentRunResult>;
+  runAgent: (key: string, params: Record<string, unknown>, autonomous: boolean, ctx?: { orchestrated?: boolean; taskId?: string }) => Promise<AgentRunResult>;
   consult: (key: string, question: string) => Promise<string>;
   getContext: () => Promise<PlanContext>;
   now: () => number;
@@ -124,7 +125,7 @@ const budgetDefault = () => Number(process.env.ORCHESTRATOR_BUDGET_MS) || 20_000
 const clip = (s: string | undefined, n = 4000) => (s && s.length > n ? s.slice(0, n) + '…' : s);
 
 function errMsg(e: unknown): string {
-  return isAiError(e) ? (e as any).userMessage : String((e as any)?.message || e).slice(0, 300);
+  return isAiError(e) ? e.userMessage : String(asErr(e)?.message || e).slice(0, 300);
 }
 
 export function summarize(tasks: RunTask[], remaining: number): string {
@@ -211,8 +212,8 @@ export async function executeTasks(
         }
       } catch (e) {
         t.status = 'failed'; t.error = errMsg(e);
-        if (isAiError(e) && ['NOT_CONFIGURED', 'INVALID_KEY'].includes((e as any).code)) {
-          aiDown = { code: (e as any).code, message: (e as any).message, hint: (e as any).hint };
+        if (isAiError(e) && ['NOT_CONFIGURED', 'INVALID_KEY'].includes(e.code)) {
+          aiDown = { code: e.code, message: e.message, hint: e.hint };
         }
       }
       await persist(deps, t, { finished_at: new Date(deps.now()).toISOString() });
@@ -230,7 +231,7 @@ export async function orchestrate(opts: OrchestrateOptions): Promise<RunResult> 
   const emit = opts.emit;
   const fail = (e: unknown): RunResult => {
     const error: OrchestratorError = isAiError(e)
-      ? { code: (e as any).code, message: (e as any).message, hint: (e as any).hint }
+      ? { code: e.code, message: e.message, hint: e.hint }
       : { code: 'ERROR', message: errMsg(e) };
     emit?.({ type: 'error', error });
     return { ok: false, runId, reply: '', summary: '', tasks: [], remaining: 0, error };
@@ -281,7 +282,7 @@ export async function orchestrate(opts: OrchestrateOptions): Promise<RunResult> 
         created_by: opts.source,
         agent_key: pt.agent,
         params: pt.params,
-      } as any);
+      } as unknown as Parameters<DbLike['addTask']>[0]);
       idByKey.set(pt.key, row.id);
       paramsById.set(row.id, pt.params);
       tasks.push({

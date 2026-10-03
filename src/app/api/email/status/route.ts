@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   if (auth.response) return auth.response;
   try {
     return NextResponse.json({ success: true, status: await getEmailStatus() });
-  } catch (e: any) {
+  } catch (e) {
     console.error('[email/status]', e);
     return NextResponse.json({ success: false, error: 'Could not read email status.' }, { status: 500 });
   }

@@ -1,5 +1,6 @@
 'use client';
 
+import { asErr } from '@/lib/errors';
 import React from 'react';
 import { authFetch } from '@/lib/authFetch';
 import { Button } from '@/components/ds';
@@ -38,9 +39,9 @@ export function EmailPanel() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) setSt(data.status);
       else setErr(data.error || `Status request failed (${res.status}).`);
-    } catch (e: any) { setErr(`Could not reach the server: ${e?.message || e}`); }
+    } catch (raw) { const e = asErr(raw); setErr(`Could not reach the server: ${e?.message || e}`); }
   }, []);
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t); }, [load]);
 
   const sendTest = async () => {
     setTesting(true); setResult(null);
@@ -49,7 +50,7 @@ export function EmailPanel() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) setResult({ ok: true, text: `Delivered to ${data.to} via ${data.provider} (message id ${data.messageId}). Check your inbox (and spam).` });
       else setResult({ ok: false, text: `NOT sent: ${data.error || res.status}` });
-    } catch (e: any) { setResult({ ok: false, text: `NOT sent: ${e?.message || e}` }); }
+    } catch (raw) { const e = asErr(raw); setResult({ ok: false, text: `NOT sent: ${e?.message || e}` }); }
     setTesting(false); load();
   };
 
@@ -133,10 +134,10 @@ export function AiConnectionPanel() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) { setSt(data.status); if (withPing) setPing(data.ping ?? null); }
       else setErr(data.error || `Status request failed (${res.status}).`);
-    } catch (e: any) { setErr(`Could not reach the server: ${e?.message || e}`); }
+    } catch (raw) { const e = asErr(raw); setErr(`Could not reach the server: ${e?.message || e}`); }
     setTesting(false);
   }, []);
-  React.useEffect(() => { load(false); }, [load]);
+  React.useEffect(() => { const t = setTimeout(() => load(false), 0); return () => clearTimeout(t); }, [load]);
 
   return (
     <div style={card} className="vx-glass flex flex-col gap-4" id="ai-panel">

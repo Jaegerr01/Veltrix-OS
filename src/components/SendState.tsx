@@ -1,5 +1,6 @@
 'use client';
 
+import { asErr } from '@/lib/errors';
 import React from 'react';
 import { authFetch } from '@/lib/authFetch';
 
@@ -72,7 +73,7 @@ export async function requestSend(kind: SendKind, id: string, opts: { retry?: bo
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.success) return { ok: true, sent: true, text: data.note || 'Sent.' };
     return { ok: false, sent: false, text: data.error || data.note || `Request failed (${res.status}).` };
-  } catch (e: any) {
+  } catch (raw) { const e = asErr(raw);
     return { ok: false, sent: false, text: `Could not reach the server: ${e?.message || e}` };
   }
 }

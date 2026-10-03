@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect } from 'react';
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -13,7 +14,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
       {error.digest && <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', marginTop: 8 }}>Reference: {error.digest}</p>}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
         <button type="button" onClick={reset} style={{ padding: '8px 16px', borderRadius: 10, background: 'var(--grad-brand)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Try again</button>
-        <a href="/" style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid var(--border-default)', color: 'var(--text-strong)' }}>Dashboard</a>
+        <Link href="/" style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid var(--border-default)', color: 'var(--text-strong)' }}>Dashboard</Link>
       </div>
     </div>
   );

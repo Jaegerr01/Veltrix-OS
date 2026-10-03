@@ -1,3 +1,4 @@
+import { asErr } from '@/lib/errors';
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit, rateLimitResponse } from '@/lib/auth/rateLimit';
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
       const t0 = Date.now();
       await gemini.callRawLLM('Reply with the single word: OK', 'You are a connectivity probe. Reply with exactly: OK');
       ping = { ok: true, message: `Gemini answered in ${Date.now() - t0} ms.` };
-    } catch (e: any) {
+    } catch (raw) { const e = asErr(raw);
       ping = isAiError(e)
         ? { ok: false, code: e.code, message: e.message, hint: e.hint }
         : { ok: false, code: 'ERROR', message: String(e?.message || e).slice(0, 200) };
