@@ -1,107 +1,74 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/requireUser';
+import { checkRateLimit, rateLimitResponse } from '@/lib/auth/rateLimit';
+import { selectTtsProvider } from '@/lib/voice/tts';
 
-// VOICEBOX_URL: local dev → http://127.0.0.1:8000
-//               production → https://your-voicebox.railway.app (set in Vercel env vars)
-const VOICEBOX_URL = (process.env.VOICEBOX_URL || 'http://127.0.0.1:8000')
-  .replace('localhost', '127.0.0.1');
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
-// Optional: pin to a specific voice profile ID instead of auto-discovering
-const VOICEBOX_PROFILE_ID = process.env.VOICEBOX_PROFILE_ID || null;
+const bodySchema = z.object({ text: z.string().trim().min(1).max(1500) });
 
-let cachedProfileId: string | null = VOICEBOX_PROFILE_ID;
+/** Every non-audio answer carries `fallback:'browser'` so the client can switch to speechSynthesis immediately. */
+const fallback = (status: number, error: string) => NextResponse.json({ ok: false, error, fallback: 'browser' }, { status });
 
-async function getProfileId(): Promise<string | null> {
-  if (cachedProfileId) return cachedProfileId;
-  try {
-    const res = await fetch(`${VOICEBOX_URL}/profiles`, { signal: AbortSignal.timeout(4000) });
-    if (!res.ok) return null;
-    const profiles: { id: string }[] = await res.json();
-    if (!profiles.length) return null;
-    cachedProfileId = profiles[0].id;
-    return cachedProfileId;
-  } catch {
-    return null;
-  }
-}
-
-// Debug: GET /api/voice/tts → returns Voicebox connectivity status.
-// Operator-only: it reaches an internal service and used to hand out that
-// service's URL and a profile id to anonymous callers.
+// GET: which TTS is configured (names only). Operator-only.
 export async function GET(req: Request) {
   const auth = await requireUser(req);
   if (auth.response) return auth.response;
-
-  const profileId = await getProfileId();
-  try {
-    const r = await fetch(`${VOICEBOX_URL}/models/status`, { signal: AbortSignal.timeout(4000) });
-    const status = await r.json();
-    const kokoro = status.models?.find((m: any) => m.model_name === 'kokoro');
-    return NextResponse.json({ ok: true, url: VOICEBOX_URL, profileId, kokoro: kokoro || null });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, url: VOICEBOX_URL, profileId, error: e.message }, { status: 503 });
-  }
+  const sel = selectTtsProvider();
+  return NextResponse.json({ ok: true, provider: sel.provider, requested: sel.requested, reason: sel.reason, missing: sel.missing });
 }
 
 export async function POST(req: Request) {
-  // Auth: TTS generation costs compute — only signed-in operators may use it.
   const auth = await requireUser(req);
   if (auth.response) return auth.response;
+  const rl = await checkRateLimit(`tts:${auth.user.id}`, { limit: 30, windowMs: 60_000, failClosed: true });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ ok: false, error: 'text is required (max 1500 characters).' }, { status: 400 });
+  const { text } = parsed.data;
+
+  const sel = selectTtsProvider();
+  if (sel.provider === 'none') return fallback(501, sel.reason);
 
   try {
-    const body = await req.json();
-    const text: string = body?.text?.trim();
-    if (!text) return NextResponse.json({ error: 'text is required' }, { status: 400 });
-
-    const profileId = await getProfileId();
-    if (!profileId) {
-      return NextResponse.json(
-        { error: 'Voicebox has no voice profiles. Open the Voicebox app and create a profile.' },
-        { status: 503 }
-      );
-    }
-
-    let voiceboxRes: Response;
-    try {
-      voiceboxRes = await fetch(`${VOICEBOX_URL}/generate/stream`, {
+    if (sel.provider === 'elevenlabs') {
+      const voice = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile_id: profileId,
-          text,
-          language: 'en',
-          engine: 'kokoro',
-          personality: false,
-        }),
-        signal: AbortSignal.timeout(30000),
+        headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY as string, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+        body: JSON.stringify({ text, model_id: process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5' }),
+        signal: AbortSignal.timeout(20_000),
       });
-    } catch (connErr: any) {
-      const isOffline = connErr?.cause?.code === 'ECONNREFUSED' || connErr?.code === 'ECONNREFUSED';
-      console.warn('[ARIA TTS] Voicebox unreachable:', connErr?.message);
-      return NextResponse.json(
-        { error: isOffline ? 'Voicebox is offline. Start voicebox-server.exe first.' : 'Voicebox connection failed.' },
-        { status: 503 }
-      );
+      if (!res.ok) {
+        const detail = (await res.text().catch(() => '')).slice(0, 160);
+        console.warn('[tts] ElevenLabs error', res.status, detail);
+        return fallback(502, res.status === 401 ? 'ElevenLabs rejected the API key (ELEVENLABS_API_KEY).' : `ElevenLabs error ${res.status}.`);
+      }
+      return new Response(await res.arrayBuffer(), { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-TTS-Source': 'elevenlabs' } });
     }
 
-    if (!voiceboxRes.ok) {
-      const errBody = await voiceboxRes.text().catch(() => '');
-      console.warn(`[ARIA TTS] Voicebox ${voiceboxRes.status}:`, errBody.slice(0, 200));
-      // Reset profile cache if profile was deleted
-      if (voiceboxRes.status === 404) cachedProfileId = VOICEBOX_PROFILE_ID;
-      return NextResponse.json({ error: `Voicebox error ${voiceboxRes.status}` }, { status: 502 });
+    // Voicebox (self-hosted) - only used when VOICEBOX_URL is explicitly set.
+    const base = String(process.env.VOICEBOX_URL).replace('localhost', '127.0.0.1').replace(/\/$/, '');
+    let profileId = process.env.VOICEBOX_PROFILE_ID || null;
+    if (!profileId) {
+      const pr = await fetch(`${base}/profiles`, { signal: AbortSignal.timeout(4000) }).catch(() => null);
+      const list = pr && pr.ok ? ((await pr.json().catch(() => [])) as Array<{ id: string }>) : [];
+      profileId = list[0]?.id ?? null;
     }
-
-    const audioBuffer = await voiceboxRes.arrayBuffer();
-    return new Response(audioBuffer, {
-      headers: {
-        'Content-Type': 'audio/wav',
-        'Cache-Control': 'no-store',
-        'X-TTS-Source': 'voicebox-kokoro',
-      },
+    if (!profileId) return fallback(503, 'Voicebox is unreachable or has no voice profile.');
+    const vb = await fetch(`${base}/generate/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile_id: profileId, text, language: 'en', engine: 'kokoro', personality: false }),
+      signal: AbortSignal.timeout(20_000),
     });
-  } catch (err: any) {
-    console.error('[ARIA TTS] Unexpected error:', err);
-    return NextResponse.json({ error: 'TTS proxy internal error' }, { status: 500 });
+    if (!vb.ok) return fallback(502, `Voicebox error ${vb.status}.`);
+    return new Response(await vb.arrayBuffer(), { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-TTS-Source': 'voicebox' } });
+  } catch (e: any) {
+    console.warn('[tts] provider unreachable:', e?.message);
+    return fallback(503, 'The TTS provider is unreachable.');
   }
 }
