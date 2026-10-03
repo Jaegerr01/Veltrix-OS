@@ -152,36 +152,7 @@ export async function getOffers(): Promise<Offer[]> {
       .order('created_at', { ascending: true });
     if (error) throw error;
 
-    // Auto seed default offers if empty
-    if (data && data.length === 0) {
-      const defaultOffers = seedData.defaultOffers.map(o => ({
-        name: o.name,
-        description: o.description,
-        target_customer: o.target_customer,
-        price_min: o.price_min,
-        price_max: o.price_max,
-        monthly_retainer_min: o.monthly_retainer_min,
-        monthly_retainer_max: o.monthly_retainer_max,
-        deliverables: o.deliverables,
-        status: o.status,
-        user_id: userId
-      }));
-      const { data: seeded, error: seedError } = await supabase
-        .from('offers')
-        .insert(defaultOffers)
-        .select();
-      if (seedError) throw seedError;
-      if (seeded) {
-        for (const off of seeded) {
-          try {
-            await syncOfferToMemory(off);
-          } catch (err) {
-            console.warn('Failed to sync offer to memory:', err);
-          }
-        }
-      }
-      return seeded || [];
-    }
+    // No auto-seeding: an empty offers table is shown as an empty state, never filled with invented offers/prices.
     return data || [];
   }, [], 'getOffers');
 }
