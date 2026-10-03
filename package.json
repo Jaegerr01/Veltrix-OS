@@ -1,15 +1,20 @@
 {
   "name": "postelos",
   "description": "PostelOS - the AI command center by Postel Studio",
-  "repository": { "type": "git", "url": "https://github.com/Jaegerr01/PostelOS.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jaegerr01/PostelOS.git"
+  },
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src",
-    "test": "vitest run"
+    "lint": "eslint src e2e",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -25,7 +30,9 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@netlify/functions": "^5.3.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/nodemailer": "^6.4.17",
