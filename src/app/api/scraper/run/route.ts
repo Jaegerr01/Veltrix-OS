@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
 import { runScraper, importScrapedLeads, scraperConfigured } from '@/lib/scraper/run';
+import { asErr } from '@/lib/errors';
 
 // GET /api/scraper/run — is the scraper configured on this machine?
 export async function GET(req: Request) {
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
       research: imported.length > 0 && research,
       leads: imported,
     });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error in POST /api/scraper/run:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

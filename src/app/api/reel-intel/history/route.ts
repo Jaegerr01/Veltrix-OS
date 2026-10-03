@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth/requireUser';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { asErr } from '@/lib/errors';
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser(req);
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json({ success: true, data: data || [] });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Reel Intel history error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

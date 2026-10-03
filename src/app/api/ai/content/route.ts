@@ -4,6 +4,7 @@ import { gemini } from '@/lib/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
 import { validateText, badRequest, LIMITS } from '@/lib/validation';
+import { asErr } from '@/lib/errors';
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ success: true, ideas: savedIdeas });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error generating content API:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

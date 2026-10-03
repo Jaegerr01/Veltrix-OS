@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { generatePreCallBrief } from '@/lib/agents/pipeline';
 import { requireUser } from '@/lib/auth/requireUser';
+import { asErr } from '@/lib/errors';
 
 // POST /api/autopilot/client-brief
 // Body: { leadId: string }
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
       generatedAt: new Date().toISOString(),
       note: 'Brief saved to memory and emailed to Barry'
     });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     console.error('[Client Brief] Failed:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

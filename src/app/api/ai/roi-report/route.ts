@@ -5,6 +5,7 @@ import { gemini } from '@/lib/ai/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
 import { sendEmail as deliverEmail } from '@/lib/email/send';
+import { asErr } from '@/lib/errors';
 
 function estimateMonthlySaving(servicePurchased: string): number {
   const s = (servicePurchased || '').toLowerCase();
@@ -159,7 +160,7 @@ export async function POST(req: Request) {
           } else {
             emailError = sent.reason || 'The email provider rejected the message.';
           }
-        } catch (sendErr: any) {
+        } catch (sendErrRaw: unknown) { const sendErr = asErr(sendErrRaw);
           console.warn('Failed to send ROI report email:', sendErr);
           emailError = sendErr?.message || 'Email send failed.';
         }
@@ -167,7 +168,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, report, emailDelivered, emailError, emailMessageId });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error generating ROI report:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

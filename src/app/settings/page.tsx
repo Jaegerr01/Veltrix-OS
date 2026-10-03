@@ -9,6 +9,7 @@ import { useToast } from '@/components/Toast';
 import { useAuth } from '@/components/AuthGate';
 import { SUPPORT_EMAIL } from '@/lib/brand';
 import { EmailPanel, AiConnectionPanel } from '@/components/SystemConnections';
+import { asErr } from '@/lib/errors';
 
 const settingsCard: React.CSSProperties = {
   padding: 'var(--space-6)',
@@ -136,7 +137,7 @@ export default function SettingsPage() {
       localStorage.setItem('vx_scraper_path', scraperPath);
 
       toast.success('Settings Saved', 'System profile and visual preferences updated successfully.');
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       toast.error('Save Failed', err.message || 'Could not save profile settings.');
     } finally {
       setSaving(false);

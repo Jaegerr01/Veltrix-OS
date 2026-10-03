@@ -7,10 +7,15 @@ export interface ErrorLike {
   status?: number;
   statusCode?: number;
   userMessage?: string;
+  stack?: string;
+  details?: string;
 }
 
 /** Narrow an `unknown` catch value without `any`. Objects are returned as-is (so instanceof still works). */
-export function asErr(e: unknown): ErrorLike {
-  if (typeof e === 'object' && e !== null) return e as ErrorLike;
+export function asErr(e: unknown): ErrorLike & { message: string } {
+  if (typeof e === 'object' && e !== null) {
+    const o = e as ErrorLike;
+    return typeof o.message === 'string' ? (o as ErrorLike & { message: string }) : Object.assign(Object.create(Object.getPrototypeOf(e)), e, { message: 'Unknown error' });
+  }
   return { message: String(e ?? 'Unknown error') };
 }

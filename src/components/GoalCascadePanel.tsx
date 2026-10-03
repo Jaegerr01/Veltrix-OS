@@ -10,6 +10,7 @@ import { Target, RefreshCw, GitBranch } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
 import type { EntityGoal } from '@/lib/types';
+import { asErr } from '@/lib/errors';
 
 const DEPT_LABEL: Record<string, string> = {
   growth: 'Growth', revenue: 'Revenue', delivery: 'Delivery', product: 'Product',
@@ -53,7 +54,7 @@ export default function GoalCascadePanel() {
       } else {
         toast.error('Draft failed', data.error);
       }
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       toast.error('Draft failed', e?.message);
     } finally {
       setDrafting(false);

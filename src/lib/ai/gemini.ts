@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Lead, LeadScore, Proposal, ContentIdea, Memory } from '../types';
 import { AiError, classifyAiError, notConfigured } from './errors';
 import { INSTRUCTION_HIERARCHY, fence, leadBlock } from './untrusted';
+import { asErr } from '@/lib/errors';
 
 function readGeminiKey(): string {
   const key = process.env.GEMINI_API_KEY || '';
@@ -138,7 +139,7 @@ async function generateText(prompt: string, systemInstruction?: string, opts: { 
         const text = result.response.text();
         if (!text || !text.trim()) throw new AiError('UNAVAILABLE', 'Gemini returned an empty answer.', 'Try again.');
         return text;
-      } catch (e: any) {
+      } catch (eRaw: unknown) { const e = asErr(eRaw);
         const err = classifyAiError(e);
         last = err;
         console.warn(`[gemini] ${modelName} attempt ${attempt}/3 failed: ${err.code} - ${String(e?.message || e).slice(0, 200)}`);
@@ -472,7 +473,7 @@ Tone: executive, confident, data-backed, client-ready. No fluff. Under 180 words
           throw new Error('Gemini returned an empty embedding response.');
         }
         return result.embedding.values;
-      } catch (e: any) {
+      } catch (eRaw: unknown) { const e = asErr(eRaw);
         console.error(`Gemini Embedding API call failed (attempt ${attempt}/${maxRetries}):`, e);
         const isTransient = e.message?.includes('503') || 
                             e.message?.includes('Service Unavailable') || 

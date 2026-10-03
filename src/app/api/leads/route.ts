@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth/requireUser';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { asErr } from '@/lib/errors';
 
 export async function GET(req: Request) {
   try {
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
 
     if (error) throw error;
     return NextResponse.json({ success: true, data: data || [] });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, data });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { authFetch } from '@/lib/authFetch';
+import { asErr } from '@/lib/errors';
 
 interface Props {
   onClose: () => void;
@@ -60,7 +61,7 @@ export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
       } else {
         alert('Failed to add lead: ' + json.error);
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       console.warn('Error adding lead:', err);
       alert('Error adding lead: ' + err.message);
     } finally {

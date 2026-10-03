@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import * as seed from '../seedData';
+import { asErr } from '@/lib/errors';
 
 // Parse .env.local manually to read secret keys
 const envPath = path.join(process.cwd(), '.env.local');
@@ -76,7 +77,7 @@ async function clearTable(tableName: string) {
     } else {
       console.log(`✅ Table [${tableName}] cleared.`);
     }
-  } catch (e: any) {
+  } catch (eRaw: unknown) { const e = asErr(eRaw);
     console.error(`❌ Unexpected error clearing [${tableName}]:`, e.message);
   }
 }
@@ -98,7 +99,7 @@ async function seedTable(tableName: string, data: any[]) {
     } else {
       console.log(`✅ Table [${tableName}] seeded successfully. Inserted ${inserted?.length} records.`);
     }
-  } catch (e: any) {
+  } catch (eRaw: unknown) { const e = asErr(eRaw);
     console.error(`❌ Unexpected error on table [${tableName}]:`, e.message);
   }
 }

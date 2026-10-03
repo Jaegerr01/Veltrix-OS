@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { db } from '@/lib/db';
 import { gemini } from '@/lib/ai/gemini';
+import { asErr } from '@/lib/errors';
 
 export async function GET() {
   // SECURITY: dev-only diagnostic. In production this endpoint created a user
@@ -129,7 +130,7 @@ export async function GET() {
       }
     });
 
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     try {
       await supabase.auth.signOut();
     } catch (e) {}

@@ -2,6 +2,7 @@ import { checkCronAuth } from '@/lib/auth/cron';
 import { NextResponse } from 'next/server';
 import { generateDailyBrief } from '@/lib/agents/pipeline';
 import { journalToVault } from '@/lib/db/vault';
+import { asErr } from '@/lib/errors';
 
 // Vercel Cron: 0 22 * * * (10PM every day)
 export async function GET(req: Request) {
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
       brief,
       generatedAt: new Date().toISOString()
     });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     console.error('[Daily Brief] Failed:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

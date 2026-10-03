@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { geminiConfigured } from '@/lib/ai/gemini';
 import { listProviders, selectProvider } from '@/lib/email/config';
 import { requireUser } from '@/lib/auth/requireUser';
+import { asErr } from '@/lib/errors';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -77,7 +78,7 @@ export async function GET(req: Request) {
       checks.supabase = error
         ? { ok: false, detail: `Connected, but query failed: ${error.message}. (Have you run supabase_schema.sql?)` }
         : { ok: true, detail: 'Connected and the leads table is reachable.' };
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       checks.supabase = { ok: false, detail: `Connection error: ${e?.message || e}` };
     }
   }
@@ -95,7 +96,7 @@ export async function GET(req: Request) {
       const { gemini } = await import('@/lib/ai/gemini');
       const reply = await gemini.callRawLLM('Reply with the single word: OK', 'You are a health check. Reply with one word.');
       checks.gemini = { ok: !!reply, detail: `Key valid — live model responded ("${reply.trim().slice(0, 20)}").` };
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       checks.gemini = { ok: false, detail: `Key present but live call failed: ${e?.message || e}` };
     }
   } else {

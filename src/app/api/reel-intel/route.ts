@@ -6,6 +6,7 @@ import { checkRateLimit } from '@/lib/auth/rateLimit';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { AGENTS } from '@/lib/agents/agents';
 import { validateText, badRequest, LIMITS } from '@/lib/validation';
+import { asErr } from '@/lib/errors';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -231,7 +232,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Reel Intel API error:', error);
     // A rate-limit rejection is not a fault the user can act on beyond waiting,
     // and the raw provider payload is ~20 lines of JSON. Surface the short form.

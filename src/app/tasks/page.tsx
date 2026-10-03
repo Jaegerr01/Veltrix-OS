@@ -17,6 +17,7 @@ import {
 } from '@/components/ds';
 import { useToast } from '@/components/Toast';
 import { db } from '@/lib/db';
+import { asErr } from '@/lib/errors';
 
 interface Task {
   id: string;
@@ -125,7 +126,7 @@ export default function TasksPage() {
       // Refresh
       await fetchTasks();
       toast.success('Task added');
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       // A save failure is about the request, not one field — and since
       // safeWrite stopped fabricating success, this now actually fires.
       toast.error("Couldn't add the task", 'Check your connection and try again.');

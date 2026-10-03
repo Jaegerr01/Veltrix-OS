@@ -6,6 +6,7 @@ import LoadingState from './LoadingState';
 import { ShieldAlert, Lock, ShieldCheck } from 'lucide-react';
 import { AmbientBackground, Input, Button, VxIcon, PostelMark, PostelLogo } from './ds';
 import { BRAND } from '@/lib/brand';
+import { asErr } from '@/lib/errors';
 
 interface AuthContextType {
   user: any;
@@ -135,7 +136,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         });
         if (error) throw error;
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       console.warn('Authentication failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
     } finally {

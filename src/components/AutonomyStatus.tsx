@@ -8,6 +8,7 @@ import {
   Play, Clock, ChevronRight
 } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
+import { asErr } from '@/lib/errors';
 
 interface PipelineData {
   pipeline: {
@@ -120,7 +121,7 @@ export function AutonomyStatus() {
         });
       }
       await fetchStatus();
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       setRunResult({ leadsProcessed: 0, actionsExecuted: [], errors: [err.message], durationMs: 0 });
     }
     setRunning(false);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth/requireUser';
+import { asErr } from '@/lib/errors';
 
 // GET /api/autopilot/status
 // Returns live pipeline status for the dashboard
@@ -63,7 +64,7 @@ export async function GET(req: Request) {
       completedTasks,
       totalProposals: proposals.length
     });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

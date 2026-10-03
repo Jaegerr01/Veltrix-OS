@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Radar, Play, Loader2 } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
+import { asErr } from '@/lib/errors';
 
 const NICHES = ['Dental clinic', 'Real estate agency', 'Law firm', 'Chiropractor', 'Plumber', 'HVAC contractor'];
 
@@ -54,7 +55,7 @@ export default function ScraperControl() {
         toast.error('Scrape failed', data.error);
         setLastRun(`Failed: ${data.error}`);
       }
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       toast.error('Scrape failed', e?.message);
     } finally {
       setRunning(false);

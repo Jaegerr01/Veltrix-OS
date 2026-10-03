@@ -13,6 +13,7 @@ import { runAgentLogic } from './executor';
 import { gemini } from '../ai/gemini';
 import { sendEmail } from '../email/send';
 import { getOwnerEmail } from '../auth/owner';
+import { asErr } from '@/lib/errors';
 const MONTHLY_TARGET = 6000;
 
 // Serverless functions time out (~26s). Each lead makes an LLM call, so we can only
@@ -70,7 +71,7 @@ async function processNewLeads(actions: string[], errors: string[]): Promise<num
         actions.push(`[Daniel] Researched & scored: ${lead.business_name}`);
         count++;
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Daniel] Failed to research ${lead.business_name}: ${err.message}`);
     }
     // Small delay to avoid rate limits
@@ -116,7 +117,7 @@ async function processQualifiedLeads(actions: string[], errors: string[]): Promi
       } else {
         errors.push(`[Emma] Outreach for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Emma] Outreach failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -162,7 +163,7 @@ async function processFollowups(actions: string[], errors: string[]): Promise<nu
       } else {
         errors.push(`[Lucas] Follow-up for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Lucas] Follow-up failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -205,7 +206,7 @@ async function processRepliedLeads(actions: string[], errors: string[]): Promise
       } else {
         errors.push(`[Olivia] Proposal for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Olivia] Proposal failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -333,7 +334,7 @@ async function processCallBookedLeads(actions: string[], errors: string[]): Prom
       await generatePreCallBrief(lead.id);
       actions.push(`[Alex] Pre-call brief generated for: ${lead.business_name} — Barry notified`);
       count++;
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Alex] Pre-call brief failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -404,7 +405,7 @@ async function processProposalSentLeads(actions: string[], errors: string[]): Pr
 
       actions.push(`[Lucas] Proposal follow-up drafted for ${lead.business_name} - ${queued ? 'awaiting your approval (NOT sent)' : 'no email on file, saved as Drafted (NOT sent)'}`);
       count++;
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Lucas] Proposal follow-up failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -469,7 +470,7 @@ export async function runFullPipeline(): Promise<PipelineRun> {
     }
 
     return summary;
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     errors.push(`Pipeline fatal error: ${err.message}`);
     await logAction('Pipeline Error', err.message);
     return {

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
+import { asErr } from '@/lib/errors';
 
 interface Client {
   id: string;
@@ -145,7 +146,7 @@ export default function ProjectsPage() {
 
       // Refresh
       await fetchData();
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       setFormError(`Failed to save project: ${err.message}`);
     }
   };

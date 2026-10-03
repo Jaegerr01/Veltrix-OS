@@ -1,5 +1,6 @@
 import { db } from '../db';
 import type { ApprovalRequest, EntityDepartment, ApprovalRequestType, OutreachSendPayload, RecordSendPayload } from '../types';
+import { asErr } from '@/lib/errors';
 
 /**
  * Entity Phase 1 — the propose-then-approve backbone.
@@ -128,7 +129,7 @@ export async function decideApprovalRequest(opts: {
         // are decisions-of-record in Phase 1; later phases wire up execution.
         executionNote = 'Approved as decision of record (no automated execution for this type yet).';
     }
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     ok = false;
     executionNote = `Execution failed: ${err?.message || err}`;
   }

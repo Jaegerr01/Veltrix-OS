@@ -1,5 +1,6 @@
 import type { Memory } from '../types';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import { asErr } from '@/lib/errors';
 
 export async function getMemories(): Promise<Memory[]> {
   return safeRead(async () => {
@@ -99,7 +100,7 @@ export async function searchMemories(query: string, limit: number = 5): Promise<
           updated_at: new Date().toISOString()
         }));
       }
-    } catch (vectorErr: any) {
+    } catch (vectorErrRaw: unknown) { const vectorErr = asErr(vectorErrRaw);
       console.warn('Vector search failed, falling back to text search:', vectorErr.message || vectorErr);
     }
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
+import { asErr } from '@/lib/errors';
 
 // Shape the external scraper emits
 interface ScrapedLead {
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
       imported.push(lead);
       // Register the new key so later items in same batch can't dupe it
       existingKeys.add(dupeKey);
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       console.warn(`Failed to insert lead "${businessName}":`, err.message);
       // Don't abort the batch — continue with remaining items
     }

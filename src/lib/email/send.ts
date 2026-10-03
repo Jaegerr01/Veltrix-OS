@@ -3,6 +3,7 @@ import { getResendClient, resendFrom } from './resend';
 import { selectProvider, guardrailConfig, isBlacklisted, type ProviderId } from './config';
 import { countConfirmedSendsToday } from './usage';
 import { getOwnerEmail } from '../auth/owner';
+import { asErr } from '@/lib/errors';
 
 /**
  * Unified outbound email. ONE function, honest result.
@@ -189,7 +190,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
     try {
       const messageId = await dispatch(provider, msg);
       return { delivered: true, blocked: false, provider, messageId, attempts: attempt };
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       const err = classifyProviderError(e, provider);
       lastErr = err.message;
       console.warn(`[email] ${provider} attempt ${attempt}/${max} failed: ${err.message}`);

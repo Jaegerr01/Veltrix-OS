@@ -1,6 +1,7 @@
 import { checkCronAuth } from '@/lib/auth/cron';
 import { NextResponse } from 'next/server';
 import { runFullPipeline } from '@/lib/agents/pipeline';
+import { asErr } from '@/lib/errors';
 
 // Vercel Cron calls this with a secret header
 // Schedule: every 30 minutes — see vercel.json
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
       errors: result.errors,
       durationMs: result.duration
     });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     console.error('[Autopilot] Pipeline run failed:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

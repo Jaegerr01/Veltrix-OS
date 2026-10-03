@@ -10,6 +10,7 @@ import ScraperControl from '@/components/ScraperControl';
 import { useAgentRoster } from '@/components/useAgentRoster';
 import { db } from '@/lib/db';
 import type { Lead, OutreachMessage, Followup, Proposal, AgentLog } from '@/lib/types';
+import { asErr } from '@/lib/errors';
 
 /**
  * Command Center. Every number on this page is computed from the database at load time.
@@ -56,7 +57,7 @@ export default function CommandCenterPage() {
         const [l, o, f, p, a] = await Promise.all([db.getLeads(), db.getOutreachMessages(), db.getFollowups(), db.getProposals(), db.getAgentLogs()]);
         if (!live) return;
         setLeads(l); setOutreach(o); setFollowups(f); setProposals(p); setLogs(a.slice(0, 12));
-      } catch (e: any) { if (live) setError(`Could not load live data: ${e?.message || e}`); }
+      } catch (eRaw: unknown) { const e = asErr(eRaw); if (live) setError(`Could not load live data: ${e?.message || e}`); }
     })();
     return () => { live = false; };
   }, []);

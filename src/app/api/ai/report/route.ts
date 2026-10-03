@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { gemini } from '@/lib/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
+import { asErr } from '@/lib/errors';
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
@@ -131,7 +132,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, report: newReport, rawText: reportText });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error generating daily report API:', error);
     try {
       const profile = await db.getBusinessProfile();

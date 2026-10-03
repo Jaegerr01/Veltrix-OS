@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit, rateLimitResponse } from '@/lib/auth/rateLimit';
 import { decideApprovalRequest } from '@/lib/entity/approvals';
+import { asErr } from '@/lib/errors';
 
 const bodySchema = z.object({
   decision: z.enum(['approve', 'reject']),
@@ -45,7 +46,7 @@ export async function POST(
       );
     }
     return NextResponse.json({ success: true, executed: true, request: result.request, executionNote: result.executionNote });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error in POST /api/entity/approvals/[id]:', error);
     return NextResponse.json({ success: false, error: 'Failed to decide approval request. Check the server log.' }, { status: 500 });
   }

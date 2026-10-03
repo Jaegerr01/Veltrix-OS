@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
+import { asErr } from '@/lib/errors';
 
 interface Lead {
   id: string;
@@ -109,7 +110,7 @@ export default function OutreachPage() {
       setBody('');
       setIsModalOpen(false);
       await fetchData();
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       setFormError(`Failed to save message: ${err.message}`);
     }
   };

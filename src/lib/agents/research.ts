@@ -1,3 +1,4 @@
+import { asErr } from '@/lib/errors';
 /**
  * Lead research helpers — gives Daniel (Lead Research Agent) actual eyes.
  *
@@ -119,7 +120,7 @@ export async function fetchWebsiteSnapshot(rawUrl: string): Promise<WebsiteSnaps
       title: titleMatch ? htmlToText(titleMatch[1]) : undefined,
       text,
     };
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     const msg = err?.name === 'AbortError' ? 'Timed out after 10s' : err?.message || 'Fetch failed';
     return { ok: false, url, error: msg };
   }

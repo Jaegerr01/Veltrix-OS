@@ -5,6 +5,7 @@ import { loadCatalogueAgent, findCatalogueAgents } from './catalogue';
 import { isAiError } from '../ai/errors';
 import { vault, journalToVault } from '../db/vault';
 import { leadBlock, INSTRUCTION_HIERARCHY } from '../ai/untrusted';
+import { asErr } from '@/lib/errors';
 
 export interface AgentRunContext {
   /** true when the CEO orchestrator drives this run: it owns the task row; outward actions are approval-gated. */
@@ -246,7 +247,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           const brief = await gemini.researchLead(lead, snapshot);
           researchNote = briefToNotes(brief);
           lead.notes = `${lead.notes || ''}\n\n${researchNote}`.trim();
-        } catch (err: any) {
+        } catch (errRaw: unknown) { const err = asErr(errRaw);
           console.warn('[leadResearch] website research skipped:', err.message);
         }
 
@@ -371,7 +372,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
                   proposalSection = `\n\n---\n\n${latest.solution}`;
                 }
               }
-            } catch (err: any) {
+            } catch (errRaw: unknown) { const err = asErr(errRaw);
               console.warn('[outreach] proposal generation failed, queueing outreach alone:', err.message);
             }
           }
@@ -739,7 +740,7 @@ Answer the user's question accurately using only the retrieved documentation abo
     );
 
     return { success: true, result: resultText, approvalRequestId: approvalId, needsApproval: !!approvalId };
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error running agent in executor:', error);
     const message = isAiError(error) ? (error as any).userMessage : String(error?.message || error).slice(0, 300);
     try {

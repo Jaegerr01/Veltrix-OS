@@ -1,5 +1,6 @@
 import { db } from '../db';
 import { runAgentLogic } from './executor';
+import { asErr } from '@/lib/errors';
 
 /**
  * Autopilot entry point for a single lead (fired when a lead is created or
@@ -46,7 +47,7 @@ export async function runAutopilotForLead(leadId: string) {
       result.success ? result.result : result.error,
       result.success ? 'Success' : 'Failure'
     );
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error running Autopilot for lead:', error);
   }
 }

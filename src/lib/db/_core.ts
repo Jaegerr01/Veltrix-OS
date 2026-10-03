@@ -1,5 +1,6 @@
 import { supabase as anonInstance } from '../supabase/client';
 import { supabaseAdmin } from '../supabase/admin';
+import { asErr } from '@/lib/errors';
 
 // Pick the right client for the execution context:
 //  • Browser (dashboard): anon client + the logged-in user's session → RLS shows their rows.
@@ -119,7 +120,7 @@ export function checkSchemaError(e: any) {
 export async function safeRead<T>(fn: () => Promise<T>, fallback: T, contextName: string): Promise<T> {
   try {
     return await fn();
-  } catch (e: any) {
+  } catch (eRaw: unknown) { const e = asErr(eRaw);
     console.warn(`safeRead failure in [${contextName}]:`, e.message || e);
     checkSchemaError(e);
     return fallback;
@@ -156,7 +157,7 @@ export class DbWriteError extends Error {
 export async function safeWrite<T>(fn: () => Promise<T>, contextName: string): Promise<T> {
   try {
     return await fn();
-  } catch (e: any) {
+  } catch (eRaw: unknown) { const e = asErr(eRaw);
     console.error(`safeWrite failure in [${contextName}]:`, e?.message || e);
     checkSchemaError(e);
     throw new DbWriteError(contextName, e);

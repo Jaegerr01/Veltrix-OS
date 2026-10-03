@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit, rateLimitResponse } from '@/lib/auth/rateLimit';
 import { selectTtsProvider } from '@/lib/voice/tts';
+import { asErr } from '@/lib/errors';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
     });
     if (!vb.ok) return fallback(502, `Voicebox error ${vb.status}.`);
     return new Response(await vb.arrayBuffer(), { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-TTS-Source': 'voicebox' } });
-  } catch (e: any) {
+  } catch (eRaw: unknown) { const e = asErr(eRaw);
     console.warn('[tts] provider unreachable:', e?.message);
     return fallback(503, 'The TTS provider is unreachable.');
   }

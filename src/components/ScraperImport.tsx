@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { authFetch } from '@/lib/authFetch';
 import { X, Upload, FileJson, Radar, CheckCircle2, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
+import { asErr } from '@/lib/errors';
 
 /**
  * ScraperImport — bridge between Barry's Python Google Maps scraper and the
@@ -110,7 +111,7 @@ function parseScraperOutput(text: string): { leads: ParsedLead[]; error?: string
       return leads.length
         ? { leads }
         : { leads: [], error: 'No rows had a recognizable business name field.' };
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       return { leads: [], error: `Invalid JSON: ${e.message}` };
     }
   }
@@ -172,7 +173,7 @@ export default function ScraperImport({ onClose, onImported }: Props) {
       setDone({ imported, skipped, researched: 0 });
       setProgress('');
       onImported();
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       setError(e.message || 'Import failed');
       setProgress('');
     } finally {

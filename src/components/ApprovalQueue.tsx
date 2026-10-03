@@ -11,6 +11,7 @@ import { ShieldCheck, Check, X, Pencil, RefreshCw, ChevronDown, ChevronUp, Send,
 import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
 import type { ApprovalRequest } from '@/lib/types';
+import { asErr } from '@/lib/errors';
 
 const DEPT_COLORS: Record<string, string> = {
   revenue: 'text-neon-purple bg-neon-purple/10 border-neon-purple/20',
@@ -40,7 +41,7 @@ export default function ApprovalQueue() {
       if (p.success || f.success) setRequests([...(f.requests || []), ...(p.requests || [])]);
       else setLoadError(p.error || f.error || 'Could not load the approval queue.');
       if (p.success || f.success) setLoadError(null);
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       setLoadError(`Could not load the approval queue: ${e?.message || 'network error'}`);
     } finally {
       setLoading(false);
@@ -77,7 +78,7 @@ export default function ApprovalQueue() {
       } else {
         toast.error('Decision failed', data.error);
       }
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       toast.error('Decision failed', e?.message);
     } finally {
       setBusyId(null);

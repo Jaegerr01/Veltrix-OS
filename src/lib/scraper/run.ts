@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { db } from '../db';
+import { asErr } from '@/lib/errors';
 
 /**
  * Victor (Lead Scout Agent) — bridge to Barry's local Google Maps scraper
@@ -254,7 +255,7 @@ export async function importScrapedLeads(scraped: ScrapedLead[], sourceLabel = '
       });
       imported.push({ id: lead.id, business_name: lead.business_name });
       keys.add(key);
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       console.warn(`[scout] failed to insert "${businessName}":`, err.message);
     }
   }

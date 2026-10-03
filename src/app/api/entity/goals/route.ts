@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth/requireUser';
 import { getCascadeSnapshot, draftMonthlyCascade } from '@/lib/entity/cascade';
+import { asErr } from '@/lib/errors';
 
 // GET /api/entity/goals — current cascade snapshot (month goal + weekly dept goals)
 export async function GET(req: Request) {
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
   try {
     const snapshot = await getCascadeSnapshot();
     return NextResponse.json({ success: true, ...snapshot });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error in GET /api/entity/goals:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   try {
     const { requestId, draft } = await draftMonthlyCascade();
     return NextResponse.json({ success: true, requestId, draft });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error in POST /api/entity/goals:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
