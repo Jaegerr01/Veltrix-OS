@@ -1,5 +1,6 @@
 import type { ChatMessage } from '../types';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import type { DbRow } from './_core';
 
 export async function getChatMessages(): Promise<ChatMessage[]> {
   const fallbackMessages = [
@@ -27,7 +28,7 @@ export async function getChatMessages(): Promise<ChatMessage[]> {
       return fallbackMessages;
     }
 
-    return data.map((act: any) => ({
+    return data.map((act: DbRow) => ({
       id: act.id,
       sender: act.actor === 'Operator' ? 'user' : 'ai',
       agentName: act.actor === 'Operator' ? undefined : act.actor,

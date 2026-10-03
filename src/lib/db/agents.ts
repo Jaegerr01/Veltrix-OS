@@ -1,5 +1,6 @@
 import type { AgentLog, ToolLog } from '../types';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import type { DbRow } from './_core';
 
 export async function getAgentLogs(): Promise<AgentLog[]> {
   return safeRead(async () => {
@@ -13,9 +14,10 @@ export async function getAgentLogs(): Promise<AgentLog[]> {
 
     if (error) throw error;
 
-    return (data || []).map((act: any) => ({
+    return (data || []).map((act: DbRow) => ({
       id: act.id,
       user_id: act.user_id,
+      type: 'agent' as const,
       agent_name: act.actor || 'AI Agent',
       action: act.action,
       input: act.input,
@@ -77,7 +79,7 @@ export async function getToolLogs(): Promise<ToolLog[]> {
 
     if (error) throw error;
 
-    return (data || []).map((act: any) => ({
+    return (data || []).map((act: DbRow) => ({
       id: act.id,
       user_id: act.user_id,
       type: 'tool',

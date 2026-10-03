@@ -61,7 +61,7 @@ export default function GoalCascadePanel() {
     }
   };
 
-  const target = Number((month?.target as any)?.revenue ?? 0);
+  const target = Number((month?.target as { revenue?: number } | undefined)?.revenue ?? 0);
   const pct = target > 0 ? Math.min(100, Math.round((closed / target) * 100)) : 0;
 
   return (

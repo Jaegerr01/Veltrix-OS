@@ -75,8 +75,9 @@ function unsubscribeFooter(): string {
   return `\n\n--\nIf you would rather not hear from me, just reply "unsubscribe" and I will not contact you again.${addr}`;
 }
 
-export function classifyProviderError(e: any, provider: ProviderId): ProviderError {
-  if (e instanceof ProviderError) return e;
+export function classifyProviderError(eIn: unknown, provider: ProviderId): ProviderError {
+  if (eIn instanceof ProviderError) return eIn;
+  const e = asErr(eIn) as ReturnType<typeof asErr> & { responseCode?: number };
   const code = String(e?.code || '');
   const status = Number(e?.responseCode ?? e?.statusCode ?? e?.status ?? 0);
   const raw = String(e?.message || e || 'Unknown email provider error');
@@ -115,8 +116,8 @@ async function dispatch(
       headers: m.headers,
     });
     if (error) {
-      const status = Number((error as any).statusCode ?? 0);
-      const name = String((error as any).name || '');
+      const status = Number((error as { statusCode?: number }).statusCode ?? 0);
+      const name = String((error as { name?: string }).name || '');
       const retryable = status === 429 || status >= 500 || name === 'rate_limit_exceeded' || name === 'application_error' || name === 'internal_server_error';
       const hint = /domain|verify|not verified|testing emails/i.test(error.message || '')
         ? ' (Verify your sending domain in Resend and set RESEND_FROM_EMAIL to an address on it.)'

@@ -250,7 +250,7 @@ export default function ProjectsPage() {
                       <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>WORKFLOW STATE</span>
                       <select aria-label="Project workflow state"
                         value={proj.status}
-                        onChange={(e) => handleUpdateStatus(proj.id, e.target.value as any)}
+                        onChange={(e) => handleUpdateStatus(proj.id, e.target.value as Parameters<typeof handleUpdateStatus>[1])}
                         style={{
                           height: 32,
                           padding: '0 8px',

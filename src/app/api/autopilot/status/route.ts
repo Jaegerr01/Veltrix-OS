@@ -31,21 +31,21 @@ export async function GET(req: Request) {
     };
 
     // Last 10 agent activities
-    const recentActivity = activities.slice(0, 10).map((a: any) => ({
+    const recentActivity = activities.slice(0, 10).map((a) => ({
       id: a.id,
-      actor: a.agent_name || a.actor,
+      actor: a.agent_name,
       action: a.action,
       status: a.status,
       createdAt: a.created_at
     }));
 
     // Last pipeline run
-    const lastPipelineRun = (activities as any[]).find(a => a.action?.includes('Pipeline Completed'));
+    const lastPipelineRun = activities.find(a => a.action?.includes('Pipeline Completed'));
 
     // Active agents (activity in last hour)
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
     const activeAgents = [...new Set(
-      (activities as any[])
+      activities
         .filter(a => a.created_at > oneHourAgo && a.agent_name !== 'Pipeline')
         .map(a => a.agent_name)
     )].slice(0, 5);

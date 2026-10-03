@@ -166,11 +166,11 @@ export async function POST(req: NextRequest) {
         keyTakeaways: Array.isArray(parsed.keyTakeaways) ? parsed.keyTakeaways.filter((t: unknown) => typeof t === 'string') : [],
         postelosRelevance: typeof parsed.postelosRelevance === 'string' ? parsed.postelosRelevance : '',
         implementationSuggestions: Array.isArray(parsed.implementationSuggestions)
-          ? parsed.implementationSuggestions.map((s: any) => ({
+          ? parsed.implementationSuggestions.map((s: { area?: unknown; action?: unknown; priority?: unknown } | null) => ({
               area: typeof s?.area === 'string' ? s.area : 'Strategy',
               action: typeof s?.action === 'string' ? s.action : '',
               priority: typeof s?.priority === 'string' ? s.priority : 'Medium',
-            })).filter((s: any) => s.action)
+            })).filter((s: { action: unknown }) => s.action)
           : [],
         tags: Array.isArray(parsed.tags) ? parsed.tags.filter((t: unknown) => typeof t === 'string').slice(0, 10) : [],
       };

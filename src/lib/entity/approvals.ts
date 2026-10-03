@@ -121,7 +121,7 @@ export async function decideApprovalRequest(opts: {
       case 'goal_ratification': {
         // Dynamic import — cascade.ts imports requestApproval from this module.
         const { instantiateCascade } = await import('./cascade');
-        executionNote = await instantiateCascade(effectivePayload as any);
+        executionNote = await instantiateCascade(effectivePayload as unknown as Parameters<typeof instantiateCascade>[0]);
         break;
       }
       default:

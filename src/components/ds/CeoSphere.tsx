@@ -90,7 +90,7 @@ const CeoSphere = React.forwardRef<
         c.isSpeaking = !!e.detail.isSpeaking;
       }
     };
-    window.addEventListener('postelos-voice-status', handleVoiceStatus as any);
+    window.addEventListener('postelos-voice-status', handleVoiceStatus as EventListener);
 
     // dynamic gradient stops based on ARIA assistant states
     const col = (t: number) => {
@@ -183,7 +183,7 @@ const CeoSphere = React.forwardRef<
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('postelos-voice-status', handleVoiceStatus as any);
+      window.removeEventListener('postelos-voice-status', handleVoiceStatus as EventListener);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerenter', onEnter);
       canvas.removeEventListener('pointerleave', onLeave);

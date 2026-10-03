@@ -311,7 +311,7 @@ export default function ClientsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Status</label>
-                <select aria-label="Client status" style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as any)}>
+                <select aria-label="Client status" style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                   <option value="Completed">Completed</option>

@@ -12,8 +12,8 @@ interface DailyReport {
   pipeline_value: number;
   revenue_gap: number;
   top_priority?: string;
-  leads_to_contact?: any;
-  followups_due?: any;
+  leads_to_contact?: unknown;
+  followups_due?: unknown;
   content_to_post?: string;
   recommended_action?: string;
   created_at: string;

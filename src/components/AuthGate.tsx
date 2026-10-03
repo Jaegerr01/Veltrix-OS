@@ -7,9 +7,10 @@ import { ShieldAlert, Lock, ShieldCheck } from 'lucide-react';
 import { AmbientBackground, Input, Button, VxIcon, PostelMark, PostelLogo } from './ds';
 import { BRAND } from '@/lib/brand';
 import { asErr } from '@/lib/errors';
+import type { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
-  user: any;
+  user: User | null;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -38,7 +39,7 @@ export function isSameOriginApi(input: RequestInfo | URL, origin: string): boole
 }
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -57,13 +58,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: any) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -76,7 +77,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       
       if (isLocalApi) {
         try {
-          const { data: { session } } = (await supabase.auth.getSession()) as any;
+          const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token;
           
           init = init || {};

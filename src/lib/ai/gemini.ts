@@ -468,7 +468,7 @@ Tone: executive, confident, data-backed, client-ready. No fluff. Under 180 words
             parts: [{ text }]
           },
           outputDimensionality: 768
-        } as any);
+        } as Parameters<typeof model.embedContent>[0]);
         if (!result.embedding || !result.embedding.values) {
           throw new Error('Gemini returned an empty embedding response.');
         }

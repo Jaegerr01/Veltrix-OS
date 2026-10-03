@@ -29,6 +29,7 @@ export interface AgentRunResult {
  */
 export async function runAgentLogic(
   agentKey: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- free-form per-agent parameters, validated field by field inside each agent branch
   params: any,
   autonomous: boolean = false,
   ctx?: AgentRunContext
@@ -343,7 +344,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         // Every path creates the draft first — single source of truth.
         const draftMessage = await db.addOutreachMessage({
           lead_id: leadId,
-          channel: channel as any,
+          channel: channel as Parameters<typeof db.addOutreachMessage>[0]['channel'],
           message: messageText,
           status: 'Draft',
           approval_status: 'Pending Approval'
@@ -742,7 +743,7 @@ Answer the user's question accurately using only the retrieved documentation abo
     return { success: true, result: resultText, approvalRequestId: approvalId, needsApproval: !!approvalId };
   } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error running agent in executor:', error);
-    const message = isAiError(error) ? (error as any).userMessage : String(error?.message || error).slice(0, 300);
+    const message = isAiError(error) ? error.userMessage : String(error?.message || error).slice(0, 300);
     try {
       await db.logAgentAction(agent.name, ctx?.orchestrated ? 'Orchestrated Task Run' : 'Agent Run', JSON.stringify({ params }), message, 'Failure');
     } catch { /* logging must never mask the real error */ }

@@ -49,7 +49,7 @@ export const getUserId = async (): Promise<string> => {
       try {
         const { supabaseAdmin } = await import('../supabase/admin');
         const { data } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
-        const owner = data?.users?.find((u: any) => (u.email || '').toLowerCase() === ownerEmail);
+        const owner = data?.users?.find((u: { email?: string }) => (u.email || '').toLowerCase() === ownerEmail);
         if (owner?.id) return owner.id;
       } catch (e) {
         // Admin lookup failed - fall through to the explicit error below
@@ -66,8 +66,13 @@ export const getUserId = async (): Promise<string> => {
 };
 
 /** True when a PostgREST/Postgres error says one of `cols` does not exist (migration not applied yet). */
-export function isMissingColumnError(e: any, cols: string[]): boolean {
-  if (!e) return false;
+/** A raw PostgREST row: the Supabase client is untyped in this repo (no generated Database type), so rows are narrowed in each mapper. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type DbRow = Record<string, any>;
+
+export function isMissingColumnError(eIn: unknown, cols: string[]): boolean {
+  if (!eIn) return false;
+  const e = asErr(eIn);
   const msg = `${e.message || ''} ${e.details || ''} ${e.hint || ''}`;
   const looksMissing = e.code === 'PGRST204' || e.code === '42703' || /column|schema cache/i.test(msg);
   return looksMissing && cols.some(c => msg.includes(c));
@@ -78,15 +83,15 @@ export function isMissingColumnError(e: any, cols: string[]): boolean {
  * missing, retry once without them. Lets the app keep working before Barry applies the
  * send-state migration, without ever hiding other errors.
  */
-export async function withOptionalColumns<R extends { data: any; error: any }>(
-  payload: Record<string, any>,
+export async function withOptionalColumns<R extends { data: unknown; error: unknown }>(
+  payload: Record<string, unknown>,
   optional: string[],
-  run: (p: Record<string, any>) => PromiseLike<R>
+  run: (p: Record<string, unknown>) => PromiseLike<R>
 ): Promise<R> {
   const first = await run(payload);
   if (!first.error || !isMissingColumnError(first.error, optional)) return first;
   console.warn('[db] optional columns missing (' + optional.join(',') + ') - apply migrations/2026-10-02_001_send_state.sql');
-  const stripped: Record<string, any> = { ...payload };
+  const stripped: Record<string, unknown> = { ...payload };
   for (const c of optional) delete stripped[c];
   return run(stripped);
 }
@@ -102,8 +107,9 @@ export function assertTruthfulSent(table: string, updates: { status?: string | n
   }
 }
 
-export function checkSchemaError(e: any) {
-  if (!e) return;
+export function checkSchemaError(eIn: unknown) {
+  if (!eIn) return;
+  const e = asErr(eIn);
   const errMsg = (e.message || String(e)).toLowerCase();
   const errCode = e.code || '';
   if (

@@ -1,5 +1,6 @@
 import type { Memory } from '../types';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import type { DbRow } from './_core';
 import { asErr } from '@/lib/errors';
 
 export async function getMemories(): Promise<Memory[]> {
@@ -13,7 +14,7 @@ export async function getMemories(): Promise<Memory[]> {
 
     if (error) throw error;
 
-    return (data || []).map((note: any) => ({
+    return (data || []).map((note: DbRow) => ({
       id: note.id,
       user_id: note.user_id,
       type: note.source === 'Delivery Manager Agent' || note.tags?.includes('autopilot') ? 'Decision' : 'Business',
@@ -88,7 +89,7 @@ export async function searchMemories(query: string, limit: number = 5): Promise<
       }
 
       if (data && data.length > 0) {
-        return data.map((note: any) => ({
+        return data.map((note: DbRow) => ({
           id: note.id,
           user_id: userId,
           type: 'Business',
@@ -114,7 +115,7 @@ export async function searchMemories(query: string, limit: number = 5): Promise<
 
     if (error) throw error;
 
-    return (data || []).map((note: any) => ({
+    return (data || []).map((note: DbRow) => ({
       id: note.id,
       user_id: note.user_id,
       type: 'Business',

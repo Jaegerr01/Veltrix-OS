@@ -88,7 +88,7 @@ export default function ApprovalQueue() {
   const startEdit = (req: ApprovalRequest) => {
     setEditingId(req.id);
     setExpandedId(req.id);
-    setEditedText(String((req.payload as any)?.text ?? ''));
+    setEditedText(String((req.payload as { text?: unknown } | undefined)?.text ?? ''));
   };
 
   return (
@@ -126,7 +126,7 @@ export default function ApprovalQueue() {
 
       <AnimatePresence>
         {requests.map(req => {
-          const payload = (req.payload ?? {}) as any;
+          const payload = (req.payload ?? {}) as Record<string, string | undefined>;
           const expanded = expandedId === req.id;
           const editing = editingId === req.id;
           const busy = busyId === req.id;

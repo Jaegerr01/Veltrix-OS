@@ -506,7 +506,7 @@ export async function generateDailyBrief(): Promise<string> {
     const { getCascadeSnapshot } = await import('../entity/cascade');
     const snap = await getCascadeSnapshot();
     if (snap.month) {
-      const target = Number((snap.month.target as any)?.revenue ?? 0);
+      const target = Number((snap.month.target as { revenue?: number } | undefined)?.revenue ?? 0);
       cascadeSection = [
         `Month goal (${snap.monthPeriod}): $${snap.closedThisMonth.toLocaleString()} closed of $${target.toLocaleString()} target.`,
         snap.weekly.length > 0
@@ -529,7 +529,7 @@ export async function generateDailyBrief(): Promise<string> {
     .length * 1200; // avg deal value estimate
 
   const todayActivities = activities
-    .filter((a: any) => {
+    .filter((a) => {
       const d = new Date(a.created_at);
       const today = new Date();
       return d.toDateString() === today.toDateString();

@@ -57,7 +57,7 @@ export async function POST(req: Request) {
   }
 
   // Validate each item has at least a name
-  const invalid = body.findIndex((item: any) => !item?.name || typeof item.name !== 'string');
+  const invalid = body.findIndex((item: { name?: unknown } | null) => !item?.name || typeof item.name !== 'string');
   if (invalid !== -1) {
     return NextResponse.json(
       { success: false, error: `Item at index ${invalid} is missing required field "name".` },

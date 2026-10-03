@@ -109,7 +109,7 @@ export default function LeadTable({
                 <div className="pt-0.5">
                   <select aria-label={`Status for ${lead.business_name}`}
                     value={lead.status}
-                    onChange={(e) => onUpdateStatus(lead.id, e.target.value as any)}
+                    onChange={(e) => onUpdateStatus(lead.id, e.target.value as Parameters<typeof onUpdateStatus>[1])}
                     className="bg-cyber-bg border border-white/10 rounded text-[9px] text-foreground font-mono focus:outline-none focus:border-neon-cyan p-1 w-full max-w-[120px]"
                   >
                     <option value="New">New</option>

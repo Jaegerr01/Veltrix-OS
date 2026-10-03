@@ -36,8 +36,8 @@ export default function OrbitalCommand() {
         setVoiceState({ isListening: !!detail.isListening, isSpeaking: !!detail.isSpeaking });
       }
     };
-    window.addEventListener('postelos-voice-status', handleVoiceStatus as any);
-    return () => window.removeEventListener('postelos-voice-status', handleVoiceStatus as any);
+    window.addEventListener('postelos-voice-status', handleVoiceStatus as EventListener);
+    return () => window.removeEventListener('postelos-voice-status', handleVoiceStatus as EventListener);
   }, []);
 
   const onMove = (e: React.MouseEvent<HTMLElement>) => {

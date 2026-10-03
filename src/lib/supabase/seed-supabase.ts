@@ -82,7 +82,7 @@ async function clearTable(tableName: string) {
   }
 }
 
-async function seedTable(tableName: string, data: any[]) {
+async function seedTable(tableName: string, data: Record<string, unknown>[]) {
   console.log(`Seeding table [${tableName}]...`);
   try {
     const { data: inserted, error: insertError } = await supabase

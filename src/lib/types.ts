@@ -302,7 +302,7 @@ export interface AgentMemory {
   id: string;
   user_id?: string;
   key: string;
-  value: any;
+  value: unknown;
   tags?: string[];
   created_at: string;
   updated_at: string;

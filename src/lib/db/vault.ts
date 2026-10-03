@@ -7,8 +7,8 @@ import type { AgentNoteInput, SaveInput } from '../vault/service';
  * Supabase-backed Memory Vault. Tables: vault_notes / vault_links (migrations/2026-10-02_004_memory_vault.sql).
  * Every query is scoped by user_id; RLS enforces the same in the browser.
  */
-const META_COLS = 'id,user_id,title,path,tags,pinned,source,created_at,updated_at';
-const FULL_COLS = META_COLS + ',body';
+const META_COLS: string = 'id,user_id,title,path,tags,pinned,source,created_at,updated_at';
+const FULL_COLS: string = META_COLS + ',body';
 
 const MIGRATION_HINT = 'Memory Vault tables are missing. Apply migrations/2026-10-02_004_memory_vault.sql in the Supabase SQL editor.';
 
@@ -29,37 +29,37 @@ export const supabaseVaultStore: VaultStore = {
   async listMeta(userId, limit) {
     const { data, error } = await supabase.from('vault_notes').select(META_COLS).eq('user_id', userId).order('updated_at', { ascending: false }).limit(limit);
     if (error) fail(error);
-    return (data || []) as VaultNoteMeta[];
+    return (data || []) as unknown as VaultNoteMeta[];
   },
   async listFull(userId, limit) {
     const { data, error } = await supabase.from('vault_notes').select(FULL_COLS).eq('user_id', userId).order('path').limit(limit);
     if (error) fail(error);
-    return (data || []) as VaultNote[];
+    return (data || []) as unknown as VaultNote[];
   },
   async get(userId, id) {
     const { data, error } = await supabase.from('vault_notes').select(FULL_COLS).eq('user_id', userId).eq('id', id).maybeSingle();
     if (error) fail(error);
-    return (data as VaultNote) ?? null;
+    return (data as unknown as VaultNote) ?? null;
   },
   async findByPathTitle(userId, path, title) {
     const { data, error } = await supabase.from('vault_notes').select(FULL_COLS).eq('user_id', userId).ilike('path', escapeLike(path)).ilike('title', escapeLike(title)).limit(1);
     if (error) fail(error);
-    return ((data || [])[0] as VaultNote) ?? null;
+    return ((data || [])[0] as unknown as VaultNote) ?? null;
   },
   async findByTitle(userId, title) {
     const { data, error } = await supabase.from('vault_notes').select(FULL_COLS).eq('user_id', userId).ilike('title', escapeLike(title)).limit(1);
     if (error) fail(error);
-    return ((data || [])[0] as VaultNote) ?? null;
+    return ((data || [])[0] as unknown as VaultNote) ?? null;
   },
   async insert(userId, fields) {
     const { data, error } = await supabase.from('vault_notes').insert({ user_id: userId, ...fields }).select(FULL_COLS).single();
     if (error) fail(error);
-    return data as VaultNote;
+    return data as unknown as VaultNote;
   },
   async update(userId, id, fields) {
     const { data, error } = await supabase.from('vault_notes').update(fields).eq('user_id', userId).eq('id', id).select(FULL_COLS).single();
     if (error) fail(error);
-    return data as VaultNote;
+    return data as unknown as VaultNote;
   },
   async remove(userId, id) {
     const { error } = await supabase.from('vault_notes').delete().eq('user_id', userId).eq('id', id);
@@ -68,13 +68,13 @@ export const supabaseVaultStore: VaultStore = {
   async search(userId, query, limit) {
     const fts = await supabase.from('vault_notes').select(FULL_COLS).eq('user_id', userId)
       .textSearch('search', query, { type: 'websearch', config: 'english' }).limit(limit);
-    if (!fts.error && fts.data && fts.data.length > 0) return fts.data as VaultNote[];
+    if (!fts.error && fts.data && fts.data.length > 0) return fts.data as unknown as VaultNote[];
     // Partial words / FTS unavailable: substring match on title or body.
     const like = `%${escapeLike(query)}%`;
     const { data, error } = await supabase.from('vault_notes').select(FULL_COLS).eq('user_id', userId)
       .or(`title.ilike.${like},body.ilike.${like}`).limit(limit);
     if (error) fail(error);
-    return (data || []) as VaultNote[];
+    return (data || []) as unknown as VaultNote[];
   },
   async setLinks(userId, noteId, links) {
     const del = await supabase.from('vault_links').delete().eq('user_id', userId).eq('from_note_id', noteId);
@@ -95,7 +95,7 @@ export const supabaseVaultStore: VaultStore = {
     if (!ids.length) return [];
     const notes = await supabase.from('vault_notes').select(META_COLS).eq('user_id', userId).in('id', ids);
     if (notes.error) fail(notes.error);
-    return (notes.data || []) as VaultNoteMeta[];
+    return (notes.data || []) as unknown as VaultNoteMeta[];
   },
 };
 

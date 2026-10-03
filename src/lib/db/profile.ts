@@ -1,6 +1,7 @@
 import type { BusinessProfile, Goal, Offer } from '../types';
 import * as seedData from '../seedData';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import type { DbRow } from './_core';
 import { addMemory } from './memory';
 
 export async function getBusinessProfile(): Promise<BusinessProfile> {
@@ -63,7 +64,7 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
         .select('amount')
         .eq('user_id', userId)
         .eq('status', 'Paid');
-      const closed = revData ? revData.reduce((acc: number, r: any) => acc + Number(r.amount), 0) : 0;
+      const closed = revData ? revData.reduce((acc: number, r: DbRow) => acc + Number(r.amount), 0) : 0;
       profileData.current_monthly_revenue = closed;
     } catch (revErr) {
       console.warn('Failed to calculate revenue dynamically:', revErr);
