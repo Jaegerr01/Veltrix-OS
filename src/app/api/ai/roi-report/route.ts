@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { gemini } from '@/lib/ai/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
-import { getResendClient, FROM_EMAIL } from '@/lib/email/resend';
+import { sendEmail as deliverEmail } from '@/lib/email/send';
 
 function estimateMonthlySaving(servicePurchased: string): number {
   const s = (servicePurchased || '').toLowerCase();
@@ -123,9 +123,11 @@ export async function POST(req: Request) {
 
     // Optional: send report email to client
     let emailDelivered = false;
+    let emailError: string | undefined;
+    let emailMessageId: string | undefined;
+    if (sendEmail && !client.email) emailError = 'This client has no email address on file.';
     if (sendEmail && client.email) {
-      const resend = getResendClient();
-      if (resend) {
+      {
         try {
           const emailBody = [
             `Hi ${client.contact_name || client.business_name},`,
@@ -142,25 +144,28 @@ export async function POST(req: Request) {
             'Powered by PostelOS',
           ].join('\n');
 
-          const { error: sendErr } = await resend.emails.send({
-            from: FROM_EMAIL,
-            to: [client.email],
+          const sent = await deliverEmail({
+            to: client.email,
+            kind: 'transactional',
+            unsubscribe: false,
             subject: `Your PostelOS ROI Summary — ${client.business_name}`,
             text: emailBody,
           });
 
-          if (sendErr) {
-            console.warn('Resend error sending ROI report:', sendErr);
-          } else {
+          if (sent.delivered) {
             emailDelivered = true;
+            emailMessageId = sent.messageId;
+          } else {
+            emailError = sent.reason || 'The email provider rejected the message.';
           }
-        } catch (sendErr) {
+        } catch (sendErr: any) {
           console.warn('Failed to send ROI report email:', sendErr);
+          emailError = sendErr?.message || 'Email send failed.';
         }
       }
     }
 
-    return NextResponse.json({ success: true, report, emailDelivered });
+    return NextResponse.json({ success: true, report, emailDelivered, emailError, emailMessageId });
   } catch (error: any) {
     console.error('Error generating ROI report:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -46,10 +46,9 @@ export default function ClientCard({ client }: ClientCardProps) {
     });
     const data = await res.json();
     if (!data.emailDelivered) {
-      alert(
-        data.error ||
-          'Email could not be sent. Check that RESEND_API_KEY and RESEND_FROM_EMAIL are set in .env.local.'
-      );
+      alert(`Email was NOT sent. ${data.emailError || data.error || 'Check Settings -> Email for provider status.'}`);
+    } else {
+      alert('Email sent (provider confirmed delivery to the mail server).');
     }
   };
 

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isGeminiConfigured } from '@/lib/ai/gemini';
-import { getResendClient, FROM_EMAIL } from '@/lib/email/resend';
+import { listProviders, selectProvider } from '@/lib/email/config';
 import { requireUser } from '@/lib/auth/requireUser';
 
 export const dynamic = 'force-dynamic';
@@ -103,17 +103,12 @@ export async function GET(req: Request) {
   }
 
   // ── Resend (real email sending) ────────────────────────────────────────────
-  const resend = getResendClient();
-  if (!resend) {
-    checks.resend = { ok: false, detail: 'RESEND_API_KEY missing — outreach + briefs are silently skipped (this is your "outreach can\'t send" bug).' };
+  const providerSel = selectProvider();
+  const providerInfo = listProviders().find(p => p.id === providerSel.provider);
+  if (!providerSel.provider) {
+    checks.resend = { ok: false, detail: providerSel.reason || 'No email provider configured. Open Settings -> Email for the exact missing variable names.' };
   } else {
-    const usingTestSender = FROM_EMAIL.includes('onboarding@resend.dev');
-    checks.resend = {
-      ok: true,
-      detail: usingTestSender
-        ? `Configured, but using the test sender (${FROM_EMAIL}). It can ONLY email your own Resend account address until you verify a domain + set RESEND_FROM_EMAIL.`
-        : `Configured with sender ${FROM_EMAIL}.`,
-    };
+    checks.resend = { ok: !providerInfo?.warning, detail: `Provider "${providerSel.provider}" selected.${providerInfo?.warning ? ' Warning: ' + providerInfo.warning : ''} Configured does not prove deliverability - use Settings -> Email -> "Send test email to myself".` };
   }
 
   // ── Roll-up ────────────────────────────────────────────────────────────────

@@ -11,9 +11,8 @@
 import { db } from '../db';
 import { runAgentLogic } from './executor';
 import { gemini } from '../ai/gemini';
-import { getResendClient, FROM_EMAIL } from '../email/resend';
-
-const BARRY_EMAIL = process.env.NOTIFY_EMAIL || 'tahakh5510@gmail.com';
+import { sendEmail } from '../email/send';
+import { getOwnerEmail } from '../auth/owner';
 const MONTHLY_TARGET = 6000;
 
 // Serverless functions time out (~26s). Each lead makes an LLM call, so we can only
@@ -40,17 +39,14 @@ function daysSince(dateStr: string): number {
 }
 
 async function notifyBarry(subject: string, body: string) {
+  // Internal notification to the account owner only (never a lead). Failures are logged, not hidden.
+  const owner = getOwnerEmail();
+  if (!owner) { console.warn('[Pipeline] Owner notification skipped: OWNER_EMAIL is not set.'); return; }
   try {
-    const resend = getResendClient();
-    if (!resend) return;
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [BARRY_EMAIL],
-      subject: `[PostelOS] ${subject}`,
-      text: body,
-    });
+    const r = await sendEmail({ to: owner, subject: `[PostelOS] ${subject}`, text: body, kind: 'transactional', unsubscribe: false });
+    if (!r.delivered) console.warn('[Pipeline] Owner notification NOT delivered:', r.reason);
   } catch (err) {
-    console.warn('[Pipeline] Barry notification failed:', err);
+    console.warn('[Pipeline] Owner notification failed:', err);
   }
 }
 
@@ -115,8 +111,10 @@ async function processQualifiedLeads(actions: string[], errors: string[]): Promi
         true
       );
       if (result.success) {
-        actions.push(`[Emma] Outreach + proposal processed for: ${lead.business_name} via ${channel}`);
+        actions.push(`[Emma] Outreach drafted for ${lead.business_name} via ${channel} - ${result.needsApproval ? 'awaiting your approval (NOT sent)' : 'saved as Draft (NOT sent)'}`);
         count++;
+      } else {
+        errors.push(`[Emma] Outreach for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
     } catch (err: any) {
       errors.push(`[Emma] Outreach failed for ${lead.business_name}: ${err.message}`);
@@ -153,14 +151,16 @@ async function processFollowups(actions: string[], errors: string[]): Promise<nu
         f =>
           f.lead_id === lead.id &&
           f.followup_type === `Day ${sequenceDay} Follow-up` &&
-          (f.status === 'Sent' || f.status === 'Completed')
+          !['Failed', 'Skipped'].includes(f.status) // any live follow-up (drafted/approved/sent) means this step is handled
       );
       if (alreadySent) continue;
 
       const result = await runAgentLogic('followup', { leadId: lead.id, sequenceDay }, true);
       if (result.success) {
-        actions.push(`[Lucas] Day ${sequenceDay} follow-up sent to: ${lead.business_name}`);
+        actions.push(`[Lucas] Day ${sequenceDay} follow-up drafted for ${lead.business_name} - ${result.needsApproval ? 'awaiting your approval (NOT sent)' : 'saved as Drafted (NOT sent)'}`);
         count++;
+      } else {
+        errors.push(`[Lucas] Follow-up for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
     } catch (err: any) {
       errors.push(`[Lucas] Follow-up failed for ${lead.business_name}: ${err.message}`);
@@ -200,8 +200,10 @@ async function processRepliedLeads(actions: string[], errors: string[]): Promise
         true
       );
       if (result.success) {
-        actions.push(`[Olivia] Proposal sent to: ${lead.business_name} — ${offerName} @ $${price}`);
+        actions.push(`[Olivia] Proposal drafted for ${lead.business_name} - ${offerName} @ $${price} - ${result.needsApproval ? 'awaiting your approval (NOT sent)' : 'saved as Draft (NOT sent)'}`);
         count++;
+      } else {
+        errors.push(`[Olivia] Proposal for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
     } catch (err: any) {
       errors.push(`[Olivia] Proposal failed for ${lead.business_name}: ${err.message}`);
@@ -367,23 +369,40 @@ async function processProposalSentLeads(actions: string[], errors: string[]): Pr
         'You are Emma, the Outreach Agent. Keep it casual and under 4 sentences.'
       );
 
-      await db.addFollowup({
+      // Draft only. It becomes 'Sent' exclusively through lib/email/delivery.ts after approval.
+      const fu = await db.addFollowup({
         lead_id: lead.id,
         followup_date: new Date().toISOString().split('T')[0],
         followup_type: 'Proposal Follow-up',
         message: followupMsg,
-        status: 'Sent'
+        status: 'Drafted'
       });
+
+      let queued = false;
+      if (lead.email) {
+        const { requestApproval } = await import('../entity/approvals');
+        await requestApproval({
+          type: 'followup_send',
+          department: 'revenue',
+          createdByAgent: 'Lucas (Follow-up Agent)',
+          title: `Send proposal follow-up to ${lead.business_name}`,
+          context: `Proposal went out ${daysSinceProposal} days ago with no reply.`,
+          payload: { leadId: lead.id, followupId: fu.id, to: lead.email, subject: `Following up - ${lead.business_name}`, text: followupMsg },
+          recommendation: 'Send. Short, low-pressure nudge.',
+          confidence: 6,
+        });
+        queued = true;
+      }
 
       await db.logAgentAction(
         'Follow-up Agent',
-        'Proposal Follow-up Sent',
+        'Proposal Follow-up Drafted',
         `leadId=${lead.id}, business=${lead.business_name}`,
         followupMsg,
-        'Success'
+        'Pending Approval'
       );
 
-      actions.push(`[Lucas] Proposal follow-up sent to: ${lead.business_name}`);
+      actions.push(`[Lucas] Proposal follow-up drafted for ${lead.business_name} - ${queued ? 'awaiting your approval (NOT sent)' : 'no email on file, saved as Drafted (NOT sent)'}`);
       count++;
     } catch (err: any) {
       errors.push(`[Lucas] Proposal follow-up failed for ${lead.business_name}: ${err.message}`);
