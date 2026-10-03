@@ -256,7 +256,7 @@ const BTN_VARIANTS: Record<string, Style> = {
   primary: { background: 'var(--grad-brand)', color: 'var(--text-on-accent)', border: '1px solid transparent', boxShadow: 'var(--glow-violet)' },
   secondary: { background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--border-default)', boxShadow: 'var(--sheen-top)' },
   ghost: { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent', boxShadow: 'none' },
-  danger: { background: 'var(--danger-400)', color: 'var(--white)', border: '1px solid transparent', boxShadow: '0 0 22px rgba(255,77,109,0.4)' },
+  danger: { background: 'var(--danger-600)', color: 'var(--white)', border: '1px solid transparent', boxShadow: '0 0 22px rgba(255,77,109,0.4)' },
 };
 
 export function Button({
@@ -473,6 +473,7 @@ export function Switch({
   onChange,
   disabled = false,
   label,
+  ariaLabel,
   id,
   style,
 }: {
@@ -481,6 +482,8 @@ export function Switch({
   onChange?: (v: boolean) => void;
   disabled?: boolean;
   label?: React.ReactNode;
+  /** Accessible name when no visible `label` is given. */
+  ariaLabel?: string;
   id?: string;
   style?: Style;
 }) {
@@ -495,40 +498,8 @@ export function Switch({
     onChange && onChange(!on);
   };
   const control = (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      id={fid}
-      onClick={toggle}
-      disabled={disabled}
-      style={{
-        width: 44,
-        height: 24,
-        flex: '0 0 auto',
-        padding: 2,
-        borderRadius: 'var(--radius-pill)',
-        border: 'none',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        background: on ? 'var(--grad-brand)' : 'var(--ink-500)',
-        boxShadow: on ? 'var(--glow-violet)' : 'inset 0 0 0 1px var(--border-default)',
-        transition: 'background var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out)',
-        opacity: disabled ? 0.5 : 1,
-        display: 'inline-flex',
-        alignItems: 'center',
-      }}
-    >
-      <span
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: '50%',
-          background: 'var(--white)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
-          transform: on ? 'translateX(20px)' : 'translateX(0)',
-          transition: 'transform var(--dur-base) var(--ease-spring)',
-        }}
-      />
+    <button type="button" role="switch" aria-checked={on} aria-label={label ? undefined : ariaLabel} id={fid} onClick={toggle} disabled={disabled} className="vx-switch">
+      <span className="vx-switch__track" data-on={on}><span className="vx-switch__thumb" /></span>
     </button>
   );
   if (!label) return <span style={style}>{control}</span>;

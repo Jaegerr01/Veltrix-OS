@@ -167,7 +167,7 @@ export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
           </div>
           <div>
             <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">How we found them</label>
-            <select
+            <select aria-label="How we found them"
               value={source}
               onChange={(e) => setSource(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition font-mono"

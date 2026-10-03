@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
       <div className="flex justify-between items-center">
         <Link
           href="/"
-          className="flex items-center space-x-1.5 text-xs font-mono text-neon-cyan hover:underline cursor-pointer"
+          className="vx-tap flex items-center space-x-1.5 text-xs font-mono text-neon-cyan hover:underline cursor-pointer"
         >
           <ArrowLeft size={14} />
           <span>BACK TO DASHBOARD</span>
@@ -29,9 +29,9 @@ export default function PrivacyPolicy() {
             <Shield size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-mono">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground font-mono">
               PRIVACY POLICY
-            </h1>
+            </h2>
             <p className="text-sm text-muted-foreground mt-1 font-mono text-neon-cyan">
               PostelOS DATA GOVERNANCE
             </p>

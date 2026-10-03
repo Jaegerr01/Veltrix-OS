@@ -107,6 +107,7 @@ export default function ApprovalQueue() {
           onClick={load}
           className="p-1.5 rounded-lg hover:bg-white/5 text-white/30 hover:text-neon-cyan transition-colors cursor-pointer"
           title="Refresh queue"
+          aria-label="Refresh approval queue"
         >
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
         </button>

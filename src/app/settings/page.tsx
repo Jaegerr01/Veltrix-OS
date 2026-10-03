@@ -237,7 +237,7 @@ export default function SettingsPage() {
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600, color: 'var(--text-strong)' }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{p.desc}</div>
                   </div>
-                  <Switch checked={prefs[p.key]} onChange={(v) => setPrefs((s) => ({ ...s, [p.key]: v }))} />
+                  <Switch ariaLabel={p.name} checked={prefs[p.key]} onChange={(v) => setPrefs((s) => ({ ...s, [p.key]: v }))} />
                 </div>
               ))}
             </div>
@@ -322,6 +322,7 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-default)' }}>
                 <input
                   type="color"
+                  aria-label="Custom accent color"
                   value={accentColor}
                   onChange={(e) => setAccentColor(e.target.value)}
                   style={{
@@ -347,6 +348,7 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-default)' }}>
                 <input
                   type="color"
+                  aria-label="Background canvas color"
                   value={backgroundColor}
                   onChange={(e) => setBackgroundColor(e.target.value)}
                   style={{

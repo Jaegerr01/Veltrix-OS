@@ -107,7 +107,7 @@ export default function LeadTable({
               <td className="px-6 py-4 space-y-1.5">
                 <StatusBadge status={lead.status} />
                 <div className="pt-0.5">
-                  <select
+                  <select aria-label={`Status for ${lead.business_name}`}
                     value={lead.status}
                     onChange={(e) => onUpdateStatus(lead.id, e.target.value as any)}
                     className="bg-cyber-bg border border-white/10 rounded text-[9px] text-foreground font-mono focus:outline-none focus:border-neon-cyan p-1 w-full max-w-[120px]"

@@ -233,9 +233,9 @@ export default function ProjectsPage() {
                     <span style={{ fontSize: 9.5, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
                       {proj.service_type.toUpperCase()}
                     </span>
-                    <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>
                       {proj.project_name}
-                    </h4>
+                    </h3>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                       Client: <span style={{ color: 'var(--violet-200)' }}>{getClientName(proj.client_id)}</span>
                     </p>
@@ -245,7 +245,7 @@ export default function ProjectsPage() {
                     {/* Status Select */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>WORKFLOW STATE</span>
-                      <select
+                      <select aria-label="Project workflow state"
                         value={proj.status}
                         onChange={(e) => handleUpdateStatus(proj.id, e.target.value as any)}
                         style={{
@@ -396,7 +396,7 @@ export default function ProjectsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Assign Customer (Client) *</label>
-                <select style={inputStyle} value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+                <select aria-label="Client" style={inputStyle} value={clientId} onChange={(e) => setClientId(e.target.value)} required>
                   {clients.length > 0 ? (
                     clients.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -410,7 +410,7 @@ export default function ProjectsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Service Category</label>
-                <select style={inputStyle} value={serviceType} onChange={(e) => setServiceType(e.target.value)}>
+                <select aria-label="Service category" style={inputStyle} value={serviceType} onChange={(e) => setServiceType(e.target.value)}>
                   <option value="Website Development">Website Development</option>
                   <option value="AI Receptionist">AI Receptionist</option>
                   <option value="Branding">Branding</option>

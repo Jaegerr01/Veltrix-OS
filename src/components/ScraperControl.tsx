@@ -83,7 +83,7 @@ export default function ScraperControl() {
       <div className="grid grid-cols-2 gap-2.5">
         <div className="col-span-1">
           <label className="text-[9px] font-mono text-white/30 uppercase tracking-wider">Niche</label>
-          <select
+          <select aria-label="Niche"
             value={niche}
             onChange={e => setNiche(e.target.value)}
             className="w-full mt-1 rounded-lg bg-black/40 border border-white/[0.1] px-2.5 py-2 text-[12px] text-white/80 focus:outline-none focus:border-neon-cyan/50 cursor-pointer"
@@ -94,6 +94,7 @@ export default function ScraperControl() {
         <div className="col-span-1">
           <label className="text-[9px] font-mono text-white/30 uppercase tracking-wider">Location</label>
           <input
+            aria-label="Location"
             value={location}
             onChange={e => setLocation(e.target.value)}
             placeholder="Austin, TX"
@@ -103,7 +104,7 @@ export default function ScraperControl() {
         <div className="col-span-1">
           <label className="text-[9px] font-mono text-white/30 uppercase tracking-wider">Max leads</label>
           <input
-            type="number" min={1} max={100}
+            type="number" aria-label="Max leads" min={1} max={100}
             value={limit}
             onChange={e => setLimit(Math.min(100, Math.max(1, Number(e.target.value) || 20)))}
             className="w-full mt-1 rounded-lg bg-black/40 border border-white/[0.1] px-2.5 py-2 text-[12px] text-white/80 focus:outline-none focus:border-neon-cyan/50"

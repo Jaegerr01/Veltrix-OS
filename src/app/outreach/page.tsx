@@ -361,7 +361,7 @@ export default function OutreachPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Assign Recipient (Lead) *</label>
-                <select style={inputStyle} value={leadId} onChange={(e) => setLeadId(e.target.value)} required>
+                <select aria-label="Recipient lead" style={inputStyle} value={leadId} onChange={(e) => setLeadId(e.target.value)} required>
                   {leads.length > 0 ? (
                     leads.map((l) => (
                       <option key={l.id} value={l.id}>
@@ -375,7 +375,7 @@ export default function OutreachPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Outreach Channel</label>
-                <select style={inputStyle} value={channel} onChange={(e) => setChannel(e.target.value as any)}>
+                <select aria-label="Outreach channel" style={inputStyle} value={channel} onChange={(e) => setChannel(e.target.value as any)}>
                   <option value="Email">Email</option>
                   <option value="LinkedIn">LinkedIn</option>
                   <option value="Instagram">Instagram</option>

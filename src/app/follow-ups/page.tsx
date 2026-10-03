@@ -324,7 +324,7 @@ export default function FollowUpsPage() {
           <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', marginBottom: 8 }}>
             Select Potential Client (Lead)
           </div>
-          <select
+          <select aria-label="Potential client (lead)"
             value={selectedLeadId}
             onChange={(e) => setSelectedLeadId(e.target.value)}
             style={selectStyle}
@@ -343,7 +343,7 @@ export default function FollowUpsPage() {
           <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', margin: 'var(--space-5) 0 8px' }}>
             Select Follow-up Stage
           </div>
-          <select
+          <select aria-label="Follow-up stage"
             value={selectedDay}
             onChange={(e) => setSelectedDay(e.target.value)}
             style={selectStyle}

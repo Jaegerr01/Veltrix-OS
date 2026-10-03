@@ -303,7 +303,7 @@ Return only the JSON object.`;
               ].map(({ label, options, value: val, setter }) => (
                 <div key={label}>
                   <label className="block text-[10px] font-mono text-white/30 uppercase tracking-wider mb-1">{label}</label>
-                  <select
+                  <select aria-label={label}
                     value={val}
                     onChange={e => setter(e.target.value)}
                     className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-neon-purple/50 transition cursor-pointer"
@@ -390,7 +390,7 @@ Return only the JSON object.`;
 
               <div>
                 <label className="block text-[10px] font-mono text-white/30 uppercase tracking-wider mb-1">Scripts to generate</label>
-                <select
+                <select aria-label="Scripts to generate"
                   value={batchCount}
                   onChange={e => setBatchCount(Number(e.target.value))}
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-neon-purple/50 transition cursor-pointer"
@@ -403,7 +403,7 @@ Return only the JSON object.`;
 
               <div>
                 <label className="block text-[10px] font-mono text-white/30 uppercase tracking-wider mb-1">Vertical focus</label>
-                <select
+                <select aria-label="Vertical focus"
                   value={batchFocus}
                   onChange={e => setBatchFocus(e.target.value)}
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-neon-purple/50 transition cursor-pointer"

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./postel-ds.css";
 @import "./shell.css";
+@import "./ui.css";
 
 /* ============================================================
    TAILWIND THEME BRIDGE

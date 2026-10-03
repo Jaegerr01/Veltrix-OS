@@ -225,7 +225,7 @@ export default function CeoConsole() {
       <section style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-strong)' }}>Live task board (database)</div>
-          <Link href="/tasks" style={{ ...mono, color: 'var(--cyan-300)' }}>All tasks →</Link>
+          <Link href="/tasks" className="vx-tap" style={{ ...mono, color: 'var(--cyan-300)' }}>All tasks →</Link>
         </div>
         {boardErr && <div style={{ ...mono, color: 'var(--danger-400)' }}>{boardErr}</div>}
         {board.length === 0 && !boardErr && <div style={{ ...mono, color: 'var(--text-dim)' }}>No tasks yet. Give the CEO an instruction above - every task it creates appears here with its real status.</div>}

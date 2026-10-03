@@ -116,7 +116,7 @@ export default function CommandCenterPage() {
               <div className="vx-eyebrow" style={{ color: 'var(--violet-300)', marginBottom: 6 }}>Workforce</div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--text-strong)' }}>Agent Roster</div>
             </div>
-            <Link href="/ceo" style={{ fontSize: 12, color: 'var(--cyan-300)', fontFamily: 'var(--font-mono)' }}>Give the CEO an instruction →</Link>
+            <Link href="/ceo" className="vx-tap" style={{ fontSize: 12, color: 'var(--cyan-300)', fontFamily: 'var(--font-mono)' }}>Give the CEO an instruction →</Link>
           </div>
           {rosterError && <div style={{ color: 'var(--danger-400)', fontFamily: 'var(--font-mono)', fontSize: 12, marginBottom: 8 }}>{rosterError}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-5)' }}>

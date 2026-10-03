@@ -258,9 +258,9 @@ export default function ProposalsPage() {
                         </span>
                       )}
                     </div>
-                    <h5 style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>
                       {prop.title}
-                    </h5>
+                    </h3>
                     <div><SendStateBadge record={prop} /></div>
                     <SendDetails record={prop} />
                     <p style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
@@ -358,7 +358,7 @@ export default function ProposalsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Assign Lead Prospect *</label>
-                <select style={inputStyle} value={leadId} onChange={(e) => setLeadId(e.target.value)} required>
+                <select aria-label="Lead prospect" style={inputStyle} value={leadId} onChange={(e) => setLeadId(e.target.value)} required>
                   {leads.length > 0 ? (
                     leads.map((l) => (
                       <option key={l.id} value={l.id}>

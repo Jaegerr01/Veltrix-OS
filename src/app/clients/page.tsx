@@ -199,9 +199,9 @@ export default function ClientsPage() {
                 </span>
               </div>
 
-              <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>
                 {c.business_name}
-              </h4>
+              </h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                 {c.contact_name ? `Contact: ${c.contact_name}` : 'No primary contact'}
               </p>
@@ -298,7 +298,7 @@ export default function ClientsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Service Purchased</label>
-                <select style={inputStyle} value={servicePurchased} onChange={(e) => setServicePurchased(e.target.value)}>
+                <select aria-label="Service purchased" style={inputStyle} value={servicePurchased} onChange={(e) => setServicePurchased(e.target.value)}>
                   <option value="AI Website System">AI Website System</option>
                   <option value="AI Receptionist Voice/Chatbot">AI Receptionist Voice/Chatbot</option>
                   <option value="AI Branding Package">AI Branding Package</option>
@@ -315,7 +315,7 @@ export default function ClientsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Status</label>
-                <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as any)}>
+                <select aria-label="Client status" style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as any)}>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                   <option value="Completed">Completed</option>
