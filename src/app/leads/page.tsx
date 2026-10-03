@@ -19,6 +19,9 @@ const STAGE_KEYS = {
   won: ['Won'],
 };
 
+/** Only the fields the pipeline needs from a proposal. Money shown on this page comes from real proposal rows. */
+interface ProposalRow { lead_id?: string | null; price?: number | null; status: string; provider_message_id?: string | null }
+
 interface Lead {
   id: string;
   business_name: string;
@@ -41,11 +44,13 @@ export default function LeadsPage() {
   const [isScraperOpen, setIsScraperOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [proposals, setProposals] = useState<ProposalRow[]>([]);
 
   const loadLeads = async () => {
     try {
-      const data = await db.getLeads();
+      const [data, props] = await Promise.all([db.getLeads(), db.getProposals().catch(() => [])]);
       setLeads(data);
+      setProposals(props as unknown as ProposalRow[]);
     } catch (err) {
       console.warn('Failed to load leads from database:', err);
     } finally {
@@ -58,12 +63,12 @@ export default function LeadsPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const getDealValue = (l: Lead) => {
-    // Generate a clean, realistic estimated deal value based on lead score
-    if (l.lead_score >= 8) return 2500;
-    if (l.lead_score >= 6) return 1800;
-    return 1200;
-  };
+  // Real money only: the sum of this lead's proposals that are actually out (sent with proof of delivery) or accepted.
+  // Leads carry no deal value of their own, so none is invented from the lead score.
+  const getDealValue = (l: Lead) =>
+    proposals
+      .filter(p => p.lead_id === l.id && ((['Sent', 'Viewed'].includes(p.status) && Boolean(p.provider_message_id)) || p.status === 'Accepted'))
+      .reduce((sum, p) => sum + (p.price || 0), 0);
 
   const getScoreColor = (score: number) => {
     if (score >= 7.5) return 'var(--signal-400)';
@@ -86,6 +91,7 @@ export default function LeadsPage() {
   // Compute stats
   const totalValue = leads.reduce((sum, l) => sum + getDealValue(l), 0);
   const wonValue = wonLeads.reduce((sum, l) => sum + getDealValue(l), 0);
+  const wonCount = wonLeads.length;
 
   const pipelineColumns = [
     {
@@ -126,8 +132,8 @@ export default function LeadsPage() {
         subtitle="Manage your prospective clients, qualify their automation needs, and track deal stages."
         stats={[
           { value: String(leads.length), label: 'TOTAL LEADS', color: 'var(--text-strong)' },
-          { value: `$${(totalValue / 1000).toFixed(0)}K`, label: 'PIPELINE EST', color: 'var(--cyan-300)' },
-          { value: `$${(wonValue / 1000).toFixed(0)}K`, label: 'CLOSED WON', color: 'var(--signal-400)' },
+          { value: `$${(totalValue / 1000).toFixed(1)}K`, label: 'PROPOSALS OUT', color: 'var(--cyan-300)' },
+          { value: String(wonCount), label: 'LEADS WON', color: 'var(--signal-400)' },
         ]}
         action={
           <div
@@ -186,7 +192,7 @@ export default function LeadsPage() {
               </span>
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--cyan-300)', marginBottom: 'var(--space-4)' }}>
-              ${col.value.toLocaleString()}
+              {col.value > 0 ? `$${col.value.toLocaleString()} in proposals` : 'No proposals yet'}
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -211,7 +217,7 @@ export default function LeadsPage() {
                     
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-body)' }}>
-                        ${getDealValue(deal).toLocaleString()}
+                        {getDealValue(deal) > 0 ? `$${getDealValue(deal).toLocaleString()}` : 'No proposal'}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {deal.lead_score > 0 && (

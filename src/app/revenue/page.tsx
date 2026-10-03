@@ -93,7 +93,7 @@ export default function RevenuePage() {
 
   const KPIS = [
     { label: 'Open proposals (confirmed sent)', value: `$${(pipelineValue / 1000).toFixed(1)}K`, accent: 'violet' },
-    { label: 'Recurring Retainers', value: `$${activeRetainers}/mo`, accent: 'violet' },
+    { label: 'Recurring Retainers', value: `$${activeRetainers}/mo`, accent: 'signal' },
     { label: 'Outreach delivered (confirmed)', value: String(sentMsgs.length), accent: 'cyan' },
     { label: 'Reply rate (of confirmed sends)', value: replyRatePct === null ? '\u2014' : `${replyRatePct}%`, accent: 'magenta' },
   ] as const;
@@ -112,8 +112,8 @@ export default function RevenuePage() {
 
   const maxTotal = Math.max(...weeklyTotals, 1);
   const BAR_VALS = weeklyTotals.map(tot => {
-    if (tot === 0) return 20; // default height for visual placeholder
-    return Math.max(20, Math.round((tot / maxTotal) * 100));
+    if (tot === 0) return 2; // no revenue that week: a hairline baseline, never a fake bar
+    return Math.max(6, Math.round((tot / maxTotal) * 100));
   });
 
   // 3. Channel Mix calculations
