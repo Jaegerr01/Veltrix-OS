@@ -64,7 +64,7 @@ export default function ReportsPage() {
       const proposals = await db.getProposals();
 
       const closedRevenue = revenue.reduce((sum, r) => sum + (r.amount || 0), 0);
-      const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status)).reduce((sum, p) => sum + (p.price || 0), 0);
+      const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status) && !!p.provider_message_id).reduce((sum, p) => sum + (p.price || 0), 0);
       const target = 6000;
       const gap = Math.max(0, target - closedRevenue);
 

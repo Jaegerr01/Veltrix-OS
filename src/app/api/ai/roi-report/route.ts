@@ -10,7 +10,7 @@ function estimateMonthlySaving(servicePurchased: string): number {
   const s = (servicePurchased || '').toLowerCase();
   if (s.includes('receptionist') || s.includes('booking')) return 1000;
   if (s.includes('growth') || s.includes('package')) return 750;
-  return 500; // website / brand default
+  return 500; // website / brand default. ASSUMPTION, not a measurement - labelled as such in the report.
 }
 
 export async function POST(req: Request) {
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
       });
     } catch (aiErr) {
       console.warn('Gemini unavailable for ROI report — using fallback:', aiErr);
-      narrative = `${client.business_name} has been an active PostelOS client for ${monthsActive} month${monthsActive !== 1 ? 's' : ''}, with ${client.service_purchased || 'an AI solution'} deployed and ${completionRate}% of project milestones completed. The investment of $${lifetimeValue.toLocaleString()} has been put to work across ${tasksTotal} delivery tasks, with estimated returns of ~$${estimatedMonthlySaving.toLocaleString()}/month in operational value — representing a projected ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}% ROI on the engagement. To maximise results further, we recommend scheduling a performance review call to identify the next high-impact automation opportunity.`;
+      narrative = `${client.business_name} has been an active PostelOS client for ${monthsActive} month${monthsActive !== 1 ? 's' : ''}, with ${client.service_purchased || 'an AI solution'} deployed and ${completionRate}% of project milestones completed. The investment of $${lifetimeValue.toLocaleString()} has been put to work across ${tasksTotal} delivery tasks, with an ASSUMED (not measured) value of ~$${estimatedMonthlySaving.toLocaleString()}/month in operational value — representing a projected ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}% ROI on the engagement. To maximise results further, we recommend scheduling a performance review call to identify the next high-impact automation opportunity.`;
     }
 
     const report = {
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
             `Service:               ${client.service_purchased || 'AI Solution'}`,
             `Months Active:         ${monthsActive}`,
             `Milestones Complete:   ${tasksCompleted}/${tasksTotal} (${completionRate}%)`,
-            `Est. Monthly Value:    ~$${estimatedMonthlySaving.toLocaleString()}`,
+            `Assumed Monthly Value (not measured): ~$${estimatedMonthlySaving.toLocaleString()}`,
             `Projected ROI:         ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}%`,
             '',
             'Powered by PostelOS',

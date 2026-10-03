@@ -81,19 +81,21 @@ export default function RevenuePage() {
   }
 
   // 1. Calculations for KPIs
-  const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status)).reduce((sum, p) => sum + (p.price || 0), 0);
+  // Only deliveries with proof count: a row is "sent" only if a provider message id (or manual attestation) is recorded.
+  const hasProof = (x: unknown) => Boolean((x as { provider_message_id?: string | null }).provider_message_id);
+  const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status) && hasProof(p)).reduce((sum, p) => sum + (p.price || 0), 0);
   const totalRevenueValue = revenue.reduce((sum, r) => sum + (r.amount || 0), 0);
   const activeRetainers = clients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
 
-  const sentMsgs = outreach.filter(m => m.status === 'Sent');
+  const sentMsgs = outreach.filter(m => m.status === 'Sent' && hasProof(m));
   const repliedMsgs = outreach.filter(m => m.status === 'Replied');
-  const openRatePct = sentMsgs.length > 0 ? Math.round((repliedMsgs.length / sentMsgs.length) * 100) : 42;
+  const replyRatePct = sentMsgs.length > 0 ? Math.round((repliedMsgs.length / sentMsgs.length) * 100) : null;
 
   const KPIS = [
-    { label: 'Pipeline Value', value: pipelineValue > 0 ? `$${(pipelineValue / 1000).toFixed(1)}K` : '$74.4K', delta: '+18%', accent: 'violet' },
-    { label: 'Recurring Retainers', value: `$${activeRetainers}/mo`, delta: '+12%', accent: 'blue' },
-    { label: 'Outreach Delivered', value: String(outreach.filter(o => o.status === 'Sent').length), delta: '+24%', accent: 'cyan' },
-    { label: 'Outreach Reply Rate', value: `${openRatePct}%`, delta: '+3%', accent: 'magenta' },
+    { label: 'Open proposals (confirmed sent)', value: `$${(pipelineValue / 1000).toFixed(1)}K`, accent: 'violet' },
+    { label: 'Recurring Retainers', value: `$${activeRetainers}/mo`, accent: 'blue' },
+    { label: 'Outreach delivered (confirmed)', value: String(sentMsgs.length), accent: 'cyan' },
+    { label: 'Reply rate (of confirmed sends)', value: replyRatePct === null ? '\u2014' : `${replyRatePct}%`, accent: 'magenta' },
   ] as const;
 
   // 2. Bar Chart weekly bucket distribution
@@ -149,7 +151,6 @@ export default function RevenuePage() {
             label={k.label}
             value={k.value}
             unit=""
-            delta={k.delta}
             accent={k.accent}
             style={{ animation: 'vxFadeUp 0.6s var(--ease-out) both', animationDelay: `${i * 0.06}s` }}
           />

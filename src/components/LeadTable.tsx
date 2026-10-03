@@ -125,7 +125,7 @@ export default function LeadTable({
                   <div className="flex items-center space-x-1 mt-1">
                     <button
                       onClick={() => onUpdateStatus(lead.id, 'Contacted')}
-                      title="Mark Contacted"
+                      title="Mark Contacted - manual status change (does NOT send anything)"
                       className="px-1 py-0.5 rounded bg-white/5 hover:bg-neon-cyan/20 border border-white/5 text-[7px] font-mono text-muted-foreground hover:text-neon-cyan cursor-pointer"
                     >
                       CNT
