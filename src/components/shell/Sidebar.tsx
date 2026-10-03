@@ -18,7 +18,7 @@ function CeoCard() {
   if (!loading && error && !status) { text = 'Status unavailable - check System Status.'; href = '/health'; }
   else if (status) {
     const t = status.tasks;
-    const waiting = t.needsApproval + status.approvalsPending;
+    const waiting = Math.max(t.needsApproval, status.approvalsPending);
     if (!status.ai.configured) { text = 'AI not connected. Add GEMINI_API_KEY to start.'; href = '/settings'; }
     else if (t.running > 0) { text = `${t.running} task${t.running === 1 ? '' : 's'} running${waiting ? `, ${waiting} awaiting you` : ''}.`; tone = 'active'; href = '/tasks'; }
     else if (waiting > 0) { text = `${waiting} item${waiting === 1 ? '' : 's'} awaiting your approval.`; tone = 'busy'; href = '/command-center'; }

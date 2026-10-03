@@ -20,7 +20,8 @@ export default function StatusStrip() {
       </div>
     );
   }
-  const waiting = status.approvalsPending + status.tasks.needsApproval;
+  // A task waiting on approval normally has its own approval request, so take the larger count, never the sum.
+  const waiting = Math.max(status.approvalsPending, status.tasks.needsApproval);
   const tiles: Tile[] = [
     { key: 'approvals', label: 'Awaiting approval', value: waiting, note: waiting ? 'Review before agents continue' : 'Nothing waiting', href: '/command-center', tone: waiting ? 'warn' : undefined },
     { key: 'drafts', label: 'Drafts to review', value: status.outreach.drafts, note: status.outreach.approved ? `${status.outreach.approved} approved, sending` : 'Outreach not yet approved', href: '/outreach' },

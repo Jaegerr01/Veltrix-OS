@@ -168,7 +168,7 @@ Call log:
 # Test source
 
 ```ts
-  1   | import { test, expect } from '@playwright/test';
+  1   | ﻿import { test, expect } from '@playwright/test';
   2   | import { signIn, resetMock } from './helpers';
   3   | import { rows, apiGet } from './util';
   4   | 
@@ -211,7 +211,7 @@ Call log:
   41  |     await nav.getByRole('link', { name: 'Leads' }).click();
   42  |     await expect(page).toHaveURL(/\/leads$/);
   43  |     await expect(page.getByRole('heading', { level: 1, name: 'Leads' })).toBeVisible();
-  44  |     await expect(page).toHaveTitle(/Leads · PostelOS/);
+  44  |     await expect(page).toHaveTitle(/Leads Â· PostelOS/);
   45  |     await expect(nav.getByRole('link', { name: 'Leads' })).toHaveAttribute('aria-current', 'page');
   46  |     // skip link is the first tab stop and moves focus to <main>
   47  |     await page.goto('/leads');
@@ -268,7 +268,7 @@ Call log:
   97  | 
   98  |     // Approve -> toast with Undo
   99  |     await page.getByRole('button', { name: 'Approve', exact: true }).first().click();
-  100 |     const toast = page.getByRole('status').filter({ hasText: 'Draft approved (not sent yet)' });
+  100 |     const toast = page.locator('.vx-toast').filter({ hasText: 'Draft approved (not sent yet)' });
   101 |     await expect(toast).toBeVisible();
   102 |     await toast.getByRole('button', { name: 'Undo' }).click();
   103 |     await expect.poll(async () => (await rows('outreach_messages')).filter(r => r.status === 'Draft').length).toBeGreaterThan(0);
@@ -285,7 +285,7 @@ Call log:
   114 |     // Confirm -> honest failure because no provider is configured; still not Sent
   115 |     await send.click();
   116 |     await dlg.getByRole('button', { name: 'Send now' }).click();
-  117 |     await expect(page.getByRole('status').filter({ hasText: /not (configured|connected|ready)|no email provider|NOT sent|could not|failed/i }).first()).toBeVisible({ timeout: 15000 });
+  117 |     await expect(page.locator('.vx-toast').filter({ hasText: /not (configured|connected|ready)|no email provider|NOT sent|could not|failed/i }).first()).toBeVisible({ timeout: 15000 });
   118 |     expect((await rows('outreach_messages')).filter(r => r.status === 'Sent').length).toBe(before);
   119 |   });
   120 | });

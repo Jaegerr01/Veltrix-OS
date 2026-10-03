@@ -25,7 +25,7 @@ export default function Topbar({ navOpen, onToggleNav, onOpenPalette }: Props) {
     return () => { clearTimeout(t); window.removeEventListener('storage', read); window.removeEventListener('vx_settings_updated', read); };
   }, []);
 
-  const waiting = status ? status.approvalsPending + status.tasks.needsApproval + status.outreach.drafts : 0;
+  const waiting = status ? Math.max(status.approvalsPending, status.tasks.needsApproval) + status.outreach.drafts : 0;
   const chip: { tone: 'ok' | 'warn' | 'bad'; text: string; href: string } = !status
     ? { tone: error ? 'bad' : 'warn', text: error ? 'Status unavailable' : 'Checking...', href: '/health' }
     : !status.ai.configured ? { tone: 'bad', text: 'AI not connected', href: '/settings' }

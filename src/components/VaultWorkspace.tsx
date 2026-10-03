@@ -106,11 +106,14 @@ export default function VaultWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const update = (patch: Partial<Draft>) => { setDraft(d => ({ ...d, ...patch })); setDirty(true); };
+  // Tracks edits made while a save round-trip is in flight so the refreshed copy never overwrites newer typing.
+  const editedRef = React.useRef(false);
+  const update = (patch: Partial<Draft>) => { editedRef.current = true; setDraft(d => ({ ...d, ...patch })); setDirty(true); };
 
   const save = React.useCallback(async () => {
     if (!draft.title.trim()) { setMsg({ ok: false, text: 'Give the note a title first.' }); return; }
     setSaving(true);
+    editedRef.current = false;
     const r = await api<{ note: VaultNote }>('/api/memory', {
       method: 'POST',
       body: JSON.stringify({ id: draft.id, title: draft.title, body: draft.body, path: draft.path, tags: parseTags(draft.tags), pinned: draft.pinned }),
@@ -118,10 +121,14 @@ export default function VaultWorkspace() {
     setSaving(false);
     if (!r.success || !r.note) { setMsg({ ok: false, text: r.error || 'Save failed.' }); return; }
     setMsg({ ok: true, text: `Saved "${r.note.title}".` });
-    setDirty(false);
+    if (!editedRef.current) setDirty(false);
     await loadList();
     const d = await api<Detail>(`/api/memory/${r.note.id}`);
-    if (d.success) { setDetail(d as unknown as Detail); setDraft(toDraft((d as unknown as Detail).note)); }
+    if (d.success) {
+      setDetail(d as unknown as Detail);
+      if (!editedRef.current) setDraft(toDraft((d as unknown as Detail).note));
+      else setDraft(cur => ({ ...cur, id: r.note.id }));
+    }
   }, [draft, loadList]);
 
   React.useEffect(() => {

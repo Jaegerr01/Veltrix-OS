@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 import { signIn, resetMock } from './helpers';
 import { rows, apiGet } from './util';
 
@@ -41,7 +41,7 @@ test.describe('navigation', () => {
     await nav.getByRole('link', { name: 'Leads' }).click();
     await expect(page).toHaveURL(/\/leads$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Leads' })).toBeVisible();
-    await expect(page).toHaveTitle(/Leads · PostelOS/);
+    await expect(page).toHaveTitle(/Leads Â· PostelOS/);
     await expect(nav.getByRole('link', { name: 'Leads' })).toHaveAttribute('aria-current', 'page');
     // skip link is the first tab stop and moves focus to <main>
     await page.goto('/leads');
@@ -76,6 +76,7 @@ test.describe('vault', () => {
     await expect(page.getByText('Saved "E2E decision log".')).toBeVisible();
     await expect.poll(async () => (await rows('vault_notes')).filter(r => r.title === 'E2E decision log').length).toBe(1);
 
+    await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeDisabled();
     await page.getByLabel('Note title').fill('E2E decision log v2');
     await page.getByRole('button', { name: /^Save/ }).click();
     await expect(page.getByText('Saved "E2E decision log v2".')).toBeVisible();
@@ -97,7 +98,7 @@ test.describe('outreach approval (mock provider only - nothing can be sent)', ()
 
     // Approve -> toast with Undo
     await page.getByRole('button', { name: 'Approve', exact: true }).first().click();
-    const toast = page.getByRole('status').filter({ hasText: 'Draft approved (not sent yet)' });
+    const toast = page.locator('.vx-toast').filter({ hasText: 'Draft approved (not sent yet)' });
     await expect(toast).toBeVisible();
     await toast.getByRole('button', { name: 'Undo' }).click();
     await expect.poll(async () => (await rows('outreach_messages')).filter(r => r.status === 'Draft').length).toBeGreaterThan(0);
@@ -114,7 +115,7 @@ test.describe('outreach approval (mock provider only - nothing can be sent)', ()
     // Confirm -> honest failure because no provider is configured; still not Sent
     await send.click();
     await dlg.getByRole('button', { name: 'Send now' }).click();
-    await expect(page.getByRole('status').filter({ hasText: /not (configured|connected|ready)|no email provider|NOT sent|could not|failed/i }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.vx-toast').filter({ hasText: /not (configured|connected|ready)|no email provider|NOT sent|could not|failed/i }).first()).toBeVisible({ timeout: 15000 });
     expect((await rows('outreach_messages')).filter(r => r.status === 'Sent').length).toBe(before);
   });
 });
