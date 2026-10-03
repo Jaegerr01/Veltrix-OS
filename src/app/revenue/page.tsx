@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { StatCard, PostelSpinner } from '@/components/ds';
+import { StatCard } from '@/components/ds';
 import { db } from '@/lib/db';
 import PageSkeleton from '@/components/PageSkeleton';
 

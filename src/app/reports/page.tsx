@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon } from '@/components/ds';
 import { db } from '@/lib/db';
 import PageSkeleton from '@/components/PageSkeleton';
 

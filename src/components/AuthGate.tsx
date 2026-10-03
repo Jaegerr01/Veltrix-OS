@@ -251,13 +251,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
 
             {/* Notifications */}
             {errorMsg && (
-              <div className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(255,77,109,0.06)', borderColor: 'rgba(255,77,109,0.22)', color: 'var(--danger-300)' }}>
+              <div role="alert" className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(255,77,109,0.06)', borderColor: 'rgba(255,77,109,0.22)', color: 'var(--danger-300)' }}>
                 <ShieldAlert size={16} className="mt-0.5 flex-shrink-0" />
                 <span className="font-mono leading-relaxed">{errorMsg}</span>
               </div>
             )}
             {successMsg && (
-              <div className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(46,230,160,0.06)', borderColor: 'rgba(46,230,160,0.22)', color: 'var(--signal-400)' }}>
+              <div role="status" className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(46,230,160,0.06)', borderColor: 'rgba(46,230,160,0.22)', color: 'var(--signal-400)' }}>
                 <ShieldCheck size={16} className="mt-0.5 flex-shrink-0" />
                 <span className="font-mono leading-relaxed">{successMsg}</span>
               </div>

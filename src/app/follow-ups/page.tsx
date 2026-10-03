@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon } from '@/components/ds';
 import { db } from '@/lib/db';
 import { authFetch } from '@/lib/authFetch';
 import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
