@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Badge } from './primitives';
 import { VxIcon } from './VxIcon';
 import CeoSphere, { type CeoSphereHandle } from './CeoSphere';
-import { AGENT_ICONS, STATUS_COLOR } from './agents';
+import { AGENT_ICONS } from './agents';
 import { useAgentRoster } from '../useAgentRoster';
 import { clickable } from '@/lib/a11y';
 
@@ -123,53 +123,14 @@ export default function OrbitalCommand() {
           transition: 'transform 0.18s var(--ease-out)',
         }}
       >
-        {/* rings — static hairlines; the orbit structure is the meaning, spin added none */}
-        <div
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            width: RADIUS * 2 + 40,
-            height: RADIUS * 2 + 40,
-            borderRadius: '50%',
-            border: '1px solid rgba(139,92,246,0.16)',
-            transform: 'translate(-50%,-50%)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            width: RADIUS * 2 - 60,
-            height: RADIUS * 2 - 60,
-            borderRadius: '50%',
-            border: '1px solid rgba(177,76,255,0.16)',
-            transform: 'translate(-50%,-50%)',
-          }}
-        />
+        {/* rings - static hairlines; the orbit structure is the meaning, spin added none */}
+        <div className="vx-orbit__ring vx-orbit__ring--outer" />
+        <div className="vx-orbit__ring vx-orbit__ring--inner" />
 
-        {/* orbit lines — static; they show which agents connect to ARIA */}
-        {AGENT_DEFS.map((_, i) => {
-          const angle = -90 + i * (360 / N);
-          return (
-            <div
-              key={`line-${i}`}
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                width: RADIUS - 26,
-                height: 2,
-                background: 'linear-gradient(90deg, rgba(139,92,246,0.45), rgba(139,92,246,0))',
-                transformOrigin: 'left center',
-                transform: `rotate(${angle}deg)`,
-                borderRadius: 2,
-                zIndex: 1,
-              }}
-            />
-          );
-        })}
+        {/* orbit lines - static; they show which agents connect to ARIA */}
+        {AGENT_DEFS.map((_, i) => (
+          <div key={`line-${i}`} className="vx-orbit__line" style={{ transform: `rotate(${-90 + i * (360 / N)}deg)` }} />
+        ))}
 
         {/* CEO halo + sphere */}
         <div
@@ -232,76 +193,24 @@ export default function OrbitalCommand() {
           </span>
         </div>
 
-        {/* orbit nodes */}
+        {/* orbit nodes: layout lives in ui.css (.vx-orbit__*); only the computed position is inline */}
         {AGENT_DEFS.map((a, i) => {
-          const angle = -90 + i * (360 / N);
-          const rad = (angle * Math.PI) / 180;
-          const x = Math.cos(rad) * RADIUS;
-          const y = Math.sin(rad) * RADIUS;
-          const color = STATUS_COLOR[a.status];
+          const rad = ((-90 + i * (360 / N)) * Math.PI) / 180;
           return (
             <div
               key={a.id}
+              className="vx-orbit__node"
               title={`${a.role} - ${a.metric} done`}
               {...clickable(() => router.push('/ceo'))}
-              style={{
-                position: 'absolute',
-                left: `calc(50% + ${x}px)`,
-                top: `calc(50% + ${y}px)`,
-                transform: 'translate(-50%,-50%)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-                zIndex: 2,
-              }}
+              style={{ left: `calc(50% + ${Math.cos(rad) * RADIUS}px)`, top: `calc(50% + ${Math.sin(rad) * RADIUS}px)` }}
             >
-              <div
-                style={{
-                  position: 'relative',
-                  width: 52,
-                  height: 52,
-                  borderRadius: 'var(--radius-md)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'var(--grad-panel)',
-                  border: '1px solid var(--border-default)',
-                  boxShadow: `var(--shadow-md), 0 0 18px ${color}22`,
-                  backdropFilter: 'var(--blur-sm)',
-                }}
-              >
-                <span style={{ color: 'var(--violet-200)', display: 'flex' }}>
+              <div className="vx-orbit__orb">
+                <span className="vx-orbit__icon">
                   <VxIcon name={a.iconName} size={20} />
                 </span>
-                <span
-                  style={{
-                    position: 'absolute',
-                    right: -3,
-                    top: -3,
-                    width: 9,
-                    height: 9,
-                    borderRadius: '50%',
-                    background: color,
-                    border: '2px solid var(--ink-900)',
-                    /* Active = color + static glow; no blinking (rule 6) */
-                    boxShadow: a.status === 'active' ? `0 0 8px ${color}` : 'none',
-                  }}
-                />
+                <span className="vx-orbit__dot" data-status={a.status} />
               </div>
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  color: 'var(--text-muted)',
-                  whiteSpace: 'nowrap',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                {a.name}
-              </span>
+              <span className="vx-orbit__label">{a.name}</span>
             </div>
           );
         })}

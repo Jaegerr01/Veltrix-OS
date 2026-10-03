@@ -209,3 +209,18 @@ button:not(.vx-linkbtn), [role="button"] { min-width: 24px; min-height: 24px; }
 .vx-health__envrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--hairline); }
 .vx-health__envname { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-body); word-break: break-all; }
 @media (max-width: 860px) { .vx-health__banner { flex-wrap: wrap; } .vx-health__grid, .vx-health__envgrid { grid-template-columns: 1fr; } .vx-health__envcard { min-height: 0; } }
+
+/* Orbital Command agent nodes (replaces ~5 inline style attributes per node) */
+.vx-orbit__ring { position: absolute; left: 50%; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); }
+.vx-orbit__ring--outer { width: 420px; height: 420px; border: 1px solid rgba(139,92,246,0.16); }
+.vx-orbit__ring--inner { width: 320px; height: 320px; border: 1px solid rgba(177,76,255,0.16); }
+.vx-orbit__line { position: absolute; left: 50%; top: 50%; width: 164px; height: 2px; background: linear-gradient(90deg, rgba(139,92,246,0.45), rgba(139,92,246,0)); transform-origin: left center; border-radius: 2px; z-index: 1; }
+.vx-orbit__node { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; z-index: 2; }
+.vx-orbit__orb { position: relative; width: 52px; height: 52px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; background: var(--grad-panel); border: 1px solid var(--border-default); -webkit-backdrop-filter: var(--blur-sm); backdrop-filter: var(--blur-sm); }
+.vx-orbit__icon { color: var(--violet-200); display: flex; }
+.vx-orbit__dot { position: absolute; right: -3px; top: -3px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--ink-900); background: var(--mist-400); }
+.vx-orbit__dot[data-status="active"] { background: var(--signal-400); box-shadow: 0 0 8px var(--signal-400); }
+.vx-orbit__dot[data-status="busy"] { background: var(--warn-400); }
+.vx-orbit__dot[data-status="idle"] { background: var(--mist-400); }
+.vx-orbit__dot[data-status="offline"] { background: var(--danger-400); }
+.vx-orbit__label { font-family: var(--font-display); font-size: 10.5px; font-weight: 600; color: var(--text-muted); white-space: nowrap; letter-spacing: 0.01em; }
