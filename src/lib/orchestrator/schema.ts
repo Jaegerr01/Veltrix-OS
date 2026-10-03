@@ -32,7 +32,7 @@ export const AGENT_SPECS: Record<string, { required: string[]; describe: string;
   proposal: { required: ['leadId', 'offerName'], outward: true, describe: 'Draft a proposal and queue it for approval (never sends). params: {"leadId","offerName","price":number}' },
   content: { required: ['topic'], describe: 'Social content ideas saved to the Social Writer. params: {"topic"}' },
   delivery: { required: ['projectId'], describe: 'Delivery roadmap for a project. params: {"projectId"}' },
-  memory: { required: ['query'], describe: 'Search saved notes/memories. params: {"query"}' },
+  memory: { required: [], describe: 'Search the Memory Vault + saved memories, or file a note in the Memory Vault. params: {"query"} OR {"note":{"title","body","folder"?,"tags"?,"mode":"create|append"}}' },
   support: { required: ['query'], describe: 'Answer from stored documentation. params: {"query"}' },
   scraper: { required: ['niche', 'location'], describe: 'Run the lead scraper (local dev machine only). params: {"niche","location","limit"}' },
   specialist: { required: ['slug', 'task'], describe: 'Hand a task to a named catalogue specialist. params: {"slug","task"}' },

@@ -99,6 +99,12 @@ export function validatePlanTasks(rawTasks: PlanTask[], ctx: PlanContext): Plann
       if (spec.required.includes('leadId') && !leadIds.has(String(p.leadId))) return fail(`Lead "${String(p.leadId)}" does not exist in your CRM.`);
       if (spec.required.includes('projectId') && !projectIds.has(String(p.projectId))) return fail(`Project "${String(p.projectId)}" does not exist.`);
       if (t.agent === 'specialist' && !loadCatalogueAgent(String(p.slug))) return fail(`Unknown specialist "${String(p.slug)}".`);
+      if (t.agent === 'memory') {
+        const note = p.note as { title?: unknown; body?: unknown } | undefined;
+        const hasNote = !!note && typeof note.title === 'string' && note.title.trim() !== '' && typeof note.body === 'string' && note.body.trim() !== '';
+        const hasQuery = typeof p.query === 'string' && p.query.trim() !== '';
+        if (!hasNote && !hasQuery) return fail('memory needs {"query"} to search or {"note":{"title","body"}} to save a note.');
+      }
     }
     for (const d of out.dependsOn) if (!keys.has(d)) return fail(`Depends on unknown task "${d}".`);
     return out;

@@ -141,6 +141,16 @@ describe('orchestrator - Memory Vault decision log', () => {
     const r = await go(env);
     expect(r.ok).toBe(true);
   });
+  it('memory tasks accept a search query or a note to file, and reject neither', async () => {
+    const ok1 = makeEnv({ reply: '', tasks: [{ key: 't1', agent: 'memory', title: 'Find pricing notes', params: { query: 'pricing' }, priority: 'Low', dependsOn: [] }] });
+    const ok2 = makeEnv({ reply: '', tasks: [{ key: 't1', agent: 'memory', title: 'Record the decision', params: { note: { title: 'Decision: price', body: 'We keep prices.' } }, priority: 'Low', dependsOn: [] }] });
+    const bad = makeEnv({ reply: '', tasks: [{ key: 't1', agent: 'memory', title: 'Do something vague', params: {}, priority: 'Low', dependsOn: [] }] });
+    expect((await go(ok1)).tasks[0].status).toBe('done');
+    expect((await go(ok2)).tasks[0].status).toBe('done');
+    const r = await go(bad);
+    expect(r.tasks[0].status).toBe('failed');
+    expect(bad.runAgent).not.toHaveBeenCalled();
+  });
   it('no vault note when nothing was planned (a plain question)', async () => {
     const env = makeEnv({ reply: 'Hello', tasks: [] });
     await go(env);

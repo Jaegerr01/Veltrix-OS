@@ -94,3 +94,13 @@ provider returned a message id.
 Web Speech API (Chrome/Edge/Safari, HTTPS or localhost) for speech-to-text; Firefox shows an explicit "unsupported" message and
 typed input remains available. States: idle / listening / thinking / speaking / error. Status questions read `/api/ceo/status`
 (database counts) - never invented. Events: `postelos-toggle-voice`, `postelos-ask-agent`, `postelos-voice-status`.
+
+## 7. Memory Vault (built-in second brain)
+
+Replaces the old external Obsidian sync (removed). Supabase tables `vault_notes` + `vault_links` (migration 004, RLS by user_id).
+
+* **UI:** `/memory` - folder tree, markdown editor/preview, full-text search, tags, backlinks (from `[[wiki-links]]`), pin, import/export as a .zip of .md files (front matter keeps title/tags/pinned, so it opens in any editor).
+* **API:** `/api/memory` (list/search/create), `/api/memory/[id]` (read+backlinks / patch / delete), `/export`, `/import` - `requireUser` (owner only), zod-validated, rate-limited (fail closed).
+* **Standing context:** `lib/context/buildBusinessContext.ts` prepends the **Constitution** note (seeded once, `source = system`, cannot be deleted or renamed) and other **pinned** notes to the context used by the CEO orchestrator and the ARIA/chat router.
+* **Agent access (`lib/db/vault.ts`):** `vault.agentRead(query)` / `vault.agentWrite(note)` / `journalToVault()`. Agents can create notes and append to notes *they* wrote; they can never modify owner- or system-written notes (prompt-injection safe). Agent-written pinned notes are fenced as untrusted data when injected into prompts.
+* **Who writes what:** CEO orchestrator -> `Decisions/` (one note per run, real task outcomes); daily brief cron -> `Daily Briefs/`; lead scoring (Daniel) -> `Leads/`; Reel Intel (Nova) -> `Reel Intel/`; Leo (`memory` agent) can search the vault or file a note on request.
