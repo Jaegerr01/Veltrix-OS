@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
 import { authFetch } from '@/lib/authFetch';
 import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
@@ -247,9 +247,7 @@ export default function FollowUpsPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', color: 'var(--text-dim)', fontSize: 12.5, fontFamily: 'var(--font-mono)' }}>
-                No active follow-up reminders at this time.
-              </div>
+              <EmptyState compact icon="calendar" title="Nothing due right now" body="Reminders appear here when a lead needs a follow-up." />
             )}
           </div>
 
@@ -294,9 +292,7 @@ export default function FollowUpsPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', color: 'var(--text-dim)', fontSize: 12.5, fontFamily: 'var(--font-mono)' }}>
-                No follow-ups have been logged yet.
-              </div>
+              <EmptyState compact icon="check" title="No follow-ups logged yet" body="Once you log or send one, the history is kept here." />
             )}
           </div>
         </div>

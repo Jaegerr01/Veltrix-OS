@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
 import PageSkeleton from '@/components/PageSkeleton';
 
@@ -274,9 +274,7 @@ export default function ReportsPage() {
           </section>
         ))
       ) : (
-        <div style={{ textAlign: 'center', padding: 'var(--space-10) 0', color: 'var(--text-dim)', fontSize: 13.5, fontFamily: 'var(--font-mono)' }}>
-          No reports generated yet. Click &quot;Compile Today&apos;s Brief&quot; above to synthesize workspace statistics.
-        </div>
+        <EmptyState icon="chartbar" title="No reports yet" body="Use Compile Today's Brief at the top of this page to build your first daily report from real workspace numbers." />
       )}
     </div>
   );

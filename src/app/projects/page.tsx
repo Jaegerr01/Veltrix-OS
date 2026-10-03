@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
@@ -358,9 +358,7 @@ export default function ProjectsPage() {
             );
           })
         ) : (
-          <div style={{ textAlign: 'center', padding: 'var(--space-10) 0', color: 'var(--text-dim)', fontSize: 13.5, fontFamily: 'var(--font-mono)' }}>
-            No projects in delivery timeline. Link accepted proposals or register projects manually.
-          </div>
+          <EmptyState icon="folder" title="No projects yet" body="Link an accepted proposal or register a project by hand to track delivery." action={<button type="button" className="vx-linkbtn" onClick={() => setIsModalOpen(true)}>Register a project</button>} />
         )}
       </section>
 

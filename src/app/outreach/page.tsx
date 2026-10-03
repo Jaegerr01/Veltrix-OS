@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
 import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
 import { asErr } from '@/lib/errors';
@@ -321,18 +321,7 @@ export default function OutreachPage() {
             </div>
           ))
         ) : (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              textAlign: 'center',
-              padding: 'var(--space-10) 0',
-              color: 'var(--text-dim)',
-              fontSize: 13.5,
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            No outreach messages in this folder.
-          </div>
+          <EmptyState icon="send" title="No messages in this tab" body="Drafts show up here once an agent writes one or you compose your own. Nothing is sent without your approval." action={<button type="button" className="vx-linkbtn" onClick={() => setIsModalOpen(true)}>Compose a message</button>} style={{ gridColumn: '1 / -1' }} />
         )}
       </section>
 

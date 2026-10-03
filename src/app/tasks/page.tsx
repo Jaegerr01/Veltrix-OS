@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   PageHeaderCard,
   VxIcon,
@@ -14,6 +15,7 @@ import {
   Select,
   Button,
   type SelectOption,
+  EmptyState,
 } from '@/components/ds';
 import { useToast } from '@/components/Toast';
 import { db } from '@/lib/db';
@@ -325,9 +327,7 @@ export default function TasksPage() {
                   </div>
                 ))
               ) : (
-                <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', color: 'var(--text-dim)', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
-                  No tasks in this list
-                </div>
+                <EmptyState compact icon="clipboard" title="No tasks here" body="Ask the CEO for a plan and tasks land in this board." action={<Link href="/ceo" className="vx-linkbtn">Open CEO Console</Link>} />
               )}
             </div>
           </div>

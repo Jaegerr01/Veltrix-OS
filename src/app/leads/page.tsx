@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
 import ScraperControl from '@/components/ScraperControl';
 import ScraperImport from '@/components/ScraperImport';
@@ -36,6 +36,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [isScraperOpen, setIsScraperOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const loadLeads = async () => {
@@ -152,6 +153,9 @@ export default function LeadsPage() {
           </div>
         }
       />
+      {leads.length === 0 && (
+        <EmptyState icon="users" title="No leads yet" body="Scrape prospects, import a CSV, or ask the CEO to research a niche. Every lead lands in this pipeline." action={<button type="button" className="vx-linkbtn" onClick={() => setIsScraperOpen(true)}>Scrape leads</button>} />
+      )}
 
       {/* Pipeline Board */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-5)', alignItems: 'stretch' }}>
@@ -240,35 +244,25 @@ export default function LeadsPage() {
         ))}
       </section>
 
-      {/* Scraper Drawer / Modal */}
+      {/* Lead scout: control panel, with the CSV/JSON import as its own dialog */}
       {isScraperOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) { setIsScraperOpen(false); loadLeads(); }
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
-          <div
-            className="vx-glass max-w-4xl w-full max-h-[85vh] overflow-y-auto p-6 rounded-2xl border border-white/[0.08]"
-            style={{ background: 'var(--grad-panel)' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--hairline)' }}>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>
-                Autonomous Lead Scout
-              </h3>
-              <button
-                onClick={() => { setIsScraperOpen(false); loadLeads(); }}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}
-              >
-                <span style={{ fontSize: 20, color: 'var(--text-muted)' }}>×</span>
+        <DialogOverlay label="Autonomous Lead Scout" onClose={() => { setIsScraperOpen(false); loadLeads(); }}>
+          <div className="vx-glass max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 rounded-2xl border border-white/[0.08]" style={{ background: 'var(--grad-panel)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>Autonomous Lead Scout</h2>
+              <button type="button" aria-label="Close lead scout" className="vx-tap" onClick={() => { setIsScraperOpen(false); loadLeads(); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--text-muted)' }}>
+                <VxIcon name="close" size={18} />
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ScraperControl />
-              <ScraperImport onClose={() => { setIsScraperOpen(false); loadLeads(); }} onImported={loadLeads} />
+            <ScraperControl />
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="vx-linkbtn" onClick={() => { setIsScraperOpen(false); setIsImportOpen(true); }}>Import scraper output (JSON or CSV)</button>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
+      )}
+      {isImportOpen && (
+        <ScraperImport onClose={() => { setIsImportOpen(false); loadLeads(); }} onImported={loadLeads} />
       )}
 
       {/* Lead Details Modal */}

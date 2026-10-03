@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon } from '@/components/ds';
+import Link from 'next/link';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
 import { asErr } from '@/lib/errors';
 import DialogOverlay from '@/components/DialogOverlay';
@@ -235,18 +236,7 @@ export default function ClientsPage() {
             </div>
           ))
         ) : (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              textAlign: 'center',
-              padding: 'var(--space-10) 0',
-              color: 'var(--text-dim)',
-              fontSize: 13.5,
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            No clients in your directory. Get proposals accepted or add a client manually.
-          </div>
+          <EmptyState icon="briefcase" title="No clients yet" body="Accepted proposals become clients, or you can add one by hand." action={<span style={{ display: 'inline-flex', gap: 12 }}><button type="button" className="vx-linkbtn" onClick={() => setIsModalOpen(true)}>Add a client</button><Link href="/proposals" className="vx-linkbtn">Open proposals</Link></span>} style={{ gridColumn: '1 / -1' }} />
         )}
       </section>
 
