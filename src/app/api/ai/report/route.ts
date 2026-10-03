@@ -53,8 +53,8 @@ export async function POST(req: Request) {
     // Parse the report text to extract fields for database insertion
     const lines = reportText.split('\n');
     let topPriority = 'Review qualified leads and outline sales scripts.';
-    let leadsToContact: string[] = [];
-    let followupsDue: string[] = [];
+    const leadsToContact: string[] = [];
+    const followupsDue: string[] = [];
     let contentToPost = 'Draft LinkedIn hook for business AI.';
     let recommendedAction = 'Contact dentist leads.';
 
@@ -190,8 +190,8 @@ Access CRM potential clients page.
 
       const lines = reportText.split('\n');
       let topPriority = 'Qualify and follow up with all active leads in CRM to close the gap.';
-      let leadsToContact: string[] = [];
-      let followupsDue: string[] = [];
+      const leadsToContact: string[] = [];
+      const followupsDue: string[] = [];
       let contentToPost = 'Leverage AI receptionists to prevent after-hour appointment leaks.';
       let recommendedAction = 'Review qualification parameters and customize outreach.';
 

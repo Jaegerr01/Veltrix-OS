@@ -1,3 +1,4 @@
+import { asErr } from '../errors';
 /**
  * Typed AI failures. Every AI-dependent path surfaces one of these to the UI instead of
  * pretending ("simulator mode"). `hint` is the plain-language fix shown to the operator.
@@ -34,7 +35,7 @@ export class AiError extends Error {
 }
 
 export function isAiError(e: unknown): e is AiError {
-  return e instanceof AiError || (typeof e === 'object' && e !== null && (e as any).name === 'AiError');
+  return e instanceof AiError || (typeof e === 'object' && e !== null && (e as { name?: string }).name === 'AiError');
 }
 
 const KEY_HINT =
@@ -53,9 +54,10 @@ function retryDelayMs(msg: string): number | undefined {
 /** Map any thrown value from the Gemini SDK / network to a typed AiError. */
 export function classifyAiError(e: unknown): AiError {
   if (isAiError(e)) return e as AiError;
-  const msg = String((e as any)?.message ?? e ?? 'Unknown error');
+  const er = asErr(e);
+  const msg = String(er.message ?? e ?? 'Unknown error');
   const low = msg.toLowerCase();
-  const status = Number((e as any)?.status ?? (e as any)?.statusCode ?? 0);
+  const status = Number(er.status ?? er.statusCode ?? 0);
 
   if (low.includes('api key not valid') || low.includes('api_key_invalid') || low.includes('api key expired') || status === 401) {
     return new AiError('INVALID_KEY', 'Google rejected the Gemini API key (invalid or revoked).', KEY_HINT);

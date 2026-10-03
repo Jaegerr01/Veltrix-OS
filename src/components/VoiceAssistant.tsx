@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mic, MicOff, Square, Volume2, VolumeX, X, Loader2, Send } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
+import { asErr } from '@/lib/errors';
 import { askCeoOnce, CeoRequestError } from '@/lib/orchestrator/client';
 import { runToChatText, runToSpoken } from '@/lib/orchestrator/chatText';
 import { parseVoiceIntent } from '@/lib/voice/intent';
@@ -26,9 +27,22 @@ const STATE_LABEL: Record<VState, string> = { idle: 'Ready', listening: 'Listeni
 const STATE_COLOR: Record<VState, string> = { idle: 'var(--violet-300)', listening: 'var(--signal-400)', thinking: 'var(--warn-400)', speaking: 'var(--magenta-300)', error: 'var(--danger-400)' };
 const TTS_SKIP_KEY = 'postelos_tts_server_unavailable_until';
 
-function getRecognitionCtor(): any {
+interface SpeechRecResult { isFinal: boolean; [i: number]: { transcript: string } }
+interface SpeechRecEvent { resultIndex: number; results: { length: number; [i: number]: SpeechRecResult } }
+interface SpeechRec {
+  lang: string; continuous: boolean; interimResults: boolean; maxAlternatives: number;
+  onstart: (() => void) | null;
+  onresult: ((ev: SpeechRecEvent) => void) | null;
+  onerror: ((ev: { error?: string }) => void) | null;
+  onend: (() => void) | null;
+  start(): void; stop(): void; abort(): void;
+}
+type SpeechRecCtor = new () => SpeechRec;
+
+function getRecognitionCtor(): SpeechRecCtor | null {
   if (typeof window === 'undefined') return null;
-  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
+  const w = window as unknown as { SpeechRecognition?: SpeechRecCtor; webkitSpeechRecognition?: SpeechRecCtor };
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
 export default function VoiceAssistant() {
@@ -45,7 +59,8 @@ export default function VoiceAssistant() {
   const [voiceNote, setVoiceNote] = React.useState<string | null>(null);
   const [hasTasks, setHasTasks] = React.useState(false);
 
-  const recRef = React.useRef<any>(null);
+  const recRef = React.useRef<SpeechRec | null>(null);
+  const startListeningRef = React.useRef<((mode: 'ptt' | 'handsfree') => void) | null>(null);
   const stateRef = React.useRef<VState>('idle');
   const handsFreeRef = React.useRef(false);
   const mutedRef = React.useRef(false);
@@ -63,10 +78,14 @@ export default function VoiceAssistant() {
   }, [state]);
 
   React.useEffect(() => {
-    setSupported(!!getRecognitionCtor());
-    if (typeof window !== 'undefined' && !window.isSecureContext) {
-      setVoiceNote('Microphone access needs HTTPS (or localhost). Typing still works.');
-    }
+    // Deferred so the first render matches the server markup (browser capability is only known on the client).
+    const t = setTimeout(() => {
+      setSupported(!!getRecognitionCtor());
+      if (typeof window !== 'undefined' && !window.isSecureContext) {
+        setVoiceNote('Microphone access needs HTTPS (or localhost). Typing still works.');
+      }
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   /* ----------------------------- speech output ----------------------------- */
@@ -160,8 +179,9 @@ export default function VoiceAssistant() {
       }
       if (myRun !== runIdRef.current) return;
       await speak(spoken, myRun);
-    } catch (e: any) {
-      if (e?.name === 'AbortError' || myRun !== runIdRef.current) return;
+    } catch (raw) {
+      const e = asErr(raw);
+      if (e.name === 'AbortError' || myRun !== runIdRef.current) return;
       const msg = e instanceof CeoRequestError ? e.message : String(e?.message || e);
       setError({ message: msg, hint: e instanceof CeoRequestError ? e.hint : undefined });
       setS('error');
@@ -172,7 +192,7 @@ export default function VoiceAssistant() {
       if (acRef.current === ac) acRef.current = null;
     }
     if (myRun !== runIdRef.current) return;
-    if (handsFreeRef.current) startListening('handsfree'); else setS('idle');
+    if (handsFreeRef.current) startListeningRef.current?.('handsfree'); else setS('idle');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
@@ -213,7 +233,7 @@ export default function VoiceAssistant() {
     let fatal = false;
 
     rec.onstart = () => { setError(null); setS('listening'); setHeard(''); };
-    rec.onresult = (ev: any) => {
+    rec.onresult = (ev: SpeechRecEvent) => {
       let interim = ''; let fin = '';
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const r = ev.results[i];
@@ -222,8 +242,8 @@ export default function VoiceAssistant() {
       if (fin) finalRef.current += fin;
       setHeard((finalRef.current + interim).trim());
     };
-    rec.onerror = (ev: any) => {
-      const code = ev?.error;
+    rec.onerror = (ev: { error?: string }) => {
+      const code = ev?.error ?? '';
       if (code === 'no-speech' || code === 'aborted') return;
       fatal = true;
       const map: Record<string, { message: string; hint?: string }> = {
@@ -246,9 +266,10 @@ export default function VoiceAssistant() {
     };
     recRef.current = rec;
     if (mode === 'handsfree') { setHandsFree(true); handsFreeRef.current = true; }
-    try { rec.start(); } catch (e: any) { setError({ message: `Could not start the microphone: ${e?.message || e}` }); setS('error'); }
+    try { rec.start(); } catch (raw) { setError({ message: `Could not start the microphone: ${asErr(raw).message || String(raw)}` }); setS('error'); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ask, cancelSpeech, setS]);
+  React.useEffect(() => { startListeningRef.current = startListening; }, [startListening]);
 
   const stopListeningKeepRun = () => { try { recRef.current?.stop(); } catch { /* */ } }; // lets the final result arrive (push-to-talk release)
 

@@ -72,8 +72,8 @@ export async function runAgentLogic(
 
           const lines = reportText.split('\n');
           let topPriority = 'See the full report.';
-          let leadsToContact: string[] = [];
-          let followupsDue: string[] = [];
+          const leadsToContact: string[] = [];
+          const followupsDue: string[] = [];
           let contentToPost = '';
           let recommendedAction = 'See the full report.';
 

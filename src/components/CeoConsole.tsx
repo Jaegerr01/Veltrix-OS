@@ -108,7 +108,7 @@ export default function CeoConsole() {
     try { setBoard(await db.getTasks()); setBoardErr(null); } catch (raw) { const e = asErr(raw); setBoardErr(`Could not load tasks: ${e?.message || e}`); }
   }, []);
 
-  React.useEffect(() => { loadStatus(); loadBoard(); }, [loadStatus, loadBoard]);
+  React.useEffect(() => { const t = setTimeout(() => { loadStatus(); loadBoard(); }, 0); return () => clearTimeout(t); }, [loadStatus, loadBoard]);
   React.useEffect(() => {
     const t = setInterval(() => { if (!document.hidden) loadBoard(); }, busy ? 3000 : 10000);
     return () => clearInterval(t);
