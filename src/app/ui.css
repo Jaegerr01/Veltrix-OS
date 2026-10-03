@@ -155,3 +155,15 @@ button:not(.vx-linkbtn), [role="button"] { min-width: 24px; min-height: 24px; }
 .vx-onb[data-variant="health"] { min-height: 680px; }
 .vx-onb__bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 220px) auto; align-items: center; gap: var(--space-4); }
 @media (max-width: 639px) { .vx-onb__bar { grid-template-columns: minmax(0, 1fr) auto; } .vx-onb__bar .vx-progress { grid-column: 1 / -1; order: 3; } .vx-onb[data-variant="banner"] { min-height: 132px; } }
+
+/* AgentCard (replaces ~10 inline style attributes per card) */
+.vx-agent { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-6); min-height: 172px; background: var(--grad-panel); border: 1px solid var(--border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-md), var(--sheen-top); animation: vxFadeUp 0.6s var(--ease-out) both; }
+.vx-agent__top { display: flex; align-items: center; gap: var(--space-4); }
+.vx-agent__orb { width: 48px; height: 48px; flex: 0 0 auto; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; background: rgba(139,92,246,0.12); border: 1px solid var(--border-default); color: var(--violet-200); box-shadow: inset 0 0 16px rgba(139,92,246,0.18); }
+.vx-agent__body { min-width: 0; flex: 1; }
+.vx-agent__name { font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--text-strong); line-height: var(--lh-snug); }
+.vx-agent__role { font-size: 13px; color: var(--text-muted); margin-top: 3px; line-height: var(--lh-normal); }
+.vx-agent__dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; align-self: flex-start; }
+.vx-agent__metrics { display: flex; align-items: baseline; gap: 10px; margin-top: auto; padding-top: var(--space-4); border-top: 1px solid var(--hairline); }
+.vx-agent__metric { font-family: var(--font-mono); font-size: 24px; font-weight: 500; letter-spacing: -0.01em; color: var(--text-strong); }
+.vx-agent__metric-label { font-family: var(--font-display); font-size: 10.5px; font-weight: 600; letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--text-dim); }
