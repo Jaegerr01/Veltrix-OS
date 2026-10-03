@@ -93,7 +93,7 @@ export default function RevenuePage() {
 
   const KPIS = [
     { label: 'Open proposals (confirmed sent)', value: `$${(pipelineValue / 1000).toFixed(1)}K`, accent: 'violet' },
-    { label: 'Recurring Retainers', value: `$${activeRetainers}/mo`, accent: 'blue' },
+    { label: 'Recurring Retainers', value: `$${activeRetainers}/mo`, accent: 'violet' },
     { label: 'Outreach delivered (confirmed)', value: String(sentMsgs.length), accent: 'cyan' },
     { label: 'Reply rate (of confirmed sends)', value: replyRatePct === null ? '\u2014' : `${replyRatePct}%`, accent: 'magenta' },
   ] as const;

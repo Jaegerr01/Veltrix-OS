@@ -107,7 +107,7 @@ export default function CommandCenterPage() {
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-5)' }}>
         <StatCard label="Confirmed sent" value={leads === null ? '-' : sentProof} accent="cyan" />
         <StatCard label="Not sent yet" value={leads === null ? '-' : notSent} accent="violet" />
-        <StatCard label="Proposals out" value={leads === null ? '-' : proposalsOut.length} unit={proposalValue ? `$${proposalValue.toLocaleString()}` : ''} accent="blue" />
+        <StatCard label="Proposals out" value={leads === null ? '-' : proposalsOut.length} unit={proposalValue ? `$${proposalValue.toLocaleString()}` : ''} accent="cyan" />
         <StatCard label="Calls booked" value={n(stageCount(['Call Booked']))} accent="magenta" />
       </section>
 
