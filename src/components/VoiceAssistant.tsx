@@ -261,6 +261,7 @@ export default function VoiceAssistant() {
       const text = finalRef.current.trim();
       if (text) { void ask(text); return; }
       // nothing heard: hands-free keeps listening, push-to-talk returns to idle
+      // eslint-disable-next-line react-hooks/immutability -- startListening is a hoisted closure invoked after the recognizer ends
       if (handsFreeRef.current && stateRef.current === 'listening') { setTimeout(() => { if (handsFreeRef.current && stateRef.current !== 'thinking' && stateRef.current !== 'speaking') startListening('handsfree'); }, 300); }
       else if (stateRef.current === 'listening') setS('idle');
     };

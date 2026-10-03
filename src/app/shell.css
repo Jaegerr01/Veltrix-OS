@@ -198,3 +198,4 @@
   .vx-root label:has(> input[type="checkbox"], > input[type="radio"]) { min-height: 44px; display: inline-flex; align-items: center; gap: 10px; }
   .vx-nav__link { min-height: 48px; }
 }
+.vx-side__card-text { min-height: 3.4em; }

@@ -83,7 +83,8 @@ export default function OutreachPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const t = setTimeout(() => { void fetchData(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const getLeadName = (id: string) => {

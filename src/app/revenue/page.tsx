@@ -48,6 +48,7 @@ export default function RevenuePage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [outreach, setOutreach] = useState<Outreach[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -99,7 +100,6 @@ export default function RevenuePage() {
   ] as const;
 
   // 2. Bar Chart weekly bucket distribution
-  const now = Date.now();
   const oneWeek = 7 * 24 * 60 * 60 * 1000;
   const weeklyTotals = Array(12).fill(0);
 

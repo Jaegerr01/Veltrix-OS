@@ -51,7 +51,8 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
-    fetchReports();
+    const t = setTimeout(() => { void fetchReports(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const handleCompileBrief = async () => {

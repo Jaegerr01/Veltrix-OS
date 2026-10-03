@@ -51,5 +51,5 @@ export function routeFor(pathname: string | null | undefined): NavRoute | undefi
 
 export function documentTitle(pathname: string | null | undefined): string {
   const r = routeFor(pathname);
-  return r ? `${r.label} | PostelOS` : 'PostelOS';
+  return r ? `${r.label} \u00b7 PostelOS` : 'PostelOS';
 }

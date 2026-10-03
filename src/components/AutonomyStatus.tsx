@@ -101,9 +101,9 @@ export function AutonomyStatus() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
+    const t0 = setTimeout(() => { void fetchStatus(); }, 0);
     const interval = setInterval(fetchStatus, 30000);
-    return () => clearInterval(interval);
+    return () => { clearTimeout(t0); clearInterval(interval); };
   }, [fetchStatus]);
 
   const triggerPipeline = async () => {

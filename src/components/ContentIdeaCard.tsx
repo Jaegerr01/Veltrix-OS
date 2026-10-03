@@ -36,7 +36,7 @@ export default function ContentIdeaCard({ idea, onUpdateStatus }: ContentIdeaCar
         {idea.hook && (
           <div className="my-2.5 p-2 bg-neon-purple/5 border border-neon-purple/10 rounded text-[11px] font-sans text-neon-purple">
             <span className="text-[8px] font-mono uppercase tracking-widest block font-bold mb-0.5">Viral Hook:</span>
-            <p className="italic select-text">"{idea.hook}"</p>
+            <p className="italic select-text">&ldquo;{idea.hook}&rdquo;</p>
           </div>
         )}
 

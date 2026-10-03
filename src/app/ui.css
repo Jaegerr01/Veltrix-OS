@@ -148,3 +148,10 @@ button:not(.vx-linkbtn), [role="button"] { min-width: 24px; min-height: 24px; }
   .vx-kanban.vx-kanban { grid-template-columns: none !important; grid-auto-flow: column; grid-auto-columns: min(82%, 320px); overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: var(--space-2); }
   .vx-kanban > * { scroll-snap-align: start; }
 }
+
+/* ---- layout-stability reservations (no content jumps while status loads) ---- */
+.vx-stat { min-height: 104px; }
+.vx-onb[data-variant="banner"] { min-height: 84px; }
+.vx-onb[data-variant="health"] { min-height: 680px; }
+.vx-onb__bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 220px) auto; align-items: center; gap: var(--space-4); }
+@media (max-width: 639px) { .vx-onb__bar { grid-template-columns: minmax(0, 1fr) auto; } .vx-onb__bar .vx-progress { grid-column: 1 / -1; order: 3; } .vx-onb[data-variant="banner"] { min-height: 132px; } }

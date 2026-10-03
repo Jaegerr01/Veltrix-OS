@@ -19,11 +19,10 @@ export default function Topbar({ navOpen, onToggleNav, onOpenPalette }: Props) {
 
   React.useEffect(() => {
     const read = () => setDisplayName(localStorage.getItem('vx_display_name') || 'Operator');
-    read();
-    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform));
+    const t = setTimeout(() => { read(); setIsMac(/Mac|iPhone|iPad/.test(navigator.platform)); }, 0);
     window.addEventListener('storage', read);
     window.addEventListener('vx_settings_updated', read);
-    return () => { window.removeEventListener('storage', read); window.removeEventListener('vx_settings_updated', read); };
+    return () => { clearTimeout(t); window.removeEventListener('storage', read); window.removeEventListener('vx_settings_updated', read); };
   }, []);
 
   const waiting = status ? status.approvalsPending + status.tasks.needsApproval + status.outreach.drafts : 0;

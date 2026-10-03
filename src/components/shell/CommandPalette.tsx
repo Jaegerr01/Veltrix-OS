@@ -73,7 +73,6 @@ export default function CommandPalette({ open, onClose, onShowShortcuts, onSignO
     else if (e.key === 'Enter') { e.preventDefault(); choose(results[active]); }
   };
 
-  let lastGroup = '';
   return (
     <div className="vx-palette-scrim" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={panelRef} className="vx-palette" role="dialog" aria-modal="true" aria-label="Command palette">
@@ -89,7 +88,7 @@ export default function CommandPalette({ open, onClose, onShowShortcuts, onSignO
         </div>
         <ul ref={listRef} id="palette-list" role="listbox" aria-label="Results" className="vx-palette__list">
           {results.map((c, i) => {
-            const head = c.group !== lastGroup ? c.group : null; lastGroup = c.group;
+            const head = i === 0 || results[i - 1].group !== c.group ? c.group : null;
             return (
               <React.Fragment key={c.id}>
                 {head ? <li role="presentation" className="vx-palette__group">{head}</li> : null}

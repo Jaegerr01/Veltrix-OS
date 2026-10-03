@@ -47,7 +47,8 @@ export default function LeadsPage() {
   };
 
   useEffect(() => {
-    loadLeads();
+    const t = setTimeout(() => { void loadLeads(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const getDealValue = (l: Lead) => {

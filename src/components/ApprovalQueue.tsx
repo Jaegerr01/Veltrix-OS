@@ -48,7 +48,7 @@ export default function ApprovalQueue() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); }, [load]);
 
   const decide = async (
     req: ApprovalRequest,
@@ -96,13 +96,13 @@ export default function ApprovalQueue() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.18em]">Entity · Propose-then-Approve</p>
-          <h3 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
+          <h2 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
             <ShieldCheck size={15} className="text-neon-purple" />
             Barry&apos;s Approval Queue
             <span className="text-[11px] font-mono font-normal text-neon-purple bg-neon-purple/10 px-1.5 py-0.5 rounded-full border border-neon-purple/20">
               {requests.length}
             </span>
-          </h3>
+          </h2>
         </div>
         <button
           onClick={load}
@@ -155,7 +155,7 @@ export default function ApprovalQueue() {
                       <span className="text-[9px] font-mono text-white/30">confidence {req.confidence}/10</span>
                     )}
                   </div>
-                  <h4 className="text-[13px] font-semibold text-white mt-1.5 leading-snug">{req.title}</h4>
+                  <h3 className="text-[13px] font-semibold text-white mt-1.5 leading-snug">{req.title}</h3>
                   {req.status === 'failed' && (
                     <p className="text-[11px] mt-1 font-mono text-red-300 break-words">
                       Approved earlier, but NOT sent: {req.execution_result || 'the action failed'}. Fix the cause (see Settings → Email), then retry.

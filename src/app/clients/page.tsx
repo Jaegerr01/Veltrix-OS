@@ -73,7 +73,8 @@ export default function ClientsPage() {
   };
 
   useEffect(() => {
-    fetchClients();
+    const t = setTimeout(() => { void fetchClients(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const handleAddClient = async (e: React.FormEvent) => {

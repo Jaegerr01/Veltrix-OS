@@ -90,11 +90,14 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     if (savedBg.toLowerCase() === LEGACY_DEFAULT_BACKGROUND) savedBg = DEFAULT_BACKGROUND;
     const savedAvatar = localStorage.getItem('vx_avatar') || '';
 
-    setThemeState(savedTheme);
-    setAccentColorState(savedAccent);
-    setBackgroundColorState(savedBg);
-    setAvatarState(savedAvatar);
-    setIsMounted(true);
+    const t = setTimeout(() => {
+      setThemeState(savedTheme);
+      setAccentColorState(savedAccent);
+      setBackgroundColorState(savedBg);
+      setAvatarState(savedAvatar);
+      setIsMounted(true);
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   // The avatar is persisted on its own. It used to sit in the colour effect's

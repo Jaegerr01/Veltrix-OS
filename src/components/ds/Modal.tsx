@@ -58,8 +58,7 @@ export function Modal({
   const descId = React.useId();
 
   // Portals need the DOM, so nothing renders during SSR.
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
+  const mounted = React.useSyncExternalStore(() => () => {}, () => true, () => false);
 
   // Lock background scroll, compensating for the scrollbar so the page behind
   // does not visibly jump sideways when the dialog opens.

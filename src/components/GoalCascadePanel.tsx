@@ -42,7 +42,7 @@ export default function GoalCascadePanel() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); }, [load]);
 
   const draft = async () => {
     setDrafting(true);
@@ -69,12 +69,12 @@ export default function GoalCascadePanel() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.18em]">Entity · Goal Cascade</p>
-          <h3 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
+          <h2 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
             <Target size={15} className="text-neon-purple" />
             {periods.month || 'This Month'} · {periods.week || ''}
-          </h3>
+          </h2>
         </div>
-        <button onClick={load} className="p-1.5 rounded-lg hover:bg-white/5 text-white/30 hover:text-neon-cyan transition-colors cursor-pointer">
+        <button onClick={load} aria-label="Refresh goal cascade" className="p-1.5 rounded-lg hover:bg-white/5 text-white/30 hover:text-neon-cyan transition-colors cursor-pointer">
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>

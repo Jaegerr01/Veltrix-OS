@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
               <span>1. Data Ownership & Storage</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              PostelOS operates on a decentralized storage paradigm. Your data (leads, client profiles, revenue metrics, memory vaults, task logs) resides either in your browser's local sandbox (LocalStorage) or is securely written to your private, self-hosted Supabase database. We do not host or store your database credentials.
+              PostelOS operates on a decentralized storage paradigm. Your data (leads, client profiles, revenue metrics, memory vaults, task logs) resides either in your browser&apos;s local sandbox (LocalStorage) or is securely written to your private, self-hosted Supabase database. We do not host or store your database credentials.
             </p>
           </div>
 
@@ -77,7 +77,7 @@ export default function PrivacyPolicy() {
               <span>3. Control & Purge Mechanisms</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Under our settings panel, you maintain absolute control over database slates. You can trigger a full workspace purge at any time using the "Reset to Clean Slate" option, which instantly removes all local leads, transactions, and system parameters from active memory storage.
+              Under our settings panel, you maintain absolute control over database slates. You can trigger a full workspace purge at any time using the &quot;Reset to Clean Slate&quot; option, which instantly removes all local leads, transactions, and system parameters from active memory storage.
             </p>
           </div>
 

@@ -89,7 +89,8 @@ export default function TasksPage() {
   };
 
   useEffect(() => {
-    fetchTasks();
+    const t = setTimeout(() => { void fetchTasks(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const handleCreateTask = async (e: React.FormEvent) => {

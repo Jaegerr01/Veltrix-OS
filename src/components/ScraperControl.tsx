@@ -66,10 +66,10 @@ export default function ScraperControl() {
     <div className="rounded-2xl bg-[rgba(13,13,22,0.55)] backdrop-blur-xl border border-white/[0.07] p-5 flex flex-col gap-4">
       <div>
         <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.18em]">Victor · Lead Scout</p>
-        <h3 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
+        <h2 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
           <Radar size={15} className="text-neon-cyan" />
           Lead Scraper Control
-        </h3>
+        </h2>
       </div>
 
       {configured === false && (
