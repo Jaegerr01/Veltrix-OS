@@ -16,21 +16,6 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function addClient(client: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<Client> {
-  const fallbackClient: Client = {
-    id: 'mock-client-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    business_name: client.business_name,
-    contact_name: client.contact_name || '',
-    email: client.email || '',
-    phone: client.phone || '',
-    website: client.website || '',
-    service_purchased: client.service_purchased || '',
-    total_value: client.total_value || 0,
-    monthly_retainer: client.monthly_retainer || 0,
-    status: client.status || 'Active',
-    user_id: 'demo-user'
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -45,7 +30,7 @@ export async function addClient(client: Omit<Client, 'id' | 'created_at' | 'upda
       console.warn('Failed to sync client to memory:', err);
     }
     return data;
-  }, fallbackClient, 'addClient');
+  }, 'addClient');
 }
 
 export async function syncClientToMemory(client: Client): Promise<void> {

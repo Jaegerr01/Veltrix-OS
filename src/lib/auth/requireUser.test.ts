@@ -14,11 +14,26 @@ function makeRequest(token?: string) {
 }
 
 describe('requireUser', () => {
-  it('allows through as local-dev when Supabase is not configured', async () => {
+  it('allows through as local-dev when Supabase is not configured in development', async () => {
     const requireUser = await loadRequireUser(null);
     const result = await requireUser(makeRequest());
     expect(result.response).toBeNull();
     expect(result.user?.id).toBe('local-dev');
+  });
+
+  // Regression test: the local-dev bypass must never reach production. A missing
+  // or typo'd SUPABASE_SERVICE_ROLE_KEY would otherwise make every requireUser
+  // route a public endpoint authenticated as 'local-dev'.
+  it('fails closed with 503 when Supabase is not configured in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      const requireUser = await loadRequireUser(null);
+      const result = await requireUser(makeRequest());
+      expect(result.user).toBeNull();
+      expect(result.response?.status).toBe(503);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('authenticates a request with a valid bearer token', async () => {

@@ -112,7 +112,7 @@ export default function RoiReportModal({ report, onClose, onSendEmail, canSendEm
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-neon-purple/30 bg-[#0A0A0F] shadow-[0_0_60px_rgba(168,85,247,0.15)]">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-neon-purple/30 bg-cyber-bg">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between p-6 border-b border-white/5 bg-[#0A0A0F]">
           <div>

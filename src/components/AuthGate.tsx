@@ -51,7 +51,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    // Intercept fetch calls to attach auth token and developer integrations
+    // Intercept fetch calls to attach the session token to our own API routes.
     const originalFetch = window.fetch;
     window.fetch = async (input, init) => {
       // Avoid intercepting requests to the Supabase API itself to prevent infinite recursion
@@ -70,23 +70,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             headers.set('Authorization', `Bearer ${token}`);
           }
           
-          // Forward developer integration overrides from localStorage
-          const localKeys = [
-            ['x-github-token', 'vx_github_token'],
-            ['x-github-repo', 'vx_github_repo'],
-            ['x-gemini-key', 'vx_gemini_key'],
-            ['x-claude-key', 'vx_claude_key'],
-            ['x-obsidian-path', 'vx_obsidian_path'],
-            ['x-scraper-path', 'vx_scraper_path'],
-          ];
-          
-          for (const [header, lsKey] of localKeys) {
-            const val = localStorage.getItem(lsKey);
-            if (val) {
-              headers.set(header, val);
-            }
-          }
-          
+          // API keys, vault paths and repo slugs used to be read from
+          // localStorage here and forwarded as x-* headers on every request.
+          // Any XSS on any page could read them, and the server trusted them.
+          // Those values now come from the server environment only.
+
           init.headers = headers;
         } catch (e) {
           console.warn('Failed to attach auth token to fetch request:', e);

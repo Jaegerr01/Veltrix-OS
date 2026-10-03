@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
         
         {/* Header Block */}
         <div className="flex items-start space-x-4 border-b border-white/5 pb-6">
-          <div className="p-3 bg-neon-purple/10 text-neon-purple rounded-xl border border-neon-purple/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+          <div className="p-3 bg-neon-purple/10 text-neon-purple rounded-xl border border-neon-purple/20">
             <Shield size={32} />
           </div>
           <div>

@@ -25,8 +25,13 @@ async function getProfileId(): Promise<string | null> {
   }
 }
 
-// Debug: GET /api/voice/tts → returns Voicebox connectivity status
-export async function GET() {
+// Debug: GET /api/voice/tts → returns Voicebox connectivity status.
+// Operator-only: it reaches an internal service and used to hand out that
+// service's URL and a profile id to anonymous callers.
+export async function GET(req: Request) {
+  const auth = await requireUser(req);
+  if (auth.response) return auth.response;
+
   const profileId = await getProfileId();
   try {
     const r = await fetch(`${VOICEBOX_URL}/models/status`, { signal: AbortSignal.timeout(4000) });

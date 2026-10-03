@@ -38,13 +38,6 @@ export async function getChatMessages(): Promise<ChatMessage[]> {
 }
 
 export async function addChatMessage(msg: Omit<ChatMessage, 'id' | 'created_at'>): Promise<ChatMessage> {
-  const fallbackMessage: ChatMessage = {
-    id: 'mock-msg-' + Date.now(),
-    sender: msg.sender,
-    agentName: msg.agentName,
-    message: msg.message,
-    created_at: new Date().toISOString()
-  };
   return safeWrite<ChatMessage>(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -68,7 +61,7 @@ export async function addChatMessage(msg: Omit<ChatMessage, 'id' | 'created_at'>
       message: data.output || '',
       created_at: data.created_at
     };
-  }, fallbackMessage, 'addChatMessage');
+  }, 'addChatMessage');
 }
 
 export async function clearChatMessages(): Promise<void> {
@@ -81,5 +74,5 @@ export async function clearChatMessages(): Promise<void> {
       .eq('type', 'system')
       .eq('action', 'chat_message');
     if (error) throw error;
-  }, undefined, 'clearChatMessages');
+  }, 'clearChatMessages');
 }

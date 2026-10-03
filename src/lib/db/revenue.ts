@@ -15,19 +15,6 @@ export async function getRevenue(): Promise<Revenue[]> {
 }
 
 export async function addRevenue(rev: Omit<Revenue, 'id' | 'created_at'>): Promise<Revenue> {
-  const fallbackRevenue: Revenue = {
-    id: 'mock-rev-' + Date.now(),
-    created_at: new Date().toISOString(),
-    client_id: rev.client_id,
-    proposal_id: rev.proposal_id || '',
-    amount: rev.amount,
-    type: rev.type,
-    status: rev.status || 'Paid',
-    payment_date: rev.payment_date,
-    month: rev.month,
-    notes: rev.notes || '',
-    user_id: 'demo-user'
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -37,7 +24,7 @@ export async function addRevenue(rev: Omit<Revenue, 'id' | 'created_at'>): Promi
       .single();
     if (error) throw error;
     return data;
-  }, fallbackRevenue, 'addRevenue');
+  }, 'addRevenue');
 }
 
 export async function getExpenses(): Promise<Expense[]> {
@@ -54,16 +41,6 @@ export async function getExpenses(): Promise<Expense[]> {
 }
 
 export async function addExpense(exp: Omit<Expense, 'id' | 'created_at'>): Promise<Expense> {
-  const fallbackExpense: Expense = {
-    id: 'mock-exp-' + Date.now(),
-    created_at: new Date().toISOString(),
-    title: exp.title,
-    amount: exp.amount,
-    category: exp.category,
-    date: exp.date,
-    notes: exp.notes || '',
-    user_id: 'demo-user'
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -73,5 +50,5 @@ export async function addExpense(exp: Omit<Expense, 'id' | 'created_at'>): Promi
       .single();
     if (error) throw error;
     return data;
-  }, fallbackExpense, 'addExpense');
+  }, 'addExpense');
 }

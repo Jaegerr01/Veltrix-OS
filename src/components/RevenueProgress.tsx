@@ -43,7 +43,7 @@ export default function RevenueProgress({ closedRevenue, targetRevenue }: Revenu
               </div>
               <div className="w-full bg-[#06060a]/60 rounded-full h-3.5 overflow-hidden border border-white/5 p-[2px]">
                 <motion.div
-                  className="bg-gradient-to-r from-neon-purple to-neon-cyan h-full rounded-full shadow-[0_0_12px_rgba(6,182,212,0.45)]"
+                  className="bg-gradient-to-r from-neon-purple to-neon-cyan h-full rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${progressPercent}%` }}
                   transition={{ duration: 1.2, ease: "easeOut" }}

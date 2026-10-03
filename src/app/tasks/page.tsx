@@ -1,7 +1,21 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import {
+  PageHeaderCard,
+  VxIcon,
+  Skeleton,
+  SkeletonCard,
+  SkeletonRegion,
+  EmptyState,
+  Modal,
+  Input,
+  Textarea,
+  Select,
+  Button,
+  type SelectOption,
+} from '@/components/ds';
+import { useToast } from '@/components/Toast';
 import { db } from '@/lib/db';
 
 interface Task {
@@ -22,18 +36,29 @@ const PR_COLOR: Record<Task['priority'], string> = {
   Low: 'var(--mist-400)',
 };
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  height: 40,
-  padding: '0 12px',
-  borderRadius: 'var(--radius-md)',
-  background: 'var(--ink-700)',
-  border: '1px solid var(--border-default)',
-  color: 'var(--text-strong)',
-  fontFamily: 'var(--font-body)',
-  fontSize: 13.5,
-  outline: 'none',
-};
+const OWNER_OPTIONS: SelectOption[] = [
+  { value: 'Lead Gen AI', label: 'Lead Gen AI' },
+  { value: 'Outreach AI', label: 'Outreach AI' },
+  { value: 'Appt Setter', label: 'Appointment Setter' },
+  { value: 'Delivery Manager Agent', label: 'Delivery Manager' },
+  { value: 'General Operator', label: 'Me' },
+];
+
+const PRIORITY_OPTIONS: SelectOption[] = [
+  { value: 'Low', label: 'Low' },
+  { value: 'Medium', label: 'Medium' },
+  { value: 'High', label: 'High' },
+  { value: 'Critical', label: 'Critical' },
+];
+
+/* Plain labels. The stored values keep the original status strings the rest of
+   the app and the database expect. */
+const STATUS_OPTIONS: SelectOption[] = [
+  { value: 'Pending', label: 'To do' },
+  { value: 'In Progress', label: 'In progress' },
+  { value: 'Needs Approval', label: 'Needs review' },
+  { value: 'Blocked', label: 'Blocked' },
+];
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -48,6 +73,8 @@ export default function TasksPage() {
   const [dueDate, setDueDate] = useState('');
   const [agentName, setAgentName] = useState('General Operator');
   const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const fetchTasks = async () => {
     try {
@@ -67,10 +94,14 @@ export default function TasksPage() {
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setFormError('Task title is required.');
+      // Validation belongs next to the field that is wrong, not in a toast.
+      setFormError('Give the task a name.');
       return;
     }
     setFormError(null);
+    // Guards against a double submit creating two tasks.
+    if (saving) return;
+    setSaving(true);
 
     try {
       await db.addTask({
@@ -93,8 +124,14 @@ export default function TasksPage() {
 
       // Refresh
       await fetchTasks();
+      toast.success('Task added');
     } catch (err: any) {
-      setFormError(`Failed to save task: ${err.message}`);
+      // A save failure is about the request, not one field — and since
+      // safeWrite stopped fabricating success, this now actually fires.
+      toast.error("Couldn't add the task", 'Check your connection and try again.');
+      console.error('addTask failed:', err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -103,15 +140,26 @@ export default function TasksPage() {
       await db.updateTask(id, { status: newStatus });
       await fetchTasks();
     } catch (err) {
-      console.warn('Failed to update task status:', err);
+      toast.error("Couldn't move the task", 'Your change was not saved.');
+      console.error('updateTask failed:', err);
     }
   };
 
   if (loading) {
+    // Skeletons in the shape of the board, so the layout does not jump when the
+    // real columns arrive — and one announcement rather than four.
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Synchronizing agent queues..." />
-      </div>
+      <SkeletonRegion label="Loading tasks">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-5)' }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <Skeleton height={12} width="45%" />
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          ))}
+        </div>
+      </SkeletonRegion>
     );
   }
 
@@ -283,116 +331,68 @@ export default function TasksPage() {
         ))}
       </section>
 
-      {/* New Task Modal */}
-      {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
-          <form
-            onSubmit={handleCreateTask}
-            className="vx-glass max-w-md w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
-            style={{ background: 'var(--grad-panel)' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12, borderBottom: '1px solid var(--hairline)' }}>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>
-                Allocate New Workflow Task
-              </h3>
-              <span style={{ cursor: 'pointer', fontSize: 20, color: 'var(--text-muted)' }} onClick={() => setIsModalOpen(false)}>
-                ×
-              </span>
-            </div>
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Add task"
+        description="Tasks show up on the board straight away."
+        onSubmit={handleCreateTask}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Adding…' : 'Add task'}
+            </Button>
+          </>
+        }
+      >
+        <Input
+          label="Task"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. Schedule chatbot demo"
+          error={formError ?? undefined}
+          required
+        />
 
-            {formError && (
-              <div style={{ color: 'var(--danger-400)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                ⚠️ {formError}
-              </div>
-            )}
+        <Textarea
+          label="Details"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Anything the owner needs to know."
+          rows={3}
+        />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Task Action Title *</label>
-                <input style={inputStyle} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Schedule chatbot demonstration" required />
-              </div>
-              <div>
-                <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Description / Scope</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Details about task execution requirements..."
-                  style={{
-                    width: '100%',
-                    minHeight: 60,
-                    padding: 10,
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--ink-700)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-strong)',
-                    fontSize: 13,
-                    fontFamily: 'var(--font-body)',
-                    outline: 'none',
-                    resize: 'none',
-                  }}
-                />
-              </div>
-              <div>
-                <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Responsible Agent Owner</label>
-                <select style={inputStyle} value={agentName} onChange={(e) => setAgentName(e.target.value)}>
-                  <option value="Lead Gen AI">Lead Gen AI</option>
-                  <option value="Outreach AI">Outreach AI</option>
-                  <option value="Appt Setter">Appt Setter</option>
-                  <option value="Delivery Manager Agent">Delivery Manager Agent</option>
-                  <option value="General Operator">General Operator</option>
-                </select>
-              </div>
-              <div>
-                <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Target Priority</label>
-                <select style={inputStyle} value={priority} onChange={(e) => setPriority(e.target.value as any)}>
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Critical">Critical</option>
-                </select>
-              </div>
-              <div>
-                <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Workflow State</label>
-                <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as any)}>
-                  <option value="Pending">To-Do (Pending)</option>
-                  <option value="In Progress">Working On (In Progress)</option>
-                  <option value="Needs Approval">Needs Review (Needs Approval)</option>
-                  <option value="Blocked">Blocked</option>
-                </select>
-              </div>
-              <div>
-                <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Due Date</label>
-                <input style={inputStyle} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-              </div>
-            </div>
+        <Select
+          label="Owner"
+          value={agentName}
+          onChange={(e) => setAgentName(e.target.value)}
+          options={OWNER_OPTIONS}
+        />
 
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                height: 42,
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--grad-brand)',
-                color: '#fff',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: 'pointer',
-                border: 'none',
-                boxShadow: 'var(--glow-violet)',
-                marginTop: 8,
-              }}
-            >
-              Commit Task
-            </button>
-          </form>
-        </div>
-      )}
+        <Select
+          label="Priority"
+          value={priority}
+          onChange={(e) => setPriority(e.target.value as Task['priority'])}
+          options={PRIORITY_OPTIONS}
+        />
+
+        <Select
+          label="Status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as Task['status'])}
+          options={STATUS_OPTIONS}
+        />
+
+        <Input
+          label="Due date"
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }

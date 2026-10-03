@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { classifyRequest, executeAgent } from '@/lib/agents/router';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
+import { validateText, badRequest, LIMITS } from '@/lib/validation';
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
@@ -11,10 +12,10 @@ export async function POST(req: Request) {
   if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
 
   try {
-    const { message } = await req.json();
-    if (!message) {
-      return NextResponse.json({ success: false, error: 'message is required' }, { status: 400 });
-    }
+    const body = await req.json().catch(() => ({}));
+    const check = validateText(body.message, 'Message', { max: LIMITS.prompt });
+    if (!check.ok) return badRequest(check.error);
+    const message = check.value;
 
     // Save user message to database
     await db.addChatMessage({

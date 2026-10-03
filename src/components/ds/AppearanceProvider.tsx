@@ -23,19 +23,37 @@ export const THEME_PRESETS: Record<string, { name: string; swatch: string; accen
   magenta: { name: 'Magenta', swatch: 'linear-gradient(135deg,#D946EF,#8B5CF6)', accent: '#D946EF', secondary: '#8B5CF6' },
 };
 
-// Mix a hex color with white (weight between 0 and 1, where 1 is pure white)
+const clampChannel = (n: number) => Math.min(255, Math.max(0, Math.round(n)));
+const toHexPair = (n: number) => clampChannel(n).toString(16).padStart(2, '0');
+
+/**
+ * Mix a hex colour toward white. `weight` is 0–1, where 1 is pure white.
+ *
+ * Channels are clamped: this used to be called with a negative weight to mean
+ * "darken", which pushed channels past 255 and produced 3-hex-digit garbage
+ * like `#10a…` for --violet-500. Use `darken()` for that.
+ */
 export function mixWithWhite(hex: string, weight: number): string {
   const cleanHex = hex.replace('#', '');
   if (cleanHex.length !== 6) return hex;
   const r = parseInt(cleanHex.substring(0, 2), 16);
   const g = parseInt(cleanHex.substring(2, 4), 16);
   const b = parseInt(cleanHex.substring(4, 6), 16);
+  const w = Math.min(1, Math.max(0, weight));
 
-  const mixedR = Math.round(r * (1 - weight) + 255 * weight);
-  const mixedG = Math.round(g * (1 - weight) + 255 * weight);
-  const mixedB = Math.round(b * (1 - weight) + 255 * weight);
+  return `#${toHexPair(r * (1 - w) + 255 * w)}${toHexPair(g * (1 - w) + 255 * w)}${toHexPair(b * (1 - w) + 255 * w)}`;
+}
 
-  return `#${mixedR.toString(16).padStart(2, '0')}${mixedG.toString(16).padStart(2, '0')}${mixedB.toString(16).padStart(2, '0')}`;
+/** Mix a hex colour toward black. `weight` is 0–1, where 1 is pure black. */
+export function darken(hex: string, weight: number): string {
+  const cleanHex = hex.replace('#', '');
+  if (cleanHex.length !== 6) return hex;
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  const w = Math.min(1, Math.max(0, weight));
+
+  return `#${toHexPair(r * (1 - w))}${toHexPair(g * (1 - w))}${toHexPair(b * (1 - w))}`;
 }
 
 // Convert a hex string to rgba components for use in CSS shadows/glows
@@ -69,14 +87,22 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     setIsMounted(true);
   }, []);
 
-  // Write changes to localStorage and apply CSS custom properties
+  // The avatar is persisted on its own. It used to sit in the colour effect's
+  // dependency list, so changing a profile photo rewrote all ~20 CSS variables.
+  useEffect(() => {
+    if (!isMounted) return;
+    localStorage.setItem('vx_avatar', avatar);
+  }, [avatar, isMounted]);
+
+  // Write colour changes to localStorage and apply CSS custom properties.
+  // These are the same tokens the Tailwind theme bridge in globals.css aliases,
+  // so an accent change now recolours the whole app rather than half of it.
   useEffect(() => {
     if (!isMounted) return;
 
     localStorage.setItem('vx_theme', theme);
     localStorage.setItem('vx_accent', accentColor);
     localStorage.setItem('vx_bg', backgroundColor);
-    localStorage.setItem('vx_avatar', avatar);
 
     const root = document.documentElement;
 
@@ -89,7 +115,7 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     root.style.setProperty('--violet-200', mixWithWhite(accentColor, 0.55));
     root.style.setProperty('--violet-300', mixWithWhite(accentColor, 0.25));
     root.style.setProperty('--violet-400', accentColor);
-    root.style.setProperty('--violet-500', mixWithWhite(accentColor, -0.15)); // darken slightly or lighter
+    root.style.setProperty('--violet-500', darken(accentColor, 0.15));
     root.style.setProperty('--grad-brand', `linear-gradient(135deg, ${accentColor} 0%, ${secondaryColor} 100%)`);
     root.style.setProperty('--glow-violet', `0 0 24px rgba(${rgb},0.45), 0 0 4px rgba(${rgb},0.6)`);
     root.style.setProperty('--grad-halo', `radial-gradient(circle, rgba(${rgb},0.45) 0%, rgba(79,107,255,0.15) 55%, transparent 72%)`);
@@ -98,7 +124,11 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     root.style.setProperty('--border-strong', `rgba(${rgb},0.42)`);
     root.style.setProperty('--inner-ring', `inset 0 0 0 1px rgba(${rgb},0.18)`);
 
-    // Apply Background variables (derive raised surfaces to maintain premium look)
+    // Apply Background variables (derive raised surfaces to maintain premium look).
+    //
+    // KNOWN LIMITATION: the text ramp (--text-strong/--text-body) is fixed light,
+    // so a light backgroundColor yields white-on-white. The Settings picker is
+    // constrained to dark values when it is rebuilt (Phase 4c).
     root.style.setProperty('--ink-900', backgroundColor);
     
     // Calculate elevated dark colors by mixing the custom background color with small weights of pure white
@@ -119,7 +149,7 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     // Dynamic translucent panel gradient
     root.style.setProperty('--grad-panel', `linear-gradient(155deg, ${ink700}cc 0%, ${backgroundColor}80 100%)`);
 
-  }, [theme, accentColor, backgroundColor, avatar, isMounted]);
+  }, [theme, accentColor, backgroundColor, isMounted]);
 
   const setTheme = (t: string) => {
     setThemeState(t);

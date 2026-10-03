@@ -21,13 +21,6 @@ export async function getProposals(): Promise<Proposal[]> {
 }
 
 export async function addProposal(prop: Omit<Proposal, 'id' | 'created_at' | 'updated_at'>): Promise<Proposal> {
-  const fallbackProposal: Proposal = {
-    id: 'mock-prop-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    user_id: 'demo-user',
-    ...prop
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -49,21 +42,10 @@ export async function addProposal(prop: Omit<Proposal, 'id' | 'created_at' | 'up
       }
     }
     return data;
-  }, fallbackProposal, 'addProposal');
+  }, 'addProposal');
 }
 
 export async function updateProposal(id: string, updates: Partial<Proposal>): Promise<Proposal> {
-  const fallbackProposal: Proposal = {
-    id,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    title: updates.title || '',
-    price: updates.price || 0,
-    status: updates.status || 'Draft',
-    deliverables: updates.deliverables || [],
-    user_id: 'demo-user',
-    ...updates
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data: proposal, error } = await supabase
@@ -193,5 +175,5 @@ Output ONLY a raw JSON array of strings, e.g. ["task 1", "task 2", ...], with no
     }
 
     return proposal;
-  }, fallbackProposal, 'updateProposal');
+  }, 'updateProposal');
 }

@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { AGENTS } from '@/lib/agents/agents';
+import { validateText, badRequest, LIMITS } from '@/lib/validation';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -113,11 +114,21 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { url, context } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { url } = body;
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ success: false, error: 'URL is required.' }, { status: 400 });
     }
+
+    // Free-text note that gets folded into the analysis prompt — bound it so
+    // request cost isn't caller-controlled.
+    const contextCheck = validateText(body.context, 'Context', {
+      max: LIMITS.prompt,
+      required: false,
+    });
+    if (!contextCheck.ok) return badRequest(contextCheck.error);
+    const context = contextCheck.value;
 
     // Validate Instagram URL
     const shortcode = extractShortcode(url);

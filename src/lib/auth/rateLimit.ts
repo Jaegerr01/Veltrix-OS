@@ -27,6 +27,12 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   if (!supabaseAdmin) {
     // Local dev without Supabase configured — don't block requests.
+    // In production a missing service-role key means we have no counter at all,
+    // so "allow" would leave every Gemini/email spender unthrottled. Fail closed.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[rateLimit] SUPABASE_SERVICE_ROLE_KEY missing in production — refusing request.');
+      return { allowed: false, remaining: 0 };
+    }
     return { allowed: true, remaining: limit };
   }
 

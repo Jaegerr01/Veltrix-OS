@@ -15,6 +15,15 @@ export const runtime = 'nodejs';
  * are missing. NEVER returns secret values — only whether each key is present and
  * whether each live connection works. Add ?deep=1 to also make a real (quota-using)
  * Gemini call to confirm the key is valid.
+ *
+ * Three tiers, by design:
+ *   • anonymous       → liveness only ({ service, ready }). Safe for uptime monitors.
+ *   • authenticated   → the full env presence map and per-check detail.
+ *   • authenticated
+ *     + ?deep=1       → additionally burns a real Gemini call.
+ *
+ * The env map and check details name every integration the deployment does and
+ * does not have, which is a useful reconnaissance list — so they are not public.
  */
 
 type Check = {
@@ -31,14 +40,13 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const deep = url.searchParams.get('deep') === '1';
 
-  // SECURITY: ?deep=1 burns a real Gemini call — require an authenticated
-  // operator so it can't be used as an unauthenticated quota-abuse vector.
-  // Plain /api/health (presence/reachability checks only) stays open for
-  // uptime monitors.
-  if (deep) {
-    const auth = await requireUser(req);
-    if (auth.response) return auth.response;
-  }
+  // SECURITY: detail is operator-only. ?deep=1 additionally burns a real Gemini
+  // call, so it must never be reachable unauthenticated. An anonymous caller
+  // gets liveness only.
+  const auth = await requireUser(req);
+  const isOperator = !auth.response;
+
+  if (deep && !isOperator) return auth.response!;
 
   const checks: Record<string, Check> = {};
 
@@ -112,6 +120,16 @@ export async function GET(req: Request) {
   const critical = ['supabase', 'gemini', 'resend'];
   const missing = critical.filter((k) => !checks[k]?.ok);
   const ready = missing.length === 0;
+  const status = ready ? 200 : 503;
+
+  // Anonymous callers (uptime monitors) get liveness only — no env map, no
+  // per-integration detail, no raw driver error text.
+  if (!isOperator) {
+    return NextResponse.json(
+      { service: 'VELTRIX Command OS', ready, checkedAt: new Date().toISOString() },
+      { status }
+    );
+  }
 
   return NextResponse.json(
     {
@@ -124,6 +142,6 @@ export async function GET(req: Request) {
       checks,
       checkedAt: new Date().toISOString(),
     },
-    { status: ready ? 200 : 503 }
+    { status }
   );
 }

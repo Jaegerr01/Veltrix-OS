@@ -7,7 +7,7 @@ interface LeadScoreBadgeProps {
 export default function LeadScoreBadge({ score }: LeadScoreBadgeProps) {
   const getStyle = () => {
     if (score >= 8.0) {
-      return 'bg-neon-green/10 text-neon-green border-neon-green/30 shadow-[0_0_10px_rgba(16,185,129,0.15)]';
+      return 'bg-neon-green/10 text-neon-green border-neon-green/30';
     } else if (score >= 5.0) {
       return 'bg-neon-cyan/10 text-neon-cyan border-neon-cyan/30';
     } else {

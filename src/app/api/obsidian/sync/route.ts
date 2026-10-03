@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { headers } from 'next/headers';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,14 +12,11 @@ interface VaultNote {
 // ── GitHub API sync (works on Netlify + local) ───────────────────────────────
 
 async function collectNotesFromGitHub(): Promise<VaultNote[]> {
-  let token = process.env.GITHUB_TOKEN;
-  let repo  = process.env.GITHUB_OBSIDIAN_REPO; // e.g. "barry/veltrix-vault"
-
-  try {
-    const nextHeaders = await headers();
-    token = nextHeaders.get('x-github-token') || token;
-    repo = nextHeaders.get('x-github-repo') || repo;
-  } catch {}
+  // Server environment only. These used to fall back to `x-github-token` /
+  // `x-github-repo` request headers forwarded from the browser's localStorage,
+  // so a caller could point the sync at any repo using any token.
+  const token = process.env.GITHUB_TOKEN;
+  const repo  = process.env.GITHUB_OBSIDIAN_REPO; // e.g. "barry/veltrix-vault"
 
   if (!token || !repo) return [];
 
@@ -69,11 +65,9 @@ async function collectNotesFromGitHub(): Promise<VaultNote[]> {
 // ── Local filesystem sync (local dev only — not available on Netlify) ─────────
 
 async function collectNotesFromDisk(): Promise<VaultNote[]> {
-  let vaultPath = process.env.OBSIDIAN_VAULT_PATH;
-  try {
-    const nextHeaders = await headers();
-    vaultPath = nextHeaders.get('x-obsidian-path') || vaultPath;
-  } catch {}
+  // Server environment only — an `x-obsidian-path` header used to override this,
+  // which let a caller walk and read any directory the server process could reach.
+  const vaultPath = process.env.OBSIDIAN_VAULT_PATH;
   if (!vaultPath) return [];
 
   try {
@@ -121,15 +115,24 @@ async function getUserId(req: NextRequest): Promise<string | null> {
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // This used to be unauthenticated and returned the vault's absolute filesystem
+  // path and the GitHub repo slug to anyone who asked.
+  const userId = await getUserId(req);
+  if (!userId) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized — please log in first' },
+      { status: 401 }
+    );
+  }
+
   const githubReady = !!(process.env.GITHUB_TOKEN && process.env.GITHUB_OBSIDIAN_REPO);
   const localReady  = !!process.env.OBSIDIAN_VAULT_PATH;
 
+  // Report which mode is available, not where it points.
   return NextResponse.json({
     success: true,
     mode: githubReady ? 'github' : localReady ? 'local' : 'unconfigured',
-    github_repo: process.env.GITHUB_OBSIDIAN_REPO ?? null,
-    vault_path:  process.env.OBSIDIAN_VAULT_PATH ?? null,
   });
 }
 

@@ -1,17 +1,25 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Lead, LeadScore, Proposal, ContentIdea, Memory } from '../types';
 
-export const isGeminiConfigured = true;
+function readGeminiKey(): string {
+  const key = process.env.GEMINI_API_KEY || '';
+  return key === 'undefined' ? '' : key;
+}
+
+/**
+ * Whether an API key is actually present. This used to be a hardcoded `true`,
+ * which made /api/health report Gemini as configured on a deployment that had
+ * no key at all, and let /api/reel-intel past its own precondition.
+ */
+export const isGeminiConfigured = readGeminiKey().length > 0;
 
 async function getGenAI(): Promise<GoogleGenerativeAI | null> {
-  let key = process.env.GEMINI_API_KEY || '';
-  try {
-    const { headers } = await import('next/headers');
-    const nextHeaders = await headers();
-    key = nextHeaders.get('x-gemini-key') || key;
-  } catch {}
+  // The key comes from the server environment only. It used to also accept an
+  // `x-gemini-key` request header forwarded from the browser's localStorage,
+  // which let any caller redirect the server's AI spend to a key of their choosing.
+  const key = readGeminiKey();
 
-  if (!key || key === 'undefined') return null;
+  if (!key) return null;
   try {
     return new GoogleGenerativeAI(key);
   } catch (e) {

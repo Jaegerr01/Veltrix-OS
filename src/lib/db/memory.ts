@@ -27,12 +27,6 @@ export async function getMemories(): Promise<Memory[]> {
 }
 
 export async function addMemory(mem: Omit<Memory, 'id' | 'created_at' | 'updated_at'>): Promise<Memory> {
-  const fallbackMemory: Memory = {
-    id: 'mock-mem-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    ...mem
-  };
   return safeWrite<Memory>(async () => {
     const userId = await getUserId();
     let embedding: number[] | null = null;
@@ -70,7 +64,7 @@ export async function addMemory(mem: Omit<Memory, 'id' | 'created_at' | 'updated
       created_at: data.created_at,
       updated_at: data.updated_at
     } as Memory;
-  }, fallbackMemory, 'addMemory');
+  }, 'addMemory');
 }
 
 export async function searchMemories(query: string, limit: number = 5): Promise<Memory[]> {

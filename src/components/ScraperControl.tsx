@@ -111,11 +111,11 @@ export default function ScraperControl() {
         </div>
         <div className="col-span-1 flex flex-col justify-end gap-1.5 pb-1">
           <label className="flex items-center gap-2 text-[11px] font-mono text-white/45 cursor-pointer select-none">
-            <input type="checkbox" checked={research} onChange={e => setResearch(e.target.checked)} className="accent-[#a855f7]" />
+            <input type="checkbox" checked={research} onChange={e => setResearch(e.target.checked)} className="accent-neon-purple" />
             Auto-research (Daniel)
           </label>
           <label className="flex items-center gap-2 text-[11px] font-mono text-white/45 cursor-pointer select-none">
-            <input type="checkbox" checked={sheets} onChange={e => setSheets(e.target.checked)} className="accent-[#06b6d4]" />
+            <input type="checkbox" checked={sheets} onChange={e => setSheets(e.target.checked)} className="accent-neon-cyan" />
             Write to Google Sheets
           </label>
         </div>

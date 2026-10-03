@@ -95,12 +95,39 @@ export async function safeRead<T>(fn: () => Promise<T>, fallback: T, contextName
   }
 }
 
-export async function safeWrite<T>(fn: () => Promise<T>, fallback: T, contextName: string): Promise<T> {
+/**
+ * Thrown when a write could not be persisted. `message` is safe to show a user;
+ * the underlying driver error is kept on `cause` for server logs only, so raw
+ * Postgres/PostgREST text never reaches the client.
+ */
+export class DbWriteError extends Error {
+  readonly context: string;
+
+  constructor(context: string, cause?: unknown) {
+    super("We couldn't save that. Please try again.");
+    this.name = 'DbWriteError';
+    this.context = context;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Writes must never pretend to succeed.
+ *
+ * This used to swallow the error and return a caller-supplied fallback object
+ * with a synthetic `mock-…` id, so a failed insert looked identical to a real
+ * one: the route replied 200 and the user watched their data disappear on the
+ * next refresh. A write either persists or it throws.
+ *
+ * Callers already sit inside a try/catch (API routes and page submit handlers),
+ * so throwing surfaces a real error state instead of silent data loss.
+ */
+export async function safeWrite<T>(fn: () => Promise<T>, contextName: string): Promise<T> {
   try {
     return await fn();
   } catch (e: any) {
-    console.warn(`safeWrite failure in [${contextName}]:`, e.message || e);
+    console.error(`safeWrite failure in [${contextName}]:`, e?.message || e);
     checkSchemaError(e);
-    return fallback;
+    throw new DbWriteError(contextName, e);
   }
 }

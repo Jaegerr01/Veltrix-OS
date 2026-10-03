@@ -26,8 +26,22 @@ export async function requireUser(req: Request): Promise<AuthResult> {
     }
   }
 
-  // Supabase not configured — dev/local environment, allow through
+  // Supabase not configured. In development that means "no backend yet" and we
+  // allow through so the app stays workable offline. In production it means the
+  // service-role key is missing or typo'd — and allowing through would silently
+  // turn every requireUser route into an unauthenticated public endpoint acting
+  // as 'local-dev'. Fail CLOSED, the same way /api/autopilot/* already does.
   if (!supabaseAdmin) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[auth] SUPABASE_SERVICE_ROLE_KEY missing in production — refusing all requests.');
+      return {
+        user: null,
+        response: NextResponse.json(
+          { success: false, error: 'Service unavailable. Please try again shortly.' },
+          { status: 503 }
+        ),
+      };
+    }
     return { user: { id: 'local-dev', email: undefined }, response: null };
   }
 

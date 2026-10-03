@@ -82,6 +82,19 @@ describe('checkRateLimit', () => {
     expect(r.allowed).toBe(true);
   });
 
+  // Without the counter table there is no limit at all, so allowing through in
+  // production would leave every Gemini/email spender unthrottled.
+  it('blocks requests when Supabase is not configured in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      const checkRateLimit = await loadRateLimit(null);
+      const r = await checkRateLimit('user:d', { limit: 5 });
+      expect(r.allowed).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('fails open if the count query errors', async () => {
     const client = {
       from: () => ({

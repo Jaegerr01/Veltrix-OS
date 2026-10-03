@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
+/** Only the first 2,500 characters of a note are stored, so anything larger is
+ *  already being discarded — reject it up front instead of buffering it. */
+const MAX_FILES = 500;
+const MAX_FILE_BYTES = 1_000_000; // 1 MB per markdown note
+
 async function getUserId(req: NextRequest): Promise<string | null> {
   if (!supabaseAdmin) return null;
   const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
@@ -26,11 +31,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'No files received' }, { status: 400 });
   }
 
+  if (files.length > MAX_FILES) {
+    return NextResponse.json(
+      { success: false, error: `Too many files at once. Upload up to ${MAX_FILES} notes per sync.` },
+      { status: 400 }
+    );
+  }
+
   let synced = 0;
   const errors: string[] = [];
 
   for (const file of files) {
     if (!file.name.endsWith('.md')) continue;
+
+    if (file.size > MAX_FILE_BYTES) {
+      errors.push(`${file.name}: too large (max ${MAX_FILE_BYTES / 1_000_000} MB per note).`);
+      continue;
+    }
 
     try {
       const content = (await file.text()).trim();

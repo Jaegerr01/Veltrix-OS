@@ -11,8 +11,12 @@ interface VeltrixSpinnerProps {
 
 export function VeltrixSpinner({ size = 56, message, className = '' }: VeltrixSpinnerProps) {
   return (
-    <div className={`flex flex-col items-center justify-center gap-4 p-6 ${className}`}>
-      <div className="relative" style={{ width: size, height: size }}>
+    <div
+      className={`flex flex-col items-center justify-center gap-4 p-6 ${className}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="relative" style={{ width: size, height: size }} aria-hidden="true">
         {/* Ambient halo breathing beneath */}
         <div
           className="absolute top-1/2 left-1/2 rounded-full opacity-45 pointer-events-none"
@@ -48,7 +52,16 @@ export function VeltrixSpinner({ size = 56, message, className = '' }: VeltrixSp
         </div>
       </div>
       {message && (
-        <p className="text-[11px] font-mono tracking-widest text-muted uppercase animate-pulse">
+        /* `text-muted` was not a real utility — the label rendered with no
+           colour of its own. Uses the design token, and drops the uppercase
+           transform that made it harder to read and to pronounce aloud. */
+        <p
+          style={{
+            fontSize: 'var(--text-xs)',
+            letterSpacing: 'var(--ls-wide)',
+            color: 'var(--text-muted)',
+          }}
+        >
           {message}
         </p>
       )}

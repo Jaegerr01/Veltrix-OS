@@ -47,11 +47,20 @@ export function useToast(): ToastApi {
   return ctx;
 }
 
-const KIND_STYLE: Record<ToastKind, { icon: React.ReactNode; ring: string; iconColor: string }> = {
-  success: { icon: <CheckCircle2 size={16} />, ring: 'border-emerald-400/30', iconColor: 'text-emerald-400' },
-  error:   { icon: <XCircle size={16} />,      ring: 'border-red-400/30',     iconColor: 'text-red-400' },
-  warning: { icon: <AlertTriangle size={16} />, ring: 'border-amber-400/30',  iconColor: 'text-amber-400' },
-  info:    { icon: <Info size={16} />,          ring: 'border-cyan-400/30',   iconColor: 'text-cyan-400' },
+/**
+ * Tones read from design tokens rather than Tailwind's stock palette
+ * (emerald-400 / red-400 / amber-400 / cyan-400), which did not match any other
+ * success, danger or warning colour in the product.
+ *
+ * `label` is the important part: without it the only cue distinguishing an
+ * error toast from a success toast is its colour and glyph, which fails
+ * WCAG 1.4.1 and tells a screen reader nothing.
+ */
+const KIND_STYLE: Record<ToastKind, { icon: React.ReactNode; color: string; label: string }> = {
+  success: { icon: <CheckCircle2 size={16} />,  color: 'var(--signal-400)', label: 'Success' },
+  error:   { icon: <XCircle size={16} />,       color: 'var(--danger-400)', label: 'Error' },
+  warning: { icon: <AlertTriangle size={16} />, color: 'var(--warn-400)',   label: 'Warning' },
+  info:    { icon: <Info size={16} />,          color: 'var(--cyan-400)',   label: 'Information' },
 };
 
 const AUTO_DISMISS_MS = 5000;
@@ -102,18 +111,36 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: 24, scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                className={`pointer-events-auto rounded-xl border ${s.ring} bg-[#0d0d18]/95 backdrop-blur-xl shadow-[0_12px_32px_rgba(0,0,0,0.5)] p-3.5 flex gap-3`}
-                role="status"
+                className="pointer-events-auto p-3.5 flex gap-3"
+                style={{
+                  background: 'var(--surface-card)',
+                  border: `1px solid ${s.color}`,
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-lg)',
+                }}
+                /* Errors interrupt; everything else waits its turn. */
+                role={t.kind === 'error' ? 'alert' : 'status'}
               >
-                <span className={`${s.iconColor} mt-0.5 flex-shrink-0`}>{s.icon}</span>
+                <span style={{ color: s.color, marginTop: 2, flexShrink: 0 }} aria-hidden="true">
+                  {s.icon}
+                </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-white/90 leading-snug">{t.title}</p>
-                  {t.detail && <p className="text-[11.5px] text-white/50 mt-0.5 leading-snug">{t.detail}</p>}
+                  {/* Names the tone in text, so it is not carried by colour alone. */}
+                  <span className="sr-only">{s.label}: </span>
+                  <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--text-strong)', lineHeight: 'var(--lh-snug)' }}>
+                    {t.title}
+                  </p>
+                  {t.detail && (
+                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2, lineHeight: 'var(--lh-snug)' }}>
+                      {t.detail}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => dismiss(t.id)}
-                  className="text-white/30 hover:text-white/70 transition cursor-pointer flex-shrink-0 self-start"
-                  aria-label="Dismiss"
+                  className="transition cursor-pointer flex-shrink-0 self-start"
+                  style={{ color: 'var(--text-dim)', background: 'none', border: 'none' }}
+                  aria-label={`Dismiss ${s.label.toLowerCase()} notification`}
                 >
                   <X size={13} />
                 </button>
@@ -138,26 +165,52 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 8 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d0d18] p-5 shadow-[0_24px_64px_rgba(0,0,0,0.6)]"
+              className="w-full max-w-sm p-5"
+              style={{
+                background: 'var(--surface-card)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--elev-popover)',
+              }}
               onClick={e => e.stopPropagation()}
               role="alertdialog"
               aria-modal="true"
             >
-              <p className="text-[14px] font-semibold text-white/90">{confirmState.message}</p>
+              <p style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-strong)' }}>
+                {confirmState.message}
+              </p>
               {confirmState.detail && (
-                <p className="text-[12px] text-white/50 mt-1.5 leading-relaxed">{confirmState.detail}</p>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6, lineHeight: 'var(--lh-relaxed)' }}>
+                  {confirmState.detail}
+                </p>
               )}
               <div className="flex justify-end gap-2 mt-5">
                 <button
                   onClick={() => settleConfirm(false)}
-                  className="px-4 py-2 rounded-lg text-[12px] font-medium text-white/60 hover:text-white/90 hover:bg-white/5 border border-white/10 transition cursor-pointer"
+                  className="px-4 py-2 transition cursor-pointer"
+                  style={{
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 500,
+                    color: 'var(--text-muted)',
+                    background: 'transparent',
+                    border: '1px solid var(--border-default)',
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => settleConfirm(true)}
                   autoFocus
-                  className="px-4 py-2 rounded-lg text-[12px] font-semibold text-white bg-neon-purple hover:bg-neon-purple/85 transition cursor-pointer shadow-[0_0_14px_rgba(168,85,247,0.3)]"
+                  className="px-4 py-2 transition cursor-pointer"
+                  style={{
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 600,
+                    color: 'var(--text-on-accent)',
+                    background: 'var(--grad-brand)',
+                    border: '1px solid transparent',
+                  }}
                 >
                   Confirm
                 </button>

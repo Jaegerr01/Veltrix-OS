@@ -70,7 +70,7 @@ export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cyber-bg/85 backdrop-blur-md animate-fade-in">
-      <div className="glass-panel p-6 border border-neon-cyan/40 rounded-xl bg-cyber-bg/95 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[0_0_50px_rgba(6,182,212,0.25)] space-y-4">
+      <div className="glass-panel p-6 border border-neon-cyan/40 rounded-xl bg-cyber-bg/95 max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-4">
         <div className="flex justify-between items-center border-b border-white/10 pb-3">
           <h4 className="text-sm font-mono font-bold text-neon-cyan uppercase tracking-wider">
             Add a Potential Client (Lead)
