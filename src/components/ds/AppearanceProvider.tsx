@@ -17,11 +17,18 @@ const AppearanceContext = createContext<AppearanceContextType | undefined>(undef
 
 // Preset themes matching the design prototype:
 export const THEME_PRESETS: Record<string, { name: string; swatch: string; accent: string; secondary: string }> = {
-  violet: { name: 'Violet', swatch: 'linear-gradient(135deg,#8B5CF6,#4F6BFF)', accent: '#8B5CF6', secondary: '#4F6BFF' },
-  cyan: { name: 'Cyan', swatch: 'linear-gradient(135deg,#22D3EE,#4F6BFF)', accent: '#22D3EE', secondary: '#4F6BFF' },
+  // Brand default: Postel violet → neon purple. Cyan/emerald stay as optional accents.
+  violet: { name: 'Postel Violet', swatch: 'linear-gradient(135deg,#8B5CF6,#B02FE0)', accent: '#8B5CF6', secondary: '#B02FE0' },
+  cyan: { name: 'Cyan', swatch: 'linear-gradient(135deg,#22D3EE,#8B5CF6)', accent: '#22D3EE', secondary: '#8B5CF6' },
   emerald: { name: 'Emerald', swatch: 'linear-gradient(135deg,#2EE6A0,#22D3EE)', accent: '#2EE6A0', secondary: '#22D3EE' },
-  magenta: { name: 'Magenta', swatch: 'linear-gradient(135deg,#D946EF,#8B5CF6)', accent: '#D946EF', secondary: '#8B5CF6' },
+  magenta: { name: 'Neon Orchid', swatch: 'linear-gradient(135deg,#C026D3,#8B5CF6)', accent: '#C026D3', secondary: '#8B5CF6' },
 };
+
+/** Brand defaults (Postel Studio: near-black canvas, electric-purple accent). */
+export const DEFAULT_ACCENT = '#8B5CF6';
+export const DEFAULT_BACKGROUND = '#04030C';
+/** Pre-rebrand canvas default; a stored value equal to this is upgraded once. */
+const LEGACY_DEFAULT_BACKGROUND = '#060410';
 
 const clampChannel = (n: number) => Math.min(255, Math.max(0, Math.round(n)));
 const toHexPair = (n: number) => clampChannel(n).toString(16).padStart(2, '0');
@@ -68,16 +75,19 @@ export function hexToRgbString(hex: string): string {
 
 export function AppearanceProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState('violet');
-  const [accentColor, setAccentColorState] = useState('#8B5CF6');
-  const [backgroundColor, setBackgroundColorState] = useState('#060410');
+  const [accentColor, setAccentColorState] = useState(DEFAULT_ACCENT);
+  const [backgroundColor, setBackgroundColorState] = useState(DEFAULT_BACKGROUND);
   const [avatar, setAvatarState] = useState('');
   const [isMounted, setIsMounted] = useState(false);
 
   // Load from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('vx_theme') || 'violet';
-    const savedAccent = localStorage.getItem('vx_accent') || '#8B5CF6';
-    const savedBg = localStorage.getItem('vx_bg') || '#060410';
+    const savedAccent = localStorage.getItem('vx_accent') || DEFAULT_ACCENT;
+    // One-time upgrade: users who never customised the canvas still have the
+    // old default stored; move them to the new brand black. Custom values stay.
+    let savedBg = localStorage.getItem('vx_bg') || DEFAULT_BACKGROUND;
+    if (savedBg.toLowerCase() === LEGACY_DEFAULT_BACKGROUND) savedBg = DEFAULT_BACKGROUND;
     const savedAvatar = localStorage.getItem('vx_avatar') || '';
 
     setThemeState(savedTheme);
@@ -108,7 +118,7 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
 
     // Apply Accent variables
     const rgb = hexToRgbString(accentColor);
-    const secondaryColor = theme !== 'custom' && THEME_PRESETS[theme] ? THEME_PRESETS[theme].secondary : '#4F6BFF';
+    const secondaryColor = theme !== 'custom' && THEME_PRESETS[theme] ? THEME_PRESETS[theme].secondary : '#B02FE0';
     
     root.style.setProperty('--violet-50', mixWithWhite(accentColor, 0.95));
     root.style.setProperty('--violet-100', mixWithWhite(accentColor, 0.85));
@@ -116,9 +126,9 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     root.style.setProperty('--violet-300', mixWithWhite(accentColor, 0.25));
     root.style.setProperty('--violet-400', accentColor);
     root.style.setProperty('--violet-500', darken(accentColor, 0.15));
-    root.style.setProperty('--grad-brand', `linear-gradient(135deg, ${accentColor} 0%, ${secondaryColor} 100%)`);
+    root.style.setProperty('--grad-brand', `linear-gradient(135deg, ${darken(accentColor, 0.12)} 0%, ${secondaryColor} 100%)`);
     root.style.setProperty('--glow-violet', `0 0 24px rgba(${rgb},0.45), 0 0 4px rgba(${rgb},0.6)`);
-    root.style.setProperty('--grad-halo', `radial-gradient(circle, rgba(${rgb},0.45) 0%, rgba(79,107,255,0.15) 55%, transparent 72%)`);
+    root.style.setProperty('--grad-halo', `radial-gradient(circle, rgba(${rgb},0.45) 0%, rgba(177,76,255,0.16) 55%, transparent 72%)`);
     root.style.setProperty('--border-subtle', `rgba(${rgb},0.12)`);
     root.style.setProperty('--border-default', `rgba(${rgb},0.22)`);
     root.style.setProperty('--border-strong', `rgba(${rgb},0.42)`);

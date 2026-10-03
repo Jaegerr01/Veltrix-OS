@@ -10,7 +10,7 @@ import React from 'react';
  * a real <table> on desktop, and below `md` each row folds into a card with the
  * column header shown as a label beside each value (via `data-label`).
  *
- * The display switch is done in CSS (see `.vx-datalist` in veltrix-ds.css) so
+ * The display switch is done in CSS (see `.vx-datalist` in postel-ds.css) so
  * there is no matchMedia, no hydration mismatch, and one copy of the DOM.
  * Because overriding `display` on table elements strips their implicit
  * semantics, the ARIA roles are set explicitly — otherwise screen readers would

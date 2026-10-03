@@ -89,7 +89,7 @@ export async function POST(req: Request) {
           if (channel === 'LinkedIn' || channel === 'Instagram') {
             messageText = `Hi ${contact} - noticed your page for ${business}. Love the work you do in ${industry}! Quick question: do you guys handle after-hours bookings manually, or do you have a bot? We build simple AI receptionists that qualify leads and schedule them 24/7. Open to a 1-min demo video?`;
           } else {
-            messageText = `Hello ${contact},\n\nI was looking at ${business} online and noticed that patients or clients trying to book appointments after hours might bounce due to a lack of live scheduling assistance.\n\nWe design lightweight AI booking agents specifically for ${industry} services. They handle common FAQs and schedule appointments directly into your calendar 24/7.\n\nWould it be okay to send over a short 90-second video demo of how it looks?\n\nBest,\nVELTRIX Partner`;
+            messageText = `Hello ${contact},\n\nI was looking at ${business} online and noticed that patients or clients trying to book appointments after hours might bounce due to a lack of live scheduling assistance.\n\nWe design lightweight AI booking agents specifically for ${industry} services. They handle common FAQs and schedule appointments directly into your calendar 24/7.\n\nWould it be okay to send over a short 90-second video demo of how it looks?\n\nBest,\nPostelOS Partner`;
           }
 
           const profile = await db.getBusinessProfile();

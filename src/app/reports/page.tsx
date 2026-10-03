@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 
 interface DailyReport {
@@ -104,7 +104,7 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Accessing report vaults..." />
+        <PostelSpinner message="Accessing report vaults..." />
       </div>
     );
   }
@@ -165,7 +165,7 @@ export default function ReportsPage() {
                   <VxIcon name="chartbar" size={18} />
                 </span>
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, letterSpacing: '0.02em', color: 'var(--violet-200)', textTransform: 'uppercase' }}>
-                  VELTRIX Daily Command Brief
+                  PostelOS Daily Command Brief
                 </span>
               </div>
               <span

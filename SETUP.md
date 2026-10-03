@@ -1,4 +1,4 @@
-# VELTRIX Command OS — Setup & Go-Live Guide
+# PostelOS — Setup & Go-Live Guide
 
 This is the exact path from "deployed but inert" to "fully autonomous." Your **code is sound** — the only thing standing between you and a working pipeline is **credentials + configuration**. Work top to bottom.
 
@@ -69,7 +69,7 @@ The OS sends through **Gmail first** when configured, falling back to Resend. Ev
 2. Create an app password, then set in `.env.local` / Netlify:
    - `GMAIL_USER` — your Gmail address
    - `GMAIL_APP_PASSWORD` — the 16-character app password
-   - `GMAIL_FROM_NAME` — optional display name, e.g. `Barry from VELTRIX`
+   - `GMAIL_FROM_NAME` — optional display name, e.g. `Barry from PostelOS`
 3. ⚠️ Gmail deliverability reality check: personal Gmail sending cold outreach gets flagged fast above ~50/day. Keep `OUTREACH_DAILY_CAP` low (default 15) and warm up gradually. For scale, move to a verified domain on Resend or Google Workspace.
 
 ### 3b. Outreach guardrails (all optional, sane defaults)
@@ -85,7 +85,7 @@ The OS sends through **Gmail first** when configured, falling back to Resend. Ev
 1. Sign up free at **https://resend.com**.
 2. **API Keys → Create API Key** → copy → this is `RESEND_API_KEY`.
 3. **Domains → Add Domain** and verify yours (add the DNS records they give you).
-   - Set `RESEND_FROM_EMAIL` to something on that domain, e.g. `VELTRIX <hello@yourdomain.com>`.
+   - Set `RESEND_FROM_EMAIL` to something on that domain, e.g. `PostelOS <hello@yourdomain.com>`.
    - ⚠️ **Until a domain is verified**, Resend only lets you email **your own account address**. Outreach to leads will be rejected. Domain verification is what unlocks real outreach.
 4. Set `NOTIFY_EMAIL` to the address where YOU want pre-call briefs and daily reports (e.g. your Gmail).
 
@@ -102,7 +102,7 @@ In **Netlify → Site configuration → Environment variables**, add each of the
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key | Step 2 |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role key | Step 2 |
 | `RESEND_API_KEY` | Resend key | Step 3 |
-| `RESEND_FROM_EMAIL` | `VELTRIX <hello@yourdomain.com>` | Step 3 |
+| `RESEND_FROM_EMAIL` | `PostelOS <hello@yourdomain.com>` | Step 3 |
 | `NOTIFY_EMAIL` | your inbox | Step 3 |
 | `CRON_SECRET` | any long random string you invent | — |
 | `NEXT_PUBLIC_SITE_URL` | your live URL, e.g. `https://velltrixos.netlify.app` | — |

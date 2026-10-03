@@ -29,10 +29,10 @@ async function getGenAI(): Promise<GoogleGenerativeAI | null> {
 }
 
 const SYSTEM_CONTEXT = `
-You are VELTRIX COMMAND OS, an enterprise-grade autonomous AI Business Operating System for VELTRIX.
-VELTRIX is a futuristic AI and creative technology studio offering branding, graphic design, 2D/3D illustrations, streaming/VTuber assets, website development, Shopify storefronts, AI automations, AI chatbots, AI receptionists, AI customer service agents, and growth consulting.
+You are PostelOS, an enterprise-grade autonomous AI Business Operating System for PostelOS.
+PostelOS is a futuristic AI and creative technology studio offering branding, graphic design, 2D/3D illustrations, streaming/VTuber assets, website development, Shopify storefronts, AI automations, AI chatbots, AI receptionists, AI customer service agents, and growth consulting.
 
-Primary Goal: Help VELTRIX reach $6,000/month in revenue.
+Primary Goal: Help PostelOS reach $6,000/month in revenue.
 Calculations Model: Monthly Revenue = Leads * Booked Calls * Close Rate * Average Deal Value.
 Safety permission constraint: Do not send any emails or message clients without explicit human approval (Level 4 approval).
 
@@ -157,7 +157,7 @@ export const gemini = {
     const memoriesStr = memories.map(m => `[${m.type}] ${m.content}`).join('\n');
 
     const prompt = `
-Generate a VELTRIX Daily Command Report based on:
+Generate a PostelOS Daily Command Report based on:
 - Revenue Target: $${target}
 - Current Closed Revenue: $${closed}
 - Pipeline Value: $${pipeline}
@@ -168,7 +168,7 @@ ${leadsStr}
 ${memoriesStr}
 
 Follow this exact format:
-VELTRIX Daily Command Report
+PostelOS Daily Command Report
 
 Revenue Target:
 $${target}
@@ -266,7 +266,7 @@ Output ONLY a raw JSON matching this structure:
   ): Promise<{ summary: string; observations: string[]; opportunities: string[]; personalization_hooks: string[] }> {
     const siteSection = website.ok
       ? `Website title: ${website.title || 'n/a'}\nWebsite content (extracted text):\n${website.text || '(empty page)'}`
-      : `Their website could NOT be loaded (${website.error}). Treat this as a major finding — a broken or missing web presence is exactly what VELTRIX fixes.`;
+      : `Their website could NOT be loaded (${website.error}). Treat this as a major finding — a broken or missing web presence is exactly what PostelOS fixes.`;
 
     const prompt = `
 You are Daniel, the Lead Research Agent. Research this prospect using their REAL website content below.
@@ -285,7 +285,7 @@ Output ONLY raw JSON:
 {
   "summary": "2-3 sentence overview of the business and its digital posture",
   "observations": ["3-5 concrete facts from their site"],
-  "opportunities": ["2-4 things VELTRIX can sell them, most valuable first"],
+  "opportunities": ["2-4 things PostelOS can sell them, most valuable first"],
   "personalization_hooks": ["2-3 one-line openers referencing real details"]
 }
 `;
@@ -379,7 +379,7 @@ Format as standard markdown with sections:
   // 6. Generate Content Ideas
   async generateContentIdeas(topic: string): Promise<ContentIdea[]> {
     const prompt = `
-You are Content Agent. Generate 3 social media content ideas for VELTRIX authority posting.
+You are Content Agent. Generate 3 social media content ideas for PostelOS authority posting.
 Topic/Pillar: ${topic}
 
 Output ONLY a JSON array of 3 ideas matching this schema:
@@ -432,7 +432,7 @@ Output ONLY a JSON array of 3 ideas matching this schema:
       estimatedMonthlySaving, estimatedRoiPct
     } = params;
     const prompt = `
-You are VELTRIX's AI Value Analyst. Write a professional, client-facing ROI summary for:
+You are PostelOS's AI Value Analyst. Write a professional, client-facing ROI summary for:
 
 Client: ${clientName}
 Service: ${servicePurchased}

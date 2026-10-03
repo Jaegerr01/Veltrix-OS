@@ -7,8 +7,8 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
   const userId = await getUserId().catch(() => 'demo-user');
   const fallbackProfile: BusinessProfile = {
     id: userId,
-    business_name: 'VELTRIX Operator',
-    description: 'A business powered by VELTRIX OS.',
+    business_name: 'PostelOS Operator',
+    description: 'A business powered by PostelOS.',
     services: ['AI Website Development', 'AI Receptionist Chatbots'],
     target_monthly_revenue: 6000,
     current_monthly_revenue: 0,
@@ -32,8 +32,8 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
     if (!profileData) {
       const defaultProfile = {
         id: userId,
-        business_name: 'VELTRIX Operator',
-        description: 'A business powered by VELTRIX OS.',
+        business_name: 'PostelOS Operator',
+        description: 'A business powered by PostelOS.',
         services: ['AI Website Development', 'AI Receptionist Chatbots'],
         target_monthly_revenue: 6000,
         current_monthly_revenue: 0,

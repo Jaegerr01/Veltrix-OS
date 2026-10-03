@@ -53,7 +53,7 @@ export async function runAgentLogic(
               memories
             );
           } catch (err: any) {
-            reportText = `VELTRIX Daily Command Report\n\nRevenue Target:\n$${profile.target_monthly_revenue}\n\nClosed Revenue:\n$${profile.current_monthly_revenue}\n\nPipeline Value:\n$${pipelineValue}\n\nRevenue Gap:\n$${profile.target_monthly_revenue - profile.current_monthly_revenue}\n\nToday's Top Priority:\nReview warm leads and prepare proposals.\n\nLeads to Contact:\n${activeLeads.slice(0, 3).map((l, i) => `${i+1}. ${l.business_name}`).join('\n')}\n\nFollow-ups Due:\nNone\n\nContent to Post:\nDeploy an AI Receptionist to prevent after-hour appointment leaks.\n\nRecommended Action:\nContact active warm leads.\n\nRisk / Blocker:\nGemini API unavailable. Local fallback generated.\n\nNext Step:\nOpen Potential Clients page.`;
+            reportText = `PostelOS Daily Command Report\n\nRevenue Target:\n$${profile.target_monthly_revenue}\n\nClosed Revenue:\n$${profile.current_monthly_revenue}\n\nPipeline Value:\n$${pipelineValue}\n\nRevenue Gap:\n$${profile.target_monthly_revenue - profile.current_monthly_revenue}\n\nToday's Top Priority:\nReview warm leads and prepare proposals.\n\nLeads to Contact:\n${activeLeads.slice(0, 3).map((l, i) => `${i+1}. ${l.business_name}`).join('\n')}\n\nFollow-ups Due:\nNone\n\nContent to Post:\nDeploy an AI Receptionist to prevent after-hour appointment leaks.\n\nRecommended Action:\nContact active warm leads.\n\nRisk / Blocker:\nGemini API unavailable. Local fallback generated.\n\nNext Step:\nOpen Potential Clients page.`;
           }
 
           const lines = reportText.split('\n');
@@ -108,7 +108,7 @@ export async function runAgentLogic(
 
           await db.addMemory({
             type: 'Decision',
-            content: `Veltrix Daily Command Report generated for ${todayStr}. Recommended action: ${recommendedAction}`,
+            content: `PostelOS Daily Command Report generated for ${todayStr}. Recommended action: ${recommendedAction}`,
             tags: ['daily-report', 'automated'],
             importance: 6,
             source: 'AI CEO'
@@ -147,7 +147,7 @@ export async function runAgentLogic(
         const receptionists = params?.receptionists || 0;
 
         let prompt = `
-Analyze the following financial statistics for VELTRIX:
+Analyze the following financial statistics for PostelOS:
 - Monthly Target: $${profile.target_monthly_revenue}
 - Closed Earnings: $${closedRevenue}
 - Earnings Gap: $${gap}
@@ -193,7 +193,7 @@ Output in a concise layout with next actions.
         }
 
         const prompt = `
-Analyze this specific lead for VELTRIX:
+Analyze this specific lead for PostelOS:
 Business Name: ${lead.business_name}
 Industry: ${lead.industry || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
@@ -201,7 +201,7 @@ Pain Points: ${lead.pain_point || 'Unknown'}
 Notes: ${lead.notes || 'None'}
 
 Draft a sales pitch recommendation. Outline:
-1. Which VELTRIX service fits best (AI Website, AI Receptionist, or Growth Package) and why.
+1. Which PostelOS service fits best (AI Website, AI Receptionist, or Growth Package) and why.
 2. The exact pitch angle (time-saved, revenue capture, or aesthetics reboot).
 3. Objections handling guide for this client.
 
@@ -334,7 +334,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
           if (channel === 'LinkedIn' || channel === 'Instagram') {
             messageText = `Hi ${contact} - noticed your page for ${business}. Love the work you do in ${industry}! Quick question: do you guys handle after-hours bookings manually, or do you have a bot? We build simple AI receptionists that qualify leads and schedule them 24/7. Open to a 1-min demo video?`;
           } else {
-            messageText = `Hello ${contact},\n\nI was looking at ${business} online and noticed that patients or clients trying to book appointments after hours might bounce due to a lack of live scheduling assistance.\n\nWe design lightweight AI booking agents specifically for ${industry} services. They handle common FAQs and schedule appointments directly into your calendar 24/7.\n\nWould it be okay to send over a short 90-second video demo of how it looks?\n\nBest,\nVELTRIX Partner`;
+            messageText = `Hello ${contact},\n\nI was looking at ${business} online and noticed that patients or clients trying to book appointments after hours might bounce due to a lack of live scheduling assistance.\n\nWe design lightweight AI booking agents specifically for ${industry} services. They handle common FAQs and schedule appointments directly into your calendar 24/7.\n\nWould it be okay to send over a short 90-second video demo of how it looks?\n\nBest,\nPostelOS Partner`;
           }
         }
 
@@ -515,7 +515,7 @@ Respond in character as Sophia, the Sales Agent. Speak in a charismatic, persuas
         } catch (err: any) {
           const business = lead.business_name;
           const industry = lead.industry || 'your business';
-          proposalText = `# Business Proposal: ${offerName} Integration\n\nPrepared for: **${business}**\n\n### Executive Summary\nVELTRIX proposes a custom deployment of the **${offerName}** to solve core operational bottlenecks. Local diagnostics indicated critical areas of improvement in lead qualification and response times.\n\n### Solution Overview\n- **Automated Workflow**: Custom FAQs configured based on local ${industry} operations.\n- **Full Availability**: Handles inquiries 24/7, reducing lead bounce rates by 20%.\n- **Pricing Model**: Total setup fee of $${price}.\n\n*Generated via local backup templates.*`;
+          proposalText = `# Business Proposal: ${offerName} Integration\n\nPrepared for: **${business}**\n\n### Executive Summary\nPostelOS proposes a custom deployment of the **${offerName}** to solve core operational bottlenecks. Local diagnostics indicated critical areas of improvement in lead qualification and response times.\n\n### Solution Overview\n- **Automated Workflow**: Custom FAQs configured based on local ${industry} operations.\n- **Full Availability**: Handles inquiries 24/7, reducing lead bounce rates by 20%.\n- **Pricing Model**: Total setup fee of $${price}.\n\n*Generated via local backup templates.*`;
         }
 
         await db.addProposal({

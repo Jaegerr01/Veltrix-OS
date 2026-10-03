@@ -1,4 +1,4 @@
-// Types definition for VELTRIX COMMAND OS
+// Types definition for PostelOS
 
 export interface User {
   id: string;

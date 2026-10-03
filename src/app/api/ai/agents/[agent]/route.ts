@@ -62,7 +62,7 @@ export async function POST(
         const gap = Math.max(0, profile.target_monthly_revenue - closedRevenue);
 
         const prompt = `
-Analyze the following financial statistics for VELTRIX:
+Analyze the following financial statistics for PostelOS:
 - Monthly Target: $${profile.target_monthly_revenue}
 - Closed Earnings: $${closedRevenue}
 - Earnings Gap: $${gap}
@@ -94,7 +94,7 @@ Output in a concise layout with next actions.
         }
 
         const prompt = `
-Analyze this specific lead for VELTRIX:
+Analyze this specific lead for PostelOS:
 Business Name: ${lead.business_name}
 Industry: ${lead.industry || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
@@ -102,7 +102,7 @@ Pain Points: ${lead.pain_point || 'Unknown'}
 Notes: ${lead.notes || 'None'}
 
 Draft a sales pitch recommendation. Outline:
-1. Which VELTRIX service fits best (AI Website, AI Receptionist, or Growth Package) and why.
+1. Which PostelOS service fits best (AI Website, AI Receptionist, or Growth Package) and why.
 2. The exact pitch angle (time-saved, revenue capture, or aesthetics reboot).
 3. Objections handling guide for this client.
 

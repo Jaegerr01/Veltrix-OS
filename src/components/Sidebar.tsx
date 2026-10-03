@@ -2,10 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthGate';
-import { Avatar, VxIcon, useAppearance } from '@/components/ds';
+import { Avatar, PostelLogo, VxIcon, useAppearance } from '@/components/ds';
 import type { VxIconName } from '@/components/ds';
 
 /**
@@ -72,21 +71,14 @@ export default function Sidebar() {
         flexDirection: 'column',
         padding: 'var(--space-6) var(--space-4)',
         borderRight: '1px solid var(--border-subtle)',
-        background: 'linear-gradient(180deg, rgba(10,7,26,0.55), rgba(6,4,16,0.35))',
+        background: 'linear-gradient(180deg, rgba(16,10,36,0.62), rgba(4,3,12,0.55))',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
       }}
     >
       {/* Wordmark */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 var(--space-2) var(--space-6)' }}>
-        <Image
-          src="/veltrix-logo.png"
-          alt="Veltrix"
-          width={104}
-          height={40}
-          priority
-          style={{ width: 104, height: 'auto', display: 'block', filter: 'drop-shadow(0 0 16px rgba(139,92,246,0.35))' }}
-        />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-2) var(--space-2) var(--space-6)' }}>
+        <PostelLogo layout="stacked" markSize={64} suffix="OS" byline />
       </div>
 
       {/* Nav */}

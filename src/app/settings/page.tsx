@@ -2,9 +2,11 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Button, Input, Switch, VxIcon, VeltrixSpinner, useAppearance } from '@/components/ds';
+import { Button, Input, Switch, VxIcon, PostelSpinner, useAppearance } from '@/components/ds';
 import { db } from '@/lib/db';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/components/AuthGate';
+import { SUPPORT_EMAIL } from '@/lib/brand';
 
 const settingsCard: React.CSSProperties = {
   padding: 'var(--space-6)',
@@ -15,10 +17,10 @@ const settingsCard: React.CSSProperties = {
 };
 
 const PRESETS: Record<string, { name: string; swatch: string; accent: string }> = {
-  violet: { name: 'Violet', swatch: 'linear-gradient(135deg,#8B5CF6,#4F6BFF)', accent: '#8B5CF6' },
-  cyan: { name: 'Cyan', swatch: 'linear-gradient(135deg,#22D3EE,#4F6BFF)', accent: '#22D3EE' },
+  violet: { name: 'Postel Violet', swatch: 'linear-gradient(135deg,#8B5CF6,#B02FE0)', accent: '#8B5CF6' },
+  cyan: { name: 'Cyan', swatch: 'linear-gradient(135deg,#22D3EE,#8B5CF6)', accent: '#22D3EE' },
   emerald: { name: 'Emerald', swatch: 'linear-gradient(135deg,#2EE6A0,#22D3EE)', accent: '#2EE6A0' },
-  magenta: { name: 'Magenta', swatch: 'linear-gradient(135deg,#D946EF,#8B5CF6)', accent: '#D946EF' },
+  magenta: { name: 'Neon Orchid', swatch: 'linear-gradient(135deg,#C026D3,#8B5CF6)', accent: '#C026D3' },
 };
 
 const PREF_DEFS = [
@@ -41,11 +43,12 @@ export default function SettingsPage() {
   } = useAppearance();
 
   const toast = useToast();
+  const { user } = useAuth();
 
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [displayName, setDisplayName] = React.useState('Operator');
-  const [workspaceName, setWorkspaceName] = React.useState('Veltrix HQ');
+  const [workspaceName, setWorkspaceName] = React.useState('PostelOS HQ');
   const [prefs, setPrefs] = React.useState<Record<string, boolean>>({
     desktop: true,
     voice: true,
@@ -69,7 +72,7 @@ export default function SettingsPage() {
       try {
         const profile = await db.getBusinessProfile();
         if (profile) {
-          setWorkspaceName(profile.business_name || 'Veltrix HQ');
+          setWorkspaceName(profile.business_name || 'PostelOS HQ');
           setPrefs((prev) => ({
             ...prev,
             autopilot: !!profile.autopilot,
@@ -162,7 +165,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <VeltrixSpinner message="Accessing secure core profile..." />
+        <PostelSpinner message="Accessing secure core profile..." />
       </div>
     );
   }
@@ -210,7 +213,7 @@ export default function SettingsPage() {
             
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, color: 'var(--text-strong)' }}>{displayName}</div>
-              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>admin@veltrix.ai</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>{user?.email ?? SUPPORT_EMAIL}</div>
               <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 8 }}>Drop or click the avatar to change your photo.</div>
             </div>
           </div>
@@ -302,7 +305,7 @@ export default function SettingsPage() {
               label="Local Obsidian Vault Disk Path"
               value={obsidianPath}
               onChange={(e) => setObsidianPath(e.target.value)}
-              placeholder="E:\Vetrix-app\Veltrix"
+              placeholder="C:\path\to\your\obsidian-vault"
               size="md"
               style={{ width: '100%' }}
             />

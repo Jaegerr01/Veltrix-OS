@@ -1,5 +1,5 @@
 -- ================================================================
--- VELTRIX Command OS — Leads Schema Fix
+-- PostelOS — Leads Schema Fix
 -- Run in: supabase.com/dashboard/project/sxueyuqpqeqvzuzhrhxo/sql/new
 -- Safe to run: all affected tables are currently empty
 -- ================================================================
@@ -143,7 +143,7 @@ begin
   insert into public.profiles (
     id, business_name, description, target_monthly_revenue, autopilot
   ) values (
-    new.id, 'VELTRIX Enterprise', 'A business powered by VELTRIX OS.', 6000, false
+    new.id, 'PostelOS Enterprise', 'A business powered by PostelOS.', 6000, false
   );
   return new;
 end;

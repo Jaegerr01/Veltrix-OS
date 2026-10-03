@@ -3,7 +3,7 @@
 import React from 'react';
 
 /**
- * Line-icon set ported verbatim from the "VELTRIX Command OS" design
+ * Line-icon set ported verbatim from the "PostelOS" design
  * prototype (ICON_PATHS). Uniform 1.75px stroke, 24-grid, currentColor.
  * These are the exact glyphs the design uses inside agent orbs and chrome.
  */

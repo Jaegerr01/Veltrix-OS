@@ -1,10 +1,10 @@
 ---
-name: veltrix-ui
-description: VELTRIX OS design and UX system. Use whenever designing, reviewing, redesigning, or implementing VELTRIX interfaces, dashboards, navigation, onboarding, responsive UI, public pages, subscription UX, or component systems. Enforce simple language, low cognitive load, premium minimalism, futuristic restraint, accessibility, performance, and consistent VELTRIX branding.
+name: postelos-ui
+description: PostelOS design and UX system. Use whenever designing, reviewing, redesigning, or implementing PostelOS interfaces, dashboards, navigation, onboarding, responsive UI, public pages, subscription UX, or component systems. Enforce simple language, low cognitive load, premium minimalism, futuristic restraint, accessibility, performance, and consistent PostelOS branding.
 ---
-# VELTRIX OS UI/UX SYSTEM
+# PostelOS UI/UX SYSTEM
 ## 1. North Star
-VELTRIX OS is a business command center, not a generic admin dashboard.
+PostelOS is a business command center, not a generic admin dashboard.
 Core standard:
 > Simple enough for anyone. Powerful enough for a serious business.
 Every screen should let a first-time user answer quickly:
@@ -26,7 +26,7 @@ Design for both extremes: a 10-year-old should understand the main action; a 75-
 - Accessibility and performance are design requirements.
 - Remove anything that does not help the user.
 ## 3. Brand Personality
-VELTRIX should feel:
+PostelOS should feel:
 - premium
 - minimal
 - futuristic
@@ -268,7 +268,7 @@ Examples:
 - secondary actions move into menus
 Critical workflows must remain easy with touch.
 ## 20. Subscription and Paywall UX
-VELTRIX is intended to become a paid SaaS.
+PostelOS is intended to become a paid SaaS.
 Paywalls should explain value, not punish users.
 A locked feature should answer:
 - What is it?
@@ -278,7 +278,7 @@ A locked feature should answer:
 Avoid dark patterns, fake urgency, confusing pricing, and aggressive interruptions.
 Keep entitlement logic centralized and reusable.
 ## 21. Roles and Permissions
-VELTRIX should support department-oriented access.
+PostelOS should support department-oriented access.
 Mental model examples:
 - Admin: full control
 - Sales: sales work
@@ -302,7 +302,7 @@ Use global search when the product contains enough content to justify it.
 Search should find things users actually need: pages, customers, tasks, settings, and business objects.
 A command palette is a power-user layer, not a requirement for normal users.
 ## 24. Public-Facing Pages
-For public VELTRIX pages:
+For public PostelOS pages:
 - communicate the value proposition immediately
 - place the main CTA above the fold
 - use concise sections
@@ -445,7 +445,7 @@ Before considering a UI task finished, verify:
 - No avoidable requests.
 - No expensive visual effect without product value.
 ### Brand
-- It feels like VELTRIX.
+- It feels like PostelOS.
 - It is futuristic without being noisy.
 - It is premium without being flashy.
 - It is distinctive without copying references.
@@ -457,11 +457,11 @@ When two UI options are both valid, choose the one that:
 4. is easier to recover from,
 5. is more accessible,
 6. performs better,
-7. fits the shared VELTRIX system.
+7. fits the shared PostelOS system.
 The best interface is not the one that demonstrates the most design technique.
 It is the one that makes the user feel like they already knew how to use it.
 ## 37. Completion Standard
-Do not declare a VELTRIX UI task complete because it compiles.
+Do not declare a PostelOS UI task complete because it compiles.
 Complete means:
 - the main workflow works
 - the interface is understandable

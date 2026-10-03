@@ -9,7 +9,7 @@ vi.mock('./gmail', () => ({
 }));
 vi.mock('./resend', () => ({
   getResendClient: vi.fn(),
-  FROM_EMAIL: 'VELTRIX <test@example.com>',
+  FROM_EMAIL: 'PostelOS <test@example.com>',
 }));
 
 import { db } from '../db';

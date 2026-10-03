@@ -3,7 +3,7 @@
 import React from 'react';
 
 /* ============================================================
-   VELTRIX Design System primitives — ported from _ds_bundle.js
+   PostelOS Design System primitives — ported from _ds_bundle.js
    (Avatar, Badge, Button, Card, Input, Switch, StatCard).
    Faithful to the prototype's inline-style rendering.
    ============================================================ */
@@ -365,7 +365,7 @@ export function Card({
         borderRadius: 'var(--radius-lg)',
         padding,
         color: 'var(--text-body)',
-        boxShadow: glow ? 'var(--shadow-lg), var(--glow-soft)' : 'var(--shadow-md), var(--sheen-top)',
+        boxShadow: glow || (interactive && hover) ? 'var(--shadow-lg), var(--glow-soft), var(--sheen-top)' : 'var(--shadow-md), var(--sheen-top)',
         backdropFilter: 'var(--blur-sm)',
         WebkitBackdropFilter: 'var(--blur-sm)',
         transition: 'transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out)',

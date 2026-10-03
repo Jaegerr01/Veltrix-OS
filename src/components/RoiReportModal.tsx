@@ -171,7 +171,7 @@ export default function RoiReportModal({ report, onClose, onSendEmail, canSendEm
           {/* Disclaimer */}
           <p className="text-[10px] text-muted-foreground font-mono">
             * ROI figures are AI estimates based on industry benchmarks for {client.service_purchased || 'AI services'}.
-            Actual results vary. Contact VELTRIX to discuss tracked performance metrics.
+            Actual results vary. Contact PostelOS to discuss tracked performance metrics.
           </p>
 
           {/* Actions */}

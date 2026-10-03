@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { OrbitalCommand, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { OrbitalCommand, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 
 const dashCard: React.CSSProperties = {
@@ -135,7 +135,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Loading your pipeline, revenue and tasks…" />
+        <PostelSpinner message="Loading your pipeline, revenue and tasks…" />
       </div>
     );
   }

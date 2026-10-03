@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Shield, ArrowLeft, Lock, Database, RefreshCw, CheckSquare } from 'lucide-react';
+import { SUPPORT_EMAIL } from '@/lib/brand';
 
 export default function PrivacyPolicy() {
   return (
@@ -32,7 +33,7 @@ export default function PrivacyPolicy() {
               PRIVACY POLICY
             </h1>
             <p className="text-sm text-muted-foreground mt-1 font-mono text-neon-cyan">
-              VELTRIX COMMAND OS DATA GOVERNANCE
+              PostelOS DATA GOVERNANCE
             </p>
           </div>
         </div>
@@ -40,10 +41,10 @@ export default function PrivacyPolicy() {
         {/* Intro */}
         <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
           <p>
-            Welcome to <span className="font-semibold text-foreground">VELTRIX COMMAND OS</span>. We are committed to maintaining the confidentiality and integrity of your corporate information, client logs, and operational pipeline. 
+            Welcome to <span className="font-semibold text-foreground">PostelOS</span>. We are committed to maintaining the confidentiality and integrity of your corporate information, client logs, and operational pipeline. 
           </p>
           <p>
-            This Privacy Policy describes how we handle, process, and protect information when you run the VELTRIX COMMAND OS dashboard, connect database layers (Supabase/LocalStorage), and query AI reasoning services (Gemini API).
+            This Privacy Policy describes how we handle, process, and protect information when you run the PostelOS dashboard, connect database layers (Supabase/LocalStorage), and query AI reasoning services (Gemini API).
           </p>
         </div>
 
@@ -56,7 +57,7 @@ export default function PrivacyPolicy() {
               <span>1. Data Ownership & Storage</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              VELTRIX operates on a decentralized storage paradigm. Your data (leads, client profiles, revenue metrics, memory vaults, task logs) resides either in your browser's local sandbox (LocalStorage) or is securely written to your private, self-hosted Supabase database. We do not host or store your database credentials.
+              PostelOS operates on a decentralized storage paradigm. Your data (leads, client profiles, revenue metrics, memory vaults, task logs) resides either in your browser's local sandbox (LocalStorage) or is securely written to your private, self-hosted Supabase database. We do not host or store your database credentials.
             </p>
           </div>
 
@@ -100,7 +101,7 @@ export default function PrivacyPolicy() {
               Information We Process
             </h3>
             <p className="leading-relaxed">
-              When configuring your workspace, we read: (a) Business Metadata (revenue targets, catalog packages); (b) CRM Pipelines (business names, locations, contact notes); (c) Earnings Details (setup and recurring fee values); (d) Content Outlines (social media themes). None of this tracking metadata is shared with or processed by VELTRIX servers.
+              When configuring your workspace, we read: (a) Business Metadata (revenue targets, catalog packages); (b) CRM Pipelines (business names, locations, contact notes); (c) Earnings Details (setup and recurring fee values); (d) Content Outlines (social media themes). None of this tracking metadata is shared with or processed by PostelOS servers.
             </p>
           </div>
 
@@ -119,7 +120,7 @@ export default function PrivacyPolicy() {
             </h3>
             <p className="leading-relaxed">
               For questions regarding the command framework or configuration security, please get in touch with our team at: 
-              <span className="text-neon-cyan font-mono block mt-1">security@veltrix.ai</span>
+              <span className="text-neon-cyan font-mono block mt-1">{SUPPORT_EMAIL}</span>
             </p>
           </div>
 

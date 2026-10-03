@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 
 interface Lead {
@@ -142,7 +142,7 @@ export default function FollowUpsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Loading followup workflows..." />
+        <PostelSpinner message="Loading followup workflows..." />
       </div>
     );
   }

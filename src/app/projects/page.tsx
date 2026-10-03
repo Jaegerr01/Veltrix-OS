@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 
 interface Client {
@@ -174,7 +174,7 @@ export default function ProjectsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Connecting to Delivery Manager..." />
+        <PostelSpinner message="Connecting to Delivery Manager..." />
       </div>
     );
   }

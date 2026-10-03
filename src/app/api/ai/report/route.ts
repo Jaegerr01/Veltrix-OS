@@ -105,7 +105,7 @@ export async function POST(req: Request) {
     // Save report copy as a business memory
     await db.addMemory({
       type: 'Decision',
-      content: `Veltrix Daily Command Report generated for ${todayStr}. Recommended action: ${recommendedAction}`,
+      content: `PostelOS Daily Command Report generated for ${todayStr}. Recommended action: ${recommendedAction}`,
       tags: ['daily-report', 'automated'],
       importance: 6,
       source: 'AI CEO'
@@ -152,7 +152,7 @@ export async function POST(req: Request) {
       });
 
       const reportText = `
-VELTRIX Daily Command Report
+PostelOS Daily Command Report
 
 Revenue Target:
 $${profile?.target_monthly_revenue || 6000}
@@ -240,7 +240,7 @@ Access CRM potential clients page.
 
       await db.addMemory({
         type: 'Decision',
-        content: `Veltrix Daily Report simulated for ${todayStr}. Recommended: ${recommendedAction}`,
+        content: `PostelOS Daily Report simulated for ${todayStr}. Recommended: ${recommendedAction}`,
         tags: ['daily-report', 'automated', 'offline-fallback'],
         importance: 5,
         source: 'AI CEO Simulator'

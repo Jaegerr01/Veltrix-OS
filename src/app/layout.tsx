@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Bricolage_Grotesque, Plus_Jakarta_Sans } from 'next/font/google';
+import { Outfit, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
@@ -16,14 +16,14 @@ import { AmbientBackground, AppearanceProvider } from '@/components/ds';
  * generates size-adjusted fallback metrics so swapping in the real face does
  * not shift layout.
  *
- * Bricolage is display-only at 11–40px, so its weight axis is capped at 600–700
- * rather than shipping the full 400..800 × 12..96 variable range.
+ * Outfit (geometric sans — matches the Postel Studio wordmark: bold POSTEL +
+ * light STUDIO) is display-only, so only the weights the lockup needs ship.
  */
-const bricolage = Bricolage_Grotesque({
+const outfit = Outfit({
   subsets: ['latin'],
-  weight: ['600', '700'],
+  weight: ['300', '400', '600', '700'],
   display: 'swap',
-  variable: '--font-bricolage',
+  variable: '--font-outfit',
 });
 
 const jakarta = Plus_Jakarta_Sans({
@@ -36,11 +36,30 @@ const jakarta = Plus_Jakarta_Sans({
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  themeColor: '#04030C',
 };
 
 export const metadata: Metadata = {
-  title: 'VELTRIX COMMAND OS - Enterprise AI Business Execution',
-  description: 'Autonomous Chief of Staff, CRM, revenue metrics, memory vault and execution pipeline for VELTRIX.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  title: {
+    default: 'PostelOS — the AI command center by Postel Studio',
+    template: '%s · PostelOS',
+  },
+  description:
+    'PostelOS — the AI command center by Postel Studio. Autonomous Chief of Staff, CRM, revenue metrics, memory vault and execution pipeline.',
+  applicationName: 'PostelOS',
+  openGraph: {
+    type: 'website',
+    siteName: 'PostelOS',
+    title: 'PostelOS — the AI command center by Postel Studio',
+    description: 'Autonomous Chief of Staff, CRM, revenue metrics, memory vault and execution pipeline.',
+    images: [{ url: '/brand/postel-og.png', width: 1200, height: 630, alt: 'PostelOS by Postel Studio' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PostelOS — the AI command center by Postel Studio',
+    images: ['/brand/postel-og.png'],
+  },
 };
 
 export default function RootLayout({
@@ -49,7 +68,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`h-full antialiased ${bricolage.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`h-full antialiased ${outfit.variable} ${jakarta.variable}`}>
       <body className="vx-root" style={{ background: 'var(--ink-900)' }}>
         <AuthGate>
           <AppearanceProvider>

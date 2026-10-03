@@ -171,7 +171,7 @@ async function executeOutreachSend(payload: OutreachSendPayload): Promise<string
 
   // autonomous:true keeps the kill switch / daily cap / blacklist active.
   // Barry approved the CONTENT; the guardrails protect the sending domain.
-  const result = await sendOutreachEmail({ to, subject: subject || 'Outreach from VELTRIX', text, autonomous: true });
+  const result = await sendOutreachEmail({ to, subject: subject || 'Outreach from PostelOS', text, autonomous: true });
 
   if (result.delivered) {
     if (outreachMessageId) {

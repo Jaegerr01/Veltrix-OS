@@ -7,7 +7,7 @@ import { Avatar, Input, Switch, VxIcon, useAppearance } from '@/components/ds';
 
 const PAGE_META: Record<string, { title: string; eyebrow: string }> = {
   '/': { title: 'Dashboard', eyebrow: 'WELCOME BACK' },
-  '/command-center': { title: 'Command Center', eyebrow: 'VELTRIX OS' },
+  '/command-center': { title: 'Command Center', eyebrow: 'PostelOS' },
   '/revenue': { title: 'Revenue', eyebrow: 'REVENUE' },
   '/leads': { title: 'Leads', eyebrow: 'PIPELINE' },
   '/outreach': { title: 'Outreach', eyebrow: 'PIPELINE' },
@@ -26,7 +26,7 @@ const PAGE_META: Record<string, { title: string; eyebrow: string }> = {
 
 export default function Topbar() {
   const pathname = usePathname();
-  const meta = PAGE_META[pathname] ?? { title: 'VELTRIX OS', eyebrow: 'VELTRIX OS' };
+  const meta = PAGE_META[pathname] ?? { title: 'PostelOS', eyebrow: 'PostelOS' };
   const [liveSync, setLiveSync] = React.useState(true);
   const { avatar } = useAppearance();
   const [displayName, setDisplayName] = React.useState('Operator');
@@ -85,7 +85,7 @@ export default function Topbar() {
         minWidth: 0,
         padding: 'var(--space-5) var(--space-8)',
         borderBottom: '1px solid var(--border-subtle)',
-        background: 'rgba(8,5,24,0.55)',
+        background: 'rgba(6,4,14,0.62)',
         backdropFilter: 'var(--blur-md)',
         WebkitBackdropFilter: 'var(--blur-md)',
         position: 'sticky',

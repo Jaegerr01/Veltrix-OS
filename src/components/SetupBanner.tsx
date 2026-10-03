@@ -14,7 +14,7 @@ export default function SetupBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('veltrix-setup-dismissed') === '1') {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('postelos-setup-dismissed') === '1') {
       setDismissed(true);
     }
     fetch('/api/health', { cache: 'no-store' })
@@ -63,7 +63,7 @@ export default function SetupBanner() {
       <button
         onClick={() => {
           setDismissed(true);
-          sessionStorage.setItem('veltrix-setup-dismissed', '1');
+          sessionStorage.setItem('postelos-setup-dismissed', '1');
         }}
         className="text-white/30 hover:text-white/70 transition shrink-0"
         aria-label="Dismiss"

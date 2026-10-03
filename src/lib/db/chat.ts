@@ -7,7 +7,7 @@ export async function getChatMessages(): Promise<ChatMessage[]> {
       id: 'msg-start-1',
       sender: 'ai' as const,
       agentName: 'CEO Agent',
-      message: 'VELTRIX COMMAND OS Initialized. I am your AI Chief of Staff. What is our focus today?',
+      message: 'PostelOS Initialized. I am your AI Chief of Staff. What is our focus today?',
       created_at: new Date().toISOString()
     }
   ];

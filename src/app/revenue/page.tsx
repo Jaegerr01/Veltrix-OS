@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { StatCard, VeltrixSpinner } from '@/components/ds';
+import { StatCard, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 
 interface RevenueItem {
@@ -75,7 +75,7 @@ export default function RevenuePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Loading revenue matrices..." />
+        <PostelSpinner message="Loading revenue matrices..." />
       </div>
     );
   }

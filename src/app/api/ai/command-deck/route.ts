@@ -10,7 +10,7 @@ const DECK_PROMPTS: Record<string, string> = {
   'inbox-brief':
     'Generate my Inbox Brief: summarize all leads that have replied or need a response, proposals awaiting feedback, follow-ups due today, and any client updates that need attention. Be concise and action-oriented.',
   'trend-scan':
-    'Run a Trend Scan for VELTRIX this week: identify the top 3 emerging trends in AI automation, web design, and digital agency services, plus 2 content angle opportunities I can post about to position VELTRIX as the authority.',
+    'Run a Trend Scan for PostelOS this week: identify the top 3 emerging trends in AI automation, web design, and digital agency services, plus 2 content angle opportunities I can post about to position PostelOS as the authority.',
   'plan-today':
     'Build my Plan for Today: given the current revenue gap, active leads, and pending tasks, lay out a prioritized daily schedule with 5 high-leverage actions in execution order. Include time estimates.',
   'wk-review':

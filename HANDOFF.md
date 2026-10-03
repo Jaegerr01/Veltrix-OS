@@ -1,8 +1,10 @@
-# VELTRIX Command OS — Redesign & Productionization Handoff
+# PostelOS — Redesign & Productionization Handoff
 
-_Last updated: 2026-07-13 · Owner: Barry (VELTRIX founder)_
+> **Rebrand (2026-10): Veltrix Command OS → PostelOS / Postel Studio.** The design system now lives in `src/app/postel-ds.css`; palette is deep black + electric purple (violet `#8B5CF6` → neon `#B14CFF` → magenta-purple `#C026D3`); display font is Outfit. `VeltrixSpinner` → `PostelSpinner`; `/veltrix-logo.png` and `/loader.jpeg` were replaced by the vector `PostelMark` / `PostelLogo`; brand files are in `public/brand/`. DOM events are now `postelos-*`. Sections below are the original (pre-rebrand) handoff and keep the historical palette/font/asset descriptions — read them with that in mind. Local paths, the `Jaegerr01/Veltrix-OS` repo slug and the `veltrix-vault` / `Entity/VELTRIX Constitution.md` Obsidian names are unchanged on purpose.
 
-This document condenses the full working context for the "VELTRIX Command OS"
+_Last updated: 2026-07-13 · Owner: Barry (PostelOS founder)_
+
+This document condenses the full working context for the "PostelOS"
 premium redesign + productionization effort. It covers what exists, what was
 built, the design system, the data/backend contracts, key decisions, and the
 prioritized plan for the remaining work.
@@ -11,7 +13,7 @@ prioritized plan for the remaining work.
 
 ## 1. Project at a glance
 
-- **What:** VELTRIX Command OS — an always-on AI Command Center. A roster of
+- **What:** PostelOS — an always-on AI Command Center. A roster of
   autonomous specialist agents (Sales Director, Outreach, Lead Gen, Marketing,
   Finance, Project Manager, Customer Support, Appointment Setter) orchestrated by
   a central **CEO Agent** the operator (Barry) talks to.
@@ -47,7 +49,7 @@ override.)
   borders + `backdrop-filter: blur(18px)` (`.vx-glass`), soft shadows + neon
   glows (`--glow-violet` etc.).
 
-**Where it lives:** `src/app/veltrix-ds.css` — a single ported stylesheet holding
+**Where it lives:** `src/app/postel-ds.css` — a single ported stylesheet holding
 all tokens (colors/effects/spacing/typography), the in-page overrides, the
 `.vx-eyebrow` / `.vx-glass` / `.vx-root` helpers, and **all 14 keyframes**
 (`vxFadeUp`, `vxOrbDrift`, `vxSpin3d`, `vxHaloBreathe`, `vxRingSpin`,
@@ -55,7 +57,7 @@ all tokens (colors/effects/spacing/typography), the in-page overrides, the
 etc.). It is imported from `globals.css`.
 
 > **CSS gotcha (already fixed):** the webfont `@import` must sit at the very top
-> of `globals.css` (before Tailwind's rules), NOT inside `veltrix-ds.css` — an
+> of `globals.css` (before Tailwind's rules), NOT inside `postel-ds.css` — an
 > inlined `@import` after other rules is a hard PostCSS parse error (500 on every
 > route). Font imports now live at the top of `globals.css`.
 
@@ -81,7 +83,7 @@ was left untouched; only the presentation layer changed.**
 | `index.ts` | Barrel export. |
 
 ### Shell
-- `src/components/Sidebar.tsx` — glass rail, centered wordmark (`/veltrix-logo.png`),
+- `src/components/Sidebar.tsx` — glass rail, centered `PostelLogo` lockup (was `/veltrix-logo.png`),
   grouped nav (Dashboard/Command Center/Revenue · Pipeline · Intelligence · System),
   gradient-glow active pills, CEO mini card + sign-out. Auth wiring preserved.
 - `src/components/Topbar.tsx` — page eyebrow+title (route-keyed), search, Live Sync
@@ -117,9 +119,7 @@ was left untouched; only the presentation layer changed.**
   work; left untouched. They may need fixing before a clean `next build`.
 
 ### Assets copied to `public/`
-- `veltrix-logo.png` (from the design bundle).
-- `loader.jpeg` (glowing violet plasma orb, from `C:\Users\H.H\Downloads\loader.jpeg`)
-  — **staged for Pass 2**, not yet wired in.
+- _(historical)_ `veltrix-logo.png` and `loader.jpeg` — removed in the PostelOS rebrand; superseded by `public/brand/*`, `PostelMark`, `PostelLogo` and `PostelSpinner`.
 
 ---
 
@@ -200,13 +200,13 @@ Priority order. Do explicit asks first, verify after each, don't break the build
    localStorage + CSS-var apply + hex→shade helpers). Wrap the shell in `layout.tsx`.
    Export `useAppearance()`.
 2. **Loader swap** — rewrite `src/components/LoadingState.tsx` to render `loader.jpeg`
-   (pulsing/rotating glow) via `next/image`; add a `VeltrixSpinner` in `ds/` and use it
+   (pulsing/rotating glow) via `next/image`; add a `PostelSpinner` in `ds/` and use it
    for all in-page loading states. Replace remaining CSS/lucide spinners across the app.
 3. **Login page redesign** — restyle `AuthGate.tsx` auth screen + "DB config offline"
    screen to the new design (glass card, tokens, wordmark, `VxIcon`, loader). Keep all
    auth logic (`signUp`/`signInWithPassword`/`onAuthStateChange`/fetch-token patch) intact.
 4. **Dashboard real data** — rewrite `src/app/page.tsx` to fetch via `db` (Section 5
-   mapping), remove ALL mock, add loading (VeltrixSpinner) + empty states. Real goal CRUD;
+   mapping), remove ALL mock, add loading (PostelSpinner) + empty states. Real goal CRUD;
    autopilot toggle persists via `db.updateBusinessProfile({autopilot})`.
 5. **Settings functional** — accent color wheel + background color + profile-picture
    upload wired to `AppearanceProvider`; persist Display Name/Workspace to

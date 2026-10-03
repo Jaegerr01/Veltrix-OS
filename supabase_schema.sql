@@ -1,4 +1,4 @@
--- Supabase Database Schema SQL for VELTRIX COMMAND OS (v2 - Production Single Source of Truth)
+-- Supabase Database Schema SQL for PostelOS (v2 - Production Single Source of Truth)
 -- Execute this script in your Supabase SQL Editor to set up isolated tables and triggers.
 
 -- Enable UUID and Vector extensions
@@ -40,8 +40,8 @@ create table if not exists public.users (
 -- 2. profiles (combining user settings and business details)
 create table if not exists public.profiles (
   id uuid primary key references public.users(id) on delete cascade,
-  business_name text not null default 'VELTRIX automation',
-  description text default 'My business powered by VELTRIX OS',
+  business_name text not null default 'PostelOS automation',
+  description text default 'My business powered by PostelOS',
   services text[] default array['AI Website Development', 'AI Receptionist Chatbots'],
   target_monthly_revenue numeric default 6000,
   current_monthly_revenue numeric default 0,
@@ -519,8 +519,8 @@ begin
   )
   values (
     new.id, 
-    'VELTRIX Enterprise', 
-    'A business powered by VELTRIX OS.', 
+    'PostelOS Enterprise', 
+    'A business powered by PostelOS.', 
     6000, 
     false
   );

@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const agentKey = await classifyRequest(message);
 
     const voiceHint = voiceMode
-      ? `VOICE MODE — ARIA IDENTITY: You are ARIA, the sharp and quietly witty personal AI for VELTRIX. Your voice output rules are absolute:
+      ? `VOICE MODE — ARIA IDENTITY: You are ARIA, the sharp and quietly witty personal AI for PostelOS. Your voice output rules are absolute:
 1. Respond in exactly 1-2 short spoken sentences — never more.
 2. Write the way a sharp professional actually speaks: contractions (I've, it's, we're, that's), natural rhythm, no jargon dumps.
 3. Zero markdown. No asterisks, no bullet points, no headers, no dashes, no numbered lists. Plain spoken English only.
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
         }
       }
 
-      updatedText += `\n\n---\n\n### 👥 VELTRIX TEAM COLLABORATIVE WORKSPACE\n` + executionLogs.join('\n\n');
+      updatedText += `\n\n---\n\n### 👥 PostelOS TEAM COLLABORATIVE WORKSPACE\n` + executionLogs.join('\n\n');
     }
 
     // Save AI response to database

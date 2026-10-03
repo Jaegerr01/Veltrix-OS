@@ -1,5 +1,5 @@
 /* ============================================================
-   VELTRIX COMMAND OS — DESIGN SYSTEM
+   PostelOS — DESIGN SYSTEM
    The single source of truth for every value in the app.
 
    Originally ported from the Claude Design handoff bundle, then
@@ -7,47 +7,55 @@
    alongside this file in globals.css now aliases into these tokens,
    so there is one violet, one cyan, one green — not two of each.
 
-   House style: solid near-black surfaces with hairline borders.
-   Translucency and glow are accents, not the default finish.
+   House style: Postel Studio — deep black surfaces, electric-purple primary
+   (violet #8B5CF6 → neon #B14CFF → magenta-purple #C026D3), white type,
+   soft purple glows on hover / focus / active. Blue and cyan survive only
+   as minor info accents.
    (Webfonts are loaded via next/font in layout.tsx.)
    ============================================================ */
 
 :root {
   /* ---- Core neutrals — deepened toward void ---- */
-  --ink-900:     #060410;  /* app background */
-  --ink-800:     #0A0718;  /* base surface */
-  --ink-700:     #0F0A22;  /* raised surface / panel */
-  --ink-600:     #150E30;  /* card / elevated */
-  --ink-500:     #271D54;  /* hover surface */
-  --ink-400:     #392B6E;  /* border-strong */
-  --ink-300:     #4A3A86;
+  --ink-900:     #04030C;  /* app background */
+  --ink-800:     #080613;  /* base surface */
+  --ink-700:     #0D0A1A;  /* raised surface / panel */
+  --ink-600:     #140F26;  /* card / elevated */
+  --ink-500:     #241A4A;  /* hover surface */
+  --ink-400:     #35286E;  /* border-strong */
+  --ink-300:     #473792;
 
   --white:       #FFFFFF;
-  --mist-100:    #EDEAFB;
-  --mist-200:    #C9C2E8;
-  --mist-300:    #9A91C2;
+  --mist-100:    #F3EEFF;
+  --mist-200:    #D4CAF2;
+  --mist-300:    #A99FD0;
   /* Lightened from #6E6794 (3.9:1 — failed WCAG AA). This drives --text-dim,
      which labels 10–12px data throughout the design system, so it must clear
      4.5:1 against --ink-900. Now ~4.8:1. */
-  --mist-400:    #7E769F;
-  --mist-500:    #4A4470;
+  --mist-400:    #8B82B0;
+  --mist-500:    #554E7A;
 
   /* ---- Brand violet (primary) ---- */
-  --violet-50:   #F1ECFF;
-  --violet-100:  #E0D4FF;
-  --violet-200:  #C3A8FF;
-  --violet-300:  #A782FF;
+  --violet-50:   #F5F0FF;
+  --violet-100:  #E9DDFF;
+  --violet-200:  #CDB8FF;
+  --violet-300:  #A78BFA;
   --violet-400:  #8B5CF6;
   --violet-500:  #7C3AED;
   --violet-600:  #6D28D9;
   --violet-700:  #5B21B6;
+  
+  /* ---- Neon accent (glow / highlights) — from the Postel splash ---- */
+  --neon-400:    #C47BFF;
+  --neon-500:    #B14CFF;  /* electric neon purple */
+  --neon-600:    #9B2EF0;
+  --glow-neon:   0 0 28px rgba(177,76,255,0.55), 0 0 8px rgba(196,123,255,0.7);
 
   /* ---- Electric blue (secondary) ---- */
-  --blue-300:    #7B93FF;
-  --blue-400:    #4F6BFF;
-  --blue-500:    #3B5BFF;
-  --blue-600:    #2541F0;
-  --blue-700:    #1A2FC4;
+  --blue-300:    #9AA5FF;
+  --blue-400:    #6F7DFF;
+  --blue-500:    #5766F2;
+  --blue-600:    #4452DC;
+  --blue-700:    #3541B4;
 
   /* ---- Cyan accent ---- */
   --cyan-300:    #67E8F9;
@@ -77,7 +85,7 @@
   --surface-panel:   var(--ink-700);
   --surface-card:    var(--ink-600);
   --surface-hover:   var(--ink-500);
-  --surface-overlay: rgba(5, 3, 16, 0.72);   /* modal / drawer scrim */
+  --surface-overlay: rgba(3, 2, 10, 0.78);   /* modal / drawer scrim */
 
   /* ---- Text ---- */
   --text-strong:     var(--white);
@@ -109,7 +117,7 @@
      declarations. --focus-ring is the accessibility floor; see the
      :focus-visible rule below. */
   --border-focus:    var(--violet-300);
-  --focus-ring:      var(--violet-300);
+  --focus-ring:      var(--neon-500);
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
 
@@ -132,10 +140,10 @@
   --shadow-xl:   0 32px 80px rgba(0,0,0,0.6);
 
   /* ---- Glows — for active/focus emphasis, not general decoration ---- */
-  --glow-violet:  0 0 24px rgba(139,92,246,0.45), 0 0 4px rgba(139,92,246,0.6);
+  --glow-violet:  0 0 24px rgba(139,92,246,0.5), 0 0 6px rgba(177,76,255,0.65);
   --glow-cyan:    0 0 24px rgba(34,211,238,0.45),  0 0 4px rgba(34,211,238,0.55);
   --glow-signal:  0 0 18px rgba(46,230,160,0.5),   0 0 4px rgba(46,230,160,0.6);
-  --glow-soft:    0 0 60px rgba(124,58,237,0.25);
+  --glow-soft:    0 0 60px rgba(177,76,255,0.28);
 
   --sheen-top:    inset 0 1px 0 rgba(255,255,255,0.06);
   --inner-ring:   inset 0 0 0 1px rgba(139,92,246,0.18);
@@ -150,13 +158,13 @@
   /* ---- Gradients ----
      Reserved for the dashboard hero, primary CTAs and the panel finish.
      Decorative aurora/metal gradients were removed. */
-  --grad-brand: linear-gradient(135deg, var(--violet-400) 0%, var(--blue-500) 100%);
-  --grad-panel: linear-gradient(155deg, rgba(30,20,66,0.55) 0%, rgba(10,7,26,0.42) 100%);
-  --grad-halo:  radial-gradient(60% 60% at 50% 0%, rgba(124,58,237,0.35) 0%, rgba(124,58,237,0) 70%);
+  --grad-brand: linear-gradient(135deg, #7C3AED 0%, #9333EA 50%, #B02FE0 100%);
+  --grad-panel: linear-gradient(155deg, rgba(38,22,84,0.58) 0%, rgba(9,6,22,0.62) 100%);
+  --grad-halo:  radial-gradient(60% 60% at 50% 0%, rgba(177,76,255,0.38) 0%, rgba(139,92,246,0) 70%);
 
-  --bg-space: radial-gradient(120% 80% at 15% -10%, rgba(124,58,237,0.18) 0%, rgba(124,58,237,0) 45%),
-              radial-gradient(120% 90% at 95% 0%, rgba(34,211,238,0.10) 0%, rgba(34,211,238,0) 40%),
-              radial-gradient(100% 100% at 50% 120%, rgba(59,91,255,0.14) 0%, rgba(59,91,255,0) 50%),
+  --bg-space: radial-gradient(120% 80% at 12% -10%, rgba(139,92,246,0.28) 0%, rgba(139,92,246,0) 46%),
+              radial-gradient(90% 70% at 100% 0%, rgba(177,76,255,0.15) 0%, rgba(177,76,255,0) 42%),
+              radial-gradient(100% 90% at 50% 125%, rgba(124,58,237,0.24) 0%, rgba(124,58,237,0) 54%),
               var(--ink-900);
 
   /* ---- Motion ---- */
@@ -189,11 +197,11 @@
   --sidebar-w:     264px;
 
   /* ---- Type families ----
-     Two fonts only: Bricolage = display, Jakarta = everything else.
+     Two fonts only: Outfit (geometric) = display, Jakarta = everything else.
      --font-mono intentionally resolves to Jakarta — data alignment comes from
      tabular-nums on body, not from a third font family.
      Actual family names are injected by next/font in layout.tsx. */
-  --font-display: var(--font-bricolage), system-ui, sans-serif;
+  --font-display: var(--font-outfit), system-ui, sans-serif;
   --font-body:    var(--font-jakarta), system-ui, -apple-system, sans-serif;
   --font-mono:    var(--font-jakarta), system-ui, -apple-system, sans-serif;
 
@@ -415,10 +423,116 @@
 
 /* Plain rotation. This used to bake in `translate(-50%,-50%)`, which yanked
    every spinner that wasn't centred that way up and to the left by half its
-   size — all five call sites (the refresh icons and VeltrixSpinner's ring). */
+   size — all five call sites (the refresh icons and PostelSpinner's ring). */
 @keyframes vxRingSpin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   POSTEL SPINNER — mark + orbiting neon ring
+   Paired with src/components/ds/PostelSpinner.tsx
+   ============================================================ */
+.vx-spinner { position: relative; display: grid; place-items: center; }
+.vx-spinner__halo {
+  position: absolute; top: 50%; left: 50%; width: 150%; height: 150%;
+  border-radius: 50%; pointer-events: none; filter: blur(8px);
+  background: radial-gradient(circle, rgba(177,76,255,0.5) 0%, rgba(139,92,246,0.18) 45%, transparent 70%);
+  animation: vxHaloBreathe 3s ease-in-out infinite;
+}
+.vx-spinner__track { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(139,92,246,0.2); }
+.vx-spinner__ring,
+.vx-spinner__orbit { position: absolute; inset: 0; border-radius: 50%; animation: vxRingSpin 1.6s linear infinite; }
+.vx-spinner__ring {
+  background: conic-gradient(from 0deg, rgba(177,76,255,0) 0deg, rgba(177,76,255,0) 100deg, rgba(139,92,246,0.85) 310deg, #E9D5FF 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-w, 2px) - 0.5px), #000 calc(100% - var(--ring-w, 2px)));
+          mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-w, 2px) - 0.5px), #000 calc(100% - var(--ring-w, 2px)));
+}
+.vx-spinner__orbit::after {
+  content: ''; position: absolute; top: calc(var(--ring-w, 2px) / -2 - 2px); left: 50%;
+  width: 6px; height: 6px; margin-left: -3px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 10px 3px rgba(177,76,255,0.9), 0 0 22px 6px rgba(139,92,246,0.5);
+}
+.vx-spinner__mark { position: relative; animation: vxMarkPulse 2.4s ease-in-out infinite; }
+
+@keyframes vxMarkPulse {
+  0%, 100% { opacity: 0.82; filter: drop-shadow(0 0 4px rgba(177,76,255,0.4)); }
+  50%      { opacity: 1;    filter: drop-shadow(0 0 12px rgba(196,123,255,0.9)); }
+}
+@keyframes vxOrbFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+/* ============================================================
+   LOGIN / SPLASH — dark stage, glowing orb, light ribbons
+   Mirrors public/brand/postel-splash-dark.png. Used by AuthGate.
+   ============================================================ */
+.vx-login {
+  position: relative; min-height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-8); padding: var(--space-8) var(--space-5);
+  background:
+    radial-gradient(60% 45% at 50% 30%, rgba(124,58,237,0.34) 0%, rgba(70,24,160,0.14) 48%, transparent 78%),
+    radial-gradient(80% 40% at 50% 112%, rgba(139,92,246,0.28) 0%, transparent 70%),
+    var(--ink-900);
+}
+.vx-login__stars {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.7;
+  background-image:
+    radial-gradient(1px 1px at 8% 18%, rgba(196,123,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 22% 64%, rgba(255,255,255,0.7) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 35% 12%, rgba(177,76,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 47% 82%, rgba(196,123,255,0.8) 50%, transparent 52%),
+    radial-gradient(1px 1px at 63% 24%, rgba(255,255,255,0.6) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 78% 70%, rgba(177,76,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 88% 15%, rgba(196,123,255,0.8) 50%, transparent 52%),
+    radial-gradient(1px 1px at 94% 52%, rgba(255,255,255,0.6) 50%, transparent 52%),
+    radial-gradient(1px 1px at 15% 88%, rgba(196,123,255,0.7) 50%, transparent 52%),
+    radial-gradient(1px 1px at 71% 92%, rgba(255,255,255,0.5) 50%, transparent 52%);
+}
+.vx-login__ribbon {
+  position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; pointer-events: none;
+  filter: blur(46px); opacity: 0.55;
+  background: conic-gradient(from 210deg, transparent 0deg, rgba(177,76,255,0.55) 70deg, rgba(124,58,237,0.2) 120deg, transparent 200deg);
+}
+.vx-login__ribbon--tl { top: -48vmax; left: -38vmax; }
+.vx-login__ribbon--br { bottom: -50vmax; right: -40vmax; transform: rotate(180deg); }
+.vx-login__floor {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 24vh; pointer-events: none;
+  background: linear-gradient(to top, rgba(139,92,246,0.16), transparent);
+  border-top: 1px solid rgba(139,92,246,0.12);
+}
+.vx-login__brand { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-5); }
+.vx-login__orb {
+  position: relative; width: 156px; height: 156px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 28%, rgba(210,160,255,0.55), rgba(110,40,225,0.38) 46%, rgba(18,7,44,0.75) 78%);
+  border: 1px solid rgba(196,123,255,0.4);
+  box-shadow: 0 0 56px 6px rgba(139,92,246,0.5), 0 0 130px 26px rgba(177,76,255,0.22), inset 0 0 36px rgba(255,255,255,0.08);
+  animation: vxOrbFloat 6s ease-in-out infinite;
+}
+.vx-login__orb::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.16) 40deg, transparent 110deg, rgba(177,76,255,0.3) 220deg, transparent 300deg);
+  -webkit-mask: radial-gradient(circle, transparent 38%, #000 100%); mask: radial-gradient(circle, transparent 38%, #000 100%);
+  animation: vxRingSpin 20s linear infinite;
+}
+.vx-login__card {
+  position: relative; z-index: 1; width: 100%; max-width: 420px; padding: var(--space-8);
+  border-radius: var(--radius-xl); overflow: hidden;
+  background: linear-gradient(160deg, rgba(34,20,76,0.62) 0%, rgba(8,5,20,0.78) 100%);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xl), 0 0 80px rgba(139,92,246,0.14), var(--sheen-top);
+  backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
+}
+.vx-login__card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--neon-500), transparent);
+}
+@media (max-width: 480px) {
+  .vx-login { gap: var(--space-5); }
+  .vx-login__orb { width: 120px; height: 120px; }
+  .vx-login__card { padding: var(--space-6); }
 }
 
 /* ============================================================

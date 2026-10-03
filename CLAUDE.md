@@ -10,7 +10,9 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 
-## VELTRIX COMMAND OS
+## PostelOS
+
+**Brand:** PostelOS — the AI command center by Postel Studio (formerly "Veltrix Command OS"). Palette: deep black + electric purple (`#8B5CF6` → `#B14CFF` → `#C026D3`), white type, Outfit + Plus Jakarta Sans. Tokens: `src/app/postel-ds.css`; brand components: `src/components/ds/Postel*.tsx`; assets: `public/brand/`; copy constants: `src/lib/brand.ts`. The `vx-` CSS prefix and `vx_*` localStorage keys are internal and intentionally unchanged.
 
 **Stack:** Next.js 16.2.6 · React 19 · Tailwind 4 · Supabase · Gemini AI · ElevenLabs · Framer Motion
 
@@ -24,7 +26,7 @@ Rules:
 
 **Obsidian Vault:** `E:\Vetrix-app\Veltrix`
 
-The vault is the VELTRIX knowledge brain. Notes sync to Supabase `memories` table via:
+The vault is the PostelOS knowledge brain. Notes sync to Supabase `memories` table via:
 - API: `POST /api/obsidian/sync`
 - UI: "Sync Obsidian Brain" button in the Command Deck panel
 
@@ -163,7 +165,7 @@ Requires `npm install` after pull (new deps: nodemailer, @types/nodemailer).
 - Service-role key is server-side only; RLS patched in commit 801c188 — never expose it client-side.
 - Full findings live in AUDIT_REPORT.md — read it before touching auth, autopilot, or the chat function.
 
-## Relationship to other VELTRIX repos
+## Relationship to other PostelOS repos
 
 - This is Barry's PERSONAL operator OS (single-user). The multi-tenant customer product
   is `veltrix-nexus` (separate repo). Website is `Vortex Solutions MK2`. Don't merge their

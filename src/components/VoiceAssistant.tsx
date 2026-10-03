@@ -66,7 +66,7 @@ export default function VoiceAssistant() {
   useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent('veltrix-voice-status', { detail: { isListening, isSpeaking } }));
+    window.dispatchEvent(new CustomEvent('postelos-voice-status', { detail: { isListening, isSpeaking } }));
   }, [isListening, isSpeaking]);
 
   // Cancel any audio currently playing (Voicebox or browser TTS)
@@ -134,11 +134,11 @@ export default function VoiceAssistant() {
         startListening();
       }
     };
-    window.addEventListener('veltrix-toggle-voice', handleGlobalToggle);
+    window.addEventListener('postelos-toggle-voice', handleGlobalToggle);
     if (window.speechSynthesis) window.speechSynthesis.getVoices();
 
     return () => {
-      window.removeEventListener('veltrix-toggle-voice', handleGlobalToggle);
+      window.removeEventListener('postelos-toggle-voice', handleGlobalToggle);
       try { recognitionRef.current?.abort(); } catch {}
       cancelCurrentAudio();
     };

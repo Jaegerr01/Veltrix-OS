@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       });
     } catch (aiErr) {
       console.warn('Gemini unavailable for ROI report — using fallback:', aiErr);
-      narrative = `${client.business_name} has been an active VELTRIX client for ${monthsActive} month${monthsActive !== 1 ? 's' : ''}, with ${client.service_purchased || 'an AI solution'} deployed and ${completionRate}% of project milestones completed. The investment of $${lifetimeValue.toLocaleString()} has been put to work across ${tasksTotal} delivery tasks, with estimated returns of ~$${estimatedMonthlySaving.toLocaleString()}/month in operational value — representing a projected ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}% ROI on the engagement. To maximise results further, we recommend scheduling a performance review call to identify the next high-impact automation opportunity.`;
+      narrative = `${client.business_name} has been an active PostelOS client for ${monthsActive} month${monthsActive !== 1 ? 's' : ''}, with ${client.service_purchased || 'an AI solution'} deployed and ${completionRate}% of project milestones completed. The investment of $${lifetimeValue.toLocaleString()} has been put to work across ${tasksTotal} delivery tasks, with estimated returns of ~$${estimatedMonthlySaving.toLocaleString()}/month in operational value — representing a projected ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}% ROI on the engagement. To maximise results further, we recommend scheduling a performance review call to identify the next high-impact automation opportunity.`;
     }
 
     const report = {
@@ -139,13 +139,13 @@ export async function POST(req: Request) {
             `Est. Monthly Value:    ~$${estimatedMonthlySaving.toLocaleString()}`,
             `Projected ROI:         ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}%`,
             '',
-            'Powered by VELTRIX Command OS',
+            'Powered by PostelOS',
           ].join('\n');
 
           const { error: sendErr } = await resend.emails.send({
             from: FROM_EMAIL,
             to: [client.email],
-            subject: `Your VELTRIX ROI Summary — ${client.business_name}`,
+            subject: `Your PostelOS ROI Summary — ${client.business_name}`,
             text: emailBody,
           });
 

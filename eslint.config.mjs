@@ -12,6 +12,16 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Keep ESLint out of generated / non-source trees (build output, deploy
+    // artefacts, graph dumps, agent tooling, the 230-file agent catalogue).
+    ".netlify/**",
+    "coverage/**",
+    "graphify-out/**",
+    ".claude/**",
+    ".agent/**",
+    "public/**",
+    "src/lib/agents/catalogue/**",
+    "**/*.tsbuildinfo",
   ]),
 ]);
 

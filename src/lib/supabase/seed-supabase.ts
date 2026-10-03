@@ -116,10 +116,16 @@ async function run() {
 
   let usersToSeed = authUsers?.users || [];
   if (usersToSeed.length === 0) {
+    const testEmail = process.env.TEST_USER_EMAIL;
+    const testPassword = process.env.TEST_USER_PASSWORD;
+    if (!testEmail || !testPassword) {
+      console.error('No users found in auth.users. Set TEST_USER_EMAIL and TEST_USER_PASSWORD (throwaway values) to create a default test user, or sign up in the app first.');
+      process.exit(1);
+    }
     console.log('No users found in auth.users. Creating default test user...');
     const { data: defaultUser, error: createError } = await supabase.auth.admin.createUser({
-      email: 'test-vector-operator@veltrix.os',
-      password: 'VeltrixVectorPassword123!',
+      email: testEmail,
+      password: testPassword,
       email_confirm: true
     });
     if (createError) {
@@ -418,7 +424,7 @@ async function run() {
       type: 'system',
       actor: 'CEO Agent',
       action: 'chat_message',
-      output: 'Demo mode initialized. VELTRIX COMMAND OS is loaded with sample leads, transaction histories, and tasks.'
+      output: 'Demo mode initialized. PostelOS is loaded with sample leads, transaction histories, and tasks.'
     });
   }
 

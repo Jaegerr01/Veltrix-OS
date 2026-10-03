@@ -75,7 +75,7 @@ export async function POST(req: Request) {
         if (lead) {
           const business = lead.business_name;
           const industry = lead.industry || 'your business';
-          const proposalText = `# Business Proposal: ${offerName} Integration\n\nPrepared for: **${business}**\n\n### Executive Summary\nVELTRIX proposes a custom deployment of the **${offerName}** to solve core operational bottlenecks. Local diagnostics indicated critical areas of improvement in lead qualification and response times.\n\n### Solution Overview\n- **Automated Workflow**: Custom FAQs configured based on local ${industry} operations.\n- **Full Availability**: Handles inquiries 24/7, reducing lead bounce rates by 20%.\n- **Pricing Model**: Total setup fee of $${price} (setup and licensing inclusions).\n\n*Generated via local backup templates due to Gemini API offline status (${error.message}).*`;
+          const proposalText = `# Business Proposal: ${offerName} Integration\n\nPrepared for: **${business}**\n\n### Executive Summary\nPostelOS proposes a custom deployment of the **${offerName}** to solve core operational bottlenecks. Local diagnostics indicated critical areas of improvement in lead qualification and response times.\n\n### Solution Overview\n- **Automated Workflow**: Custom FAQs configured based on local ${industry} operations.\n- **Full Availability**: Handles inquiries 24/7, reducing lead bounce rates by 20%.\n- **Pricing Model**: Total setup fee of $${price} (setup and licensing inclusions).\n\n*Generated via local backup templates due to Gemini API offline status (${error.message}).*`;
 
           const newProposal = await db.addProposal({
             lead_id: leadId,

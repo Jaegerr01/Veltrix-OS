@@ -33,8 +33,8 @@ export default function AIChatBox({ onReportGenerated, onLeadScored }: AIChatBox
         setInput(customEvent.detail);
       }
     };
-    window.addEventListener('veltrix-ask-agent', handleAsk);
-    return () => window.removeEventListener('veltrix-ask-agent', handleAsk);
+    window.addEventListener('postelos-ask-agent', handleAsk);
+    return () => window.removeEventListener('postelos-ask-agent', handleAsk);
   }, []);
 
   // Auto-scroll to bottom of chat

@@ -21,7 +21,7 @@ const INTEGRATIONS: { name: string; desc: string; icon: VxIconName }[] = [
   { name: 'Database (Supabase)', desc: 'Connected and the leads table is reachable.', icon: 'grid' },
   { name: 'Server Writes (Service Role)', desc: 'Service-role client initialized.', icon: 'shield' },
   { name: 'Agent Brains (Gemini)', desc: 'GEMINI_API_KEY present. Add ?deep=1 to confirm it is valid with a live call.', icon: 'brain' },
-  { name: 'Email Delivery (Resend)', desc: 'Configured with sender VELTRIX OS <noreply@resend.dev>.', icon: 'mail' },
+  { name: 'Email Delivery (Resend)', desc: 'Configured with sender PostelOS <noreply@resend.dev>.', icon: 'mail' },
 ];
 
 const ENV_VARS: [string, boolean][] = [

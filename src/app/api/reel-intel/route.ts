@@ -13,7 +13,7 @@ interface ReelIntelResult {
   creator: string;
   topic: string;
   keyTakeaways: string[];
-  veltrixRelevance: string;
+  postelosRelevance: string;
   implementationSuggestions: { area: string; action: string; priority: string }[];
   tags: string[];
 }
@@ -89,7 +89,7 @@ function buildObsidianNote(url: string, result: ReelIntelResult): string {
   md += `> **Analyzed**: ${date}  \n\n`;
   md += `## Summary\n${result.summary}\n\n`;
   md += `## Key Takeaways\n${result.keyTakeaways.map(t => `- ${t}`).join('\n')}\n\n`;
-  md += `## VELTRIX Relevance\n${result.veltrixRelevance}\n\n`;
+  md += `## PostelOS Relevance\n${result.postelosRelevance}\n\n`;
   md += `## Implementation Suggestions\n`;
   result.implementationSuggestions.forEach(s => {
     md += `- **[${s.area}]** ${s.action} _(${s.priority} priority)_\n`;
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
       context ? `User's context note: ${context}` : '',
     ].filter(Boolean).join('\n');
 
-    const prompt = `Analyze this Instagram Reel and extract actionable business intelligence:\n\n${contextParts}\n\nProvide your deep analysis as the JSON object specified in your instructions. Research the topic thoroughly and map everything to VELTRIX's context as an AI automation agency targeting SMBs.`;
+    const prompt = `Analyze this Instagram Reel and extract actionable business intelligence:\n\n${contextParts}\n\nProvide your deep analysis as the JSON object specified in your instructions. Research the topic thoroughly and map everything to PostelOS's context as an AI automation agency targeting SMBs.`;
 
     const rawResponse = await gemini.callRawLLM(prompt, agent.systemPrompt);
 
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
         creator: typeof parsed.creator === 'string' ? parsed.creator : authorName,
         topic: typeof parsed.topic === 'string' ? parsed.topic : 'General',
         keyTakeaways: Array.isArray(parsed.keyTakeaways) ? parsed.keyTakeaways.filter((t: unknown) => typeof t === 'string') : [],
-        veltrixRelevance: typeof parsed.veltrixRelevance === 'string' ? parsed.veltrixRelevance : '',
+        postelosRelevance: typeof parsed.postelosRelevance === 'string' ? parsed.postelosRelevance : '',
         implementationSuggestions: Array.isArray(parsed.implementationSuggestions)
           ? parsed.implementationSuggestions.map((s: any) => ({
               area: typeof s?.area === 'string' ? s.area : 'Strategy',
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
     // Save to Supabase notes table
     let noteId: string | null = null;
     if (supabaseAdmin) {
-      const noteContent = `[REEL INTEL: ${result.summary.split('.')[0]}]\n\nSource: ${url}\nCreator: ${result.creator}\nTopic: ${result.topic}\n\n${result.summary}\n\nKey Takeaways:\n${result.keyTakeaways.map(t => `• ${t}`).join('\n')}\n\nVELTRIX Relevance:\n${result.veltrixRelevance}\n\nImplementation:\n${result.implementationSuggestions.map(s => `• [${s.area}] ${s.action} (${s.priority})`).join('\n')}`;
+      const noteContent = `[REEL INTEL: ${result.summary.split('.')[0]}]\n\nSource: ${url}\nCreator: ${result.creator}\nTopic: ${result.topic}\n\n${result.summary}\n\nKey Takeaways:\n${result.keyTakeaways.map(t => `• ${t}`).join('\n')}\n\nPostelOS Relevance:\n${result.postelosRelevance}\n\nImplementation:\n${result.implementationSuggestions.map(s => `• [${s.area}] ${s.action} (${s.priority})`).join('\n')}`;
 
       let embedding: number[] | null = null;
       try {

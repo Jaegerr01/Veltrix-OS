@@ -4,7 +4,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import LoadingState from './LoadingState';
 import { ShieldAlert, Lock, ShieldCheck } from 'lucide-react';
-import { AmbientBackground, Input, Button, VxIcon } from './ds';
+import { AmbientBackground, Input, Button, VxIcon, PostelMark, PostelLogo } from './ds';
+import { BRAND } from '@/lib/brand';
 
 interface AuthContextType {
   user: any;
@@ -174,27 +175,31 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
     );
   }
 
-  // 2. Auth Screen
+  // 2. Auth Screen — mirrors the Postel splash: black stage, glowing orb, light ribbons
   if (!user) {
     return (
-      <div className="vx-root min-h-screen text-foreground flex items-center justify-center p-6 relative overflow-hidden" style={{ background: 'var(--ink-900)' }}>
-        <AmbientBackground />
-        
-        {/* Glow halo in the background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] pointer-events-none rounded-full opacity-40" style={{ background: 'var(--grad-halo)', filter: 'blur(40px)' }} />
+      <div className="vx-root vx-login text-foreground">
+        <div className="vx-login__stars" aria-hidden="true" />
+        <div className="vx-login__ribbon vx-login__ribbon--tl" aria-hidden="true" />
+        <div className="vx-login__ribbon vx-login__ribbon--br" aria-hidden="true" />
+        <div className="vx-login__floor" aria-hidden="true" />
 
-        <div className="vx-glass max-w-md w-full p-8 rounded-[28px] relative overflow-hidden z-10" style={{ background: 'var(--grad-panel)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-xl)' }}>
-          {/* Top glowing line */}
-          <div className="absolute top-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-[var(--brand)] to-transparent" />
+        {/* Brand: orb + monogram + POSTEL STUDIO wordmark */}
+        <div className="vx-login__brand">
+          <div className="vx-login__orb">
+            <PostelMark size={96} glow title="Postel Studio" />
+          </div>
+          <PostelLogo showMark={false} fontSize={26} suffix="STUDIO" />
+          <p className="text-[11px] text-[var(--text-muted)] tracking-[0.14em] uppercase text-center" style={{ fontFamily: 'var(--font-display)' }}>
+            {BRAND.short}
+          </p>
+        </div>
 
-          {/* Logo Brand Header */}
-          <div className="flex flex-col items-center space-y-4 text-center mb-8">
-            <div className="flex items-center space-x-3">
-              <span className="text-xl font-bold tracking-widest text-[var(--text-strong)]" style={{ fontFamily: 'var(--font-display)' }}>VELTRIX</span>
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[var(--border-default)] border border-[var(--border-strong)] text-[var(--brand)] uppercase font-bold tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
-                COMMAND OS
-              </span>
-            </div>
+        <div className="vx-login__card">
+          <div className="text-center mb-8 space-y-2">
+            <h1 className="text-lg font-semibold text-[var(--text-strong)]" style={{ fontFamily: 'var(--font-display)' }}>
+              Postel<span style={{ fontWeight: 300, color: 'var(--violet-300)' }}>OS</span>
+            </h1>
             <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]" style={{ fontFamily: 'var(--font-display)' }}>
               {isSignUp ? 'REGISTER SYSTEM OPERATOR' : 'ENTER OPERATOR CREDENTIALS'}
             </p>
@@ -206,7 +211,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
               type="email"
               required
               label="Email Address"
-              placeholder="operator@veltrix.ai"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               leadingIcon={<VxIcon name="mail" size={16} />}

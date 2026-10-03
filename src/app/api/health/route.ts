@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * VELTRIX OS — System Health / Diagnostics
+ * PostelOS — System Health / Diagnostics
  *
  * Hit /api/health to see, at a glance, which integrations are wired up and which
  * are missing. NEVER returns secret values — only whether each key is present and
@@ -126,14 +126,14 @@ export async function GET(req: Request) {
   // per-integration detail, no raw driver error text.
   if (!isOperator) {
     return NextResponse.json(
-      { service: 'VELTRIX Command OS', ready, checkedAt: new Date().toISOString() },
+      { service: 'PostelOS', ready, checkedAt: new Date().toISOString() },
       { status }
     );
   }
 
   return NextResponse.json(
     {
-      service: 'VELTRIX Command OS',
+      service: 'PostelOS',
       ready,
       summary: ready
         ? 'All critical systems are live. The autonomous pipeline can run end-to-end.'

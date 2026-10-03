@@ -1,5 +1,5 @@
 /**
- * VELTRIX Autonomous Agency Pipeline
+ * PostelOS Autonomous Agency Pipeline
  *
  * This is the master orchestrator. It runs on a schedule (every 30 min via Netlify Scheduled Functions)
  * and processes ALL leads through the full sales lifecycle with zero human input.
@@ -46,7 +46,7 @@ async function notifyBarry(subject: string, body: string) {
     await resend.emails.send({
       from: FROM_EMAIL,
       to: [BARRY_EMAIL],
-      subject: `[VELTRIX] ${subject}`,
+      subject: `[PostelOS] ${subject}`,
       text: body,
     });
   } catch (err) {
@@ -231,7 +231,7 @@ export async function generatePreCallBrief(leadId: string): Promise<string> {
   const latestScore = scores[0];
 
   const prompt = `
-You are preparing a PRE-CALL CLIENT BRIEF for Barry (VELTRIX founder) before he jumps on a discovery call with a potential client.
+You are preparing a PRE-CALL CLIENT BRIEF for Barry (PostelOS founder) before he jumps on a discovery call with a potential client.
 
 CLIENT INFORMATION:
 - Business Name: ${lead.business_name}
@@ -270,7 +270,7 @@ Generate a sharp, executive-style pre-call brief for Barry. Include:
 1. **WHO THEY ARE** — 2-3 sentences on the business and what they do
 2. **WHY THEY'RE TALKING TO US** — The specific pain point that made them engage
 3. **WHERE THEY ARE IN THE JOURNEY** — What outreach was sent, what they responded to
-4. **WHAT TO PITCH** — The specific VELTRIX offer, price point, and value prop to lead with
+4. **WHAT TO PITCH** — The specific PostelOS offer, price point, and value prop to lead with
 5. **LIKELY OBJECTIONS** — Top 3 objections they'll raise and how to handle each
 6. **TONE TO USE** — How to approach this person (casual? formal? technical? business-focused?)
 7. **DEAL POTENTIAL** — Likelihood of closing (low/medium/high), estimated value
@@ -282,7 +282,7 @@ Keep it sharp, actionable, and under 600 words. Barry needs to be able to read t
 
   const brief = await gemini.callRawLLM(
     prompt,
-    'You are the VELTRIX CEO Agent preparing a pre-call brief. Be concise, sharp, and strategic. Use clear markdown headers.'
+    'You are the PostelOS CEO Agent preparing a pre-call brief. Be concise, sharp, and strategic. Use clear markdown headers.'
   );
 
   // Save brief as a high-importance memory
@@ -306,7 +306,7 @@ Keep it sharp, actionable, and under 600 words. Barry needs to be able to read t
   // Notify Barry via email
   await notifyBarry(
     `Pre-Call Brief: ${lead.business_name}`,
-    `Hi Barry,\n\nYou have a call coming up with ${lead.business_name}. Here's your brief:\n\n${brief}\n\n— VELTRIX Autonomous Agency`
+    `Hi Barry,\n\nYou have a call coming up with ${lead.business_name}. Here's your brief:\n\n${brief}\n\n— PostelOS Autonomous Agency`
   );
 
   return brief;
@@ -536,7 +536,7 @@ export async function generateDailyBrief(): Promise<string> {
   };
 
   const prompt = `
-Generate a sharp daily operations brief for Barry, the VELTRIX founder. It is 10:00 PM.
+Generate a sharp daily operations brief for Barry, the PostelOS founder. It is 10:00 PM.
 
 TODAY'S METRICS:
 - Revenue Target: $${profile.target_monthly_revenue || MONTHLY_TARGET}
@@ -584,7 +584,7 @@ Keep it tight, no fluff. Barry reads this in 3 minutes before sleeping.
 
   const brief = await gemini.callRawLLM(
     prompt,
-    'You are Alex, the VELTRIX CEO Agent. Generate the daily brief in clean, sharp markdown. Be direct and data-driven.'
+    'You are Alex, the PostelOS CEO Agent. Generate the daily brief in clean, sharp markdown. Be direct and data-driven.'
   );
 
   // Save to daily_reports
@@ -614,7 +614,7 @@ Keep it tight, no fluff. Barry reads this in 3 minutes before sleeping.
   // Email Barry
   await notifyBarry(
     `Daily Brief — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
-    `Hi Barry,\n\nHere's your 10PM daily brief:\n\n${brief}\n\n— VELTRIX Autonomous Agency\n\nPipeline: ${byStage.contacted} contacted, ${byStage.callBooked} calls booked, $${closedRevenue} closed.`
+    `Hi Barry,\n\nHere's your 10PM daily brief:\n\n${brief}\n\n— PostelOS Autonomous Agency\n\nPipeline: ${byStage.contacted} contacted, ${byStage.callBooked} calls booked, $${closedRevenue} closed.`
   );
 
   await logAction('Daily Brief Sent', `10PM brief generated and emailed to Barry`);

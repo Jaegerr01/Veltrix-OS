@@ -56,7 +56,7 @@ interface ReelIntelResult {
   creator: string;
   topic: string;
   keyTakeaways: string[];
-  veltrixRelevance: string;
+  postelosRelevance: string;
   implementationSuggestions: ImplementationSuggestion[];
   tags: string[];
 }
@@ -229,10 +229,10 @@ export default function ReelIntelPage() {
                 </div>
               )}
 
-              {result.veltrixRelevance && (
+              {result.postelosRelevance && (
                 <div style={{ marginBottom: 'var(--space-5)' }}>
-                  <div style={sectionLabel}>VELTRIX Relevance</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 'var(--lh-normal)' }}>{result.veltrixRelevance}</div>
+                  <div style={sectionLabel}>PostelOS Relevance</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 'var(--lh-normal)' }}>{result.postelosRelevance}</div>
                 </div>
               )}
 

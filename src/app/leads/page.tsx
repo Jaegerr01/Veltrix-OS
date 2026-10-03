@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import ScraperControl from '@/components/ScraperControl';
 import ScraperImport from '@/components/ScraperImport';
@@ -66,7 +66,7 @@ export default function LeadsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Loading lead database..." />
+        <PostelSpinner message="Loading lead database..." />
       </div>
     );
   }

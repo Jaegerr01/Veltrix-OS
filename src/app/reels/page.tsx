@@ -70,7 +70,7 @@ const BATCH_POOL: Record<string, Array<{ vertical: string; offer: string; hook: 
   ],
 };
 
-const SYSTEM_PROMPT = `You are a direct-response copywriter for VELTRIX — a premium AI systems and web development studio targeting post-revenue SMBs. Write Instagram Reels scripts in Alex Hormozi's style: zero fluff, no welcome lines, speaks directly to business owners, uses real numbers and dollar amounts, confident and educational not salesy.
+const SYSTEM_PROMPT = `You are a direct-response copywriter for PostelOS — a premium AI systems and web development studio targeting post-revenue SMBs. Write Instagram Reels scripts in Alex Hormozi's style: zero fluff, no welcome lines, speaks directly to business owners, uses real numbers and dollar amounts, confident and educational not salesy.
 
 CRITICAL: Respond ONLY with a valid JSON object. No markdown fences, no preamble, no extra text. Just raw JSON.
 
@@ -79,7 +79,7 @@ Required keys: hook, agitate, mechanism, proof, cta, caption, hashtags, onscreen
 Rules:
 - hook: 1–2 punchy sentences. Callout exact person + painful situation. Stop-scroll energy.
 - agitate: 2–3 sentences. Real dollar/time cost. Urgency not fear.
-- mechanism: 3–4 sentences. Specific VELTRIX solution. Name the tech. Be concrete.
+- mechanism: 3–4 sentences. Specific PostelOS solution. Name the tech. Be concrete.
 - proof: 2–3 sentences. Use stat if given or create specific believable result.
 - cta: 1 sentence. One specific action only.
 - caption: 3–4 sentences. Hook + value + soft CTA. No hashtags here.
@@ -180,7 +180,7 @@ export default function ReelsEngine() {
     const oLabel = OFFERS.find(o => o.value === offer)?.label || offer;
     const cLabel = CTA_TYPES.find(c => c.value === ctaType)?.label || ctaType;
 
-    const msg = `Write a 30-second Instagram Reels script for VELTRIX.
+    const msg = `Write a 30-second Instagram Reels script for PostelOS.
 Vertical: ${vLabel}
 Hook style: ${hLabel}
 Offer: ${oLabel}
@@ -207,7 +207,7 @@ Return only the JSON object.`;
 
     for (let i = 0; i < pool.length; i++) {
       const item = pool[i];
-      const msg = `Write a 30-second Instagram Reels script for VELTRIX.
+      const msg = `Write a 30-second Instagram Reels script for PostelOS.
 Vertical: ${item.vertical}
 Hook style: ${item.hook}
 Offer: ${item.offer}
@@ -228,7 +228,7 @@ Return only the JSON object.`;
   }
 
   function copyAllScripts() {
-    const lines: string[] = ['VELTRIX — WEEKLY REELS SCRIPT BATCH', `Generated: ${new Date().toLocaleDateString()}`, '='.repeat(50), ''];
+    const lines: string[] = ['PostelOS — WEEKLY REELS SCRIPT BATCH', `Generated: ${new Date().toLocaleDateString()}`, '='.repeat(50), ''];
     batchScripts.forEach(({ item, script }, i) => {
       if (!script) return;
       lines.push(`DAY ${i + 1} — ${item.vertical.toUpperCase()} | ${item.offer.toUpperCase()}`);

@@ -24,7 +24,11 @@ export type { CeoSphereHandle } from './CeoSphere';
 export { default as OrbitalCommand } from './OrbitalCommand';
 export { default as AgentCard } from './AgentCard';
 export { default as PageHeaderCard } from './PageHeaderCard';
-export { default as VeltrixSpinner } from './VeltrixSpinner';
+export { default as PostelSpinner } from './PostelSpinner';
+export { PostelMark, POSTEL_MARK_PATH } from './PostelMark';
+export type { PostelMarkProps, PostelMarkVariant } from './PostelMark';
+export { PostelLogo } from './PostelLogo';
+export type { PostelLogoProps } from './PostelLogo';
 
 /* Data / context */
 export { AGENT_DEFS, STATUS_COLOR, STATUS_LABEL, ACTIVITY_DEFS } from './agents';

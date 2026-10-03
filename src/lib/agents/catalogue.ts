@@ -3,7 +3,7 @@ import path from 'path';
 
 /**
  * AgentLand catalogue — a second tier of specialist agents alongside the 11
- * first-class VELTRIX agents in `agents.ts`.
+ * first-class PostelOS agents in `agents.ts`.
  *
  * Vendored from https://github.com/msitarzewski/agency-agents (MIT, © 2025
  * AgentLand Contributors). The licence is kept verbatim at

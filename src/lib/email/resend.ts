@@ -10,4 +10,4 @@ export function getResendClient(): Resend | null {
 }
 
 export const FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || 'VELTRIX OS <onboarding@resend.dev>';
+  process.env.RESEND_FROM_EMAIL || 'PostelOS <onboarding@resend.dev>';

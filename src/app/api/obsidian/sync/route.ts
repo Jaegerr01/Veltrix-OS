@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
     user_id: userId,
     type:    'system',
     actor:   'Obsidian Brain',
-    action:  `Synced ${synced}/${notes.length} vault notes to VELTRIX memory (${mode})`,
+    action:  `Synced ${synced}/${notes.length} vault notes to PostelOS memory (${mode})`,
     status:  errors.length ? 'Partial' : 'Success',
   });
 

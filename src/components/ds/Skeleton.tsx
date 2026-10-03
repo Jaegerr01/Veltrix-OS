@@ -5,13 +5,13 @@ import React from 'react';
 /**
  * Loading placeholders that mirror the shape of the content being fetched.
  *
- * The app's only loading affordance was a spinning JPEG (VeltrixSpinner, marked
+ * The app's only loading affordance was a spinning JPEG (PostelSpinner, marked
  * `priority` in thirteen places), which tells the user nothing about what is
  * coming and downloads an image to say "wait". Use a skeleton wherever the
  * layout is known in advance; keep the spinner for full-screen boot only.
  *
  * The shimmer is a single CSS gradient animation and is disabled automatically
- * under prefers-reduced-motion by the global rule in veltrix-ds.css.
+ * under prefers-reduced-motion by the global rule in postel-ds.css.
  */
 
 export function Skeleton({

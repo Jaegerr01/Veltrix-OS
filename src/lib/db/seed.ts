@@ -150,7 +150,7 @@ async function seedDemoDataForUser(userId: string) {
     type: 'system',
     actor: 'CEO Agent',
     action: 'chat_message',
-    output: 'Demo mode initialized. VELTRIX COMMAND OS is loaded with sample leads, transaction histories, and tasks.'
+    output: 'Demo mode initialized. PostelOS is loaded with sample leads, transaction histories, and tasks.'
   });
 }
 

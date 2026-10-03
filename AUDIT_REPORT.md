@@ -1,4 +1,4 @@
-# VELTRIX — Full-Stack Audit Report
+# PostelOS — Full-Stack Audit Report
 **Date:** 2026-07-03 · **Scope:** Command OS (dashboard), Vortex Solutions MK2 (website), Voicebox, instagram_saves pipeline, Obsidian vault
 
 ---
@@ -58,7 +58,7 @@ The guard was `if (cronSecret && …)` — if `CRON_SECRET` was ever unset in pr
 
 ## How the business works (from the vault)
 
-VELTRIX sells AI systems to post-revenue SMBs, dental-first: Instagram Reels → DM qualification (4 questions) → **$299 AI Audit** → implementation (**Starter $999 / Growth $2,500**) → **$199–499/mo retainers** → productize each build into vertical templates. BHAG: $50k MRR in 18 months. Core promise: *stop losing the leads you already have* — after-hours calls, slow follow-up, missed bookings.
+PostelOS sells AI systems to post-revenue SMBs, dental-first: Instagram Reels → DM qualification (4 questions) → **$299 AI Audit** → implementation (**Starter $999 / Growth $2,500**) → **$199–499/mo retainers** → productize each build into vertical templates. BHAG: $50k MRR in 18 months. Core promise: *stop losing the leads you already have* — after-hours calls, slow follow-up, missed bookings.
 
 The two HIGH bugs above sat directly on this funnel: the website chat (top of funnel) and the contact form (conversion point) were both broken in front of users. Those were the ones costing money.
 

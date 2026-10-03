@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { VxIcon, PageHeaderCard, VeltrixSpinner } from '@/components/ds';
+import { VxIcon, PageHeaderCard, PostelSpinner } from '@/components/ds';
 import { db } from '@/lib/db';
 import { authFetch } from '@/lib/authFetch';
 
@@ -65,7 +65,7 @@ export default function MemoryPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Synchronizing memory banks..." />
+        <PostelSpinner message="Synchronizing memory banks..." />
       </div>
     );
   }

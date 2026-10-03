@@ -1,12 +1,12 @@
 @import "tailwindcss";
-@import "./veltrix-ds.css";
+@import "./postel-ds.css";
 
 /* ============================================================
    TAILWIND THEME BRIDGE
 
    The app grew two palettes: this "cyber neon" set (#a855f7 violet,
    #06b6d4 cyan, #10b981 green) delivered as Tailwind utilities, and the
-   VELTRIX design system (#8B5CF6, #22D3EE, #2EE6A0) delivered as CSS
+   PostelOS design system (#8B5CF6, #22D3EE, #2EE6A0) delivered as CSS
    variables. Both rendered at once, so a design-system panel and a legacy
    card showed two different violets side by side — and AppearanceProvider,
    which only rewrites design-system tokens, could not theme half the app.
@@ -46,14 +46,16 @@ body {
 /* ============================================================
    PANEL SURFACES
 
-   Calmed per the VELTRIX design rules: a solid card surface with a hairline
+   Calmed per the PostelOS design rules: a solid card surface with a hairline
    border, not a 20px backdrop-blur. Blur is expensive (these panels stack
    over a fixed blurred backdrop, forcing full-viewport GPU recomposites on
    scroll) and, at this density, it made the interface noisy rather than
    premium. Hover raises the border, not the whole surface.
    ============================================================ */
 .glass-panel {
-  background: var(--surface-card);
+  background: var(--grad-panel);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--elev-card);
@@ -64,13 +66,13 @@ body {
 }
 
 .glass-panel:hover {
-  border-color: var(--border-default);
-  box-shadow: var(--shadow-lg), var(--sheen-top);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg), var(--glow-soft), var(--sheen-top);
 }
 
 /* Accent hover variants — kept for the three call sites in RevenueProgress. */
 .glass-panel-purple:hover { border-color: var(--border-strong); }
-.glass-panel-cyan:hover   { border-color: rgba(34, 211, 238, 0.42); }
+.glass-panel-cyan:hover   { border-color: rgba(34, 211, 238, 0.42); }  /* minor accent */
 .glass-panel-pink:hover   { border-color: rgba(217, 70, 239, 0.42); }
 
 /* Dashed emphasis border, used by empty states. */

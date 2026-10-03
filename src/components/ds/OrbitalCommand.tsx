@@ -32,8 +32,8 @@ export default function OrbitalCommand() {
         setVoiceState({ isListening: !!detail.isListening, isSpeaking: !!detail.isSpeaking });
       }
     };
-    window.addEventListener('veltrix-voice-status', handleVoiceStatus as any);
-    return () => window.removeEventListener('veltrix-voice-status', handleVoiceStatus as any);
+    window.addEventListener('postelos-voice-status', handleVoiceStatus as any);
+    return () => window.removeEventListener('postelos-voice-status', handleVoiceStatus as any);
   }, []);
 
   const onMove = (e: React.MouseEvent<HTMLElement>) => {
@@ -139,7 +139,7 @@ export default function OrbitalCommand() {
             width: RADIUS * 2 - 60,
             height: RADIUS * 2 - 60,
             borderRadius: '50%',
-            border: '1px solid rgba(34,211,238,0.12)',
+            border: '1px solid rgba(177,76,255,0.16)',
             transform: 'translate(-50%,-50%)',
           }}
         />
@@ -177,9 +177,9 @@ export default function OrbitalCommand() {
             borderRadius: '50%',
             transform: 'translate(-50%,-50%)',
             background: voiceState.isListening
-              ? 'radial-gradient(circle, rgba(34,211,238,0.4) 0%, rgba(34,211,238,0) 70%)'
+              ? 'radial-gradient(circle, rgba(196,123,255,0.5) 0%, rgba(196,123,255,0) 70%)'
               : voiceState.isSpeaking
-              ? 'radial-gradient(circle, rgba(217,70,239,0.45) 0%, rgba(217,70,239,0) 70%)'
+              ? 'radial-gradient(circle, rgba(192,38,211,0.5) 0%, rgba(192,38,211,0) 70%)'
               : 'var(--grad-halo)',
             filter: 'blur(8px)',
             /* Halo only animates when it means something: ARIA listening/speaking.
@@ -195,7 +195,7 @@ export default function OrbitalCommand() {
         <div
           onClick={() => {
             sphereRef.current?.pulse();
-            window.dispatchEvent(new Event('veltrix-toggle-voice'));
+            window.dispatchEvent(new Event('postelos-toggle-voice'));
           }}
           style={{
             position: 'absolute',
@@ -219,7 +219,7 @@ export default function OrbitalCommand() {
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               color: 'rgba(255,255,255,0.85)',
-              textShadow: '0 0 12px rgba(139,92,246,0.8)',
+              textShadow: '0 0 12px rgba(177,76,255,0.9)',
               pointerEvents: 'none',
             }}
           >

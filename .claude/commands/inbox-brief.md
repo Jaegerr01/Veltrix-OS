@@ -1,6 +1,6 @@
 # Inbox Brief
 
-Scans VELTRIX CRM for all items that need a response or attention — replied leads, pending proposals, overdue follow-ups, and active client updates.
+Scans PostelOS CRM for all items that need a response or attention — replied leads, pending proposals, overdue follow-ups, and active client updates.
 
 ## What it does
 
