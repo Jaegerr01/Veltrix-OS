@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 /**
  * Security headers. CSP is shipped as Report-Only first (violations POST to /api/csp-report) so a missed
@@ -33,6 +34,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Pin the project root. Without this Next infers it from a stray lockfile in a parent folder (it did on the dev PC),
+  // which bakes a wrong Windows-style nested path into the Netlify server handler and every page returns 502.
+  outputFileTracingRoot: path.resolve(process.cwd()),
+  turbopack: { root: path.resolve(process.cwd()) },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
