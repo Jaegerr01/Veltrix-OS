@@ -31,7 +31,11 @@ export default function HealthPage() {
       if (body && body.checks && body.env) {
         setHealth(body as HealthPayload);
         if (deep) setDeepNote(body.checks.gemini?.ok ? 'Live AI call succeeded.' : 'Live AI call failed - see the AI card.');
-      } else setError(res.status === 401 ? 'Sign in again to read system status.' : `Health report unavailable (HTTP ${res.status}).`);
+      } else if (res.status === 401) {
+        setError((body && body.error) || 'Sign in again to read system status.');
+      } else if (res.status === 403) {
+        setError((body && body.error) || 'This account is not authorized. OWNER_EMAIL on the server must match the email you sign in with.');
+      } else setError(`Health report unavailable (HTTP ${res.status}).`);
     } catch { setError('Could not reach the server.'); }
     setBusy(false);
   }, []);

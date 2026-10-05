@@ -46,8 +46,11 @@ export async function GET(req: Request) {
   // gets liveness only.
   const auth = await requireUser(req);
   const isOperator = !auth.response;
-
-  if (deep && !isOperator) return auth.response!;
+  // A browser that sent a Bearer token (or asked for ?deep=1) must see the real 401/403.
+  // Swallowing those into the anonymous liveness stub made /health show
+  // "Health report unavailable (HTTP 200)" with every card stuck on Checking...
+  const triedAuth = (req.headers.get('Authorization') || '').startsWith('Bearer ');
+  if (!isOperator && (triedAuth || deep)) return auth.response!;
 
   const checks: Record<string, Check> = {};
 
