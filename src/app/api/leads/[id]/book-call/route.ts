@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePreCallBrief } from '@/lib/agents/pipeline';
 import { requireUser } from '@/lib/auth/requireUser';
+import { asErr } from '@/lib/errors';
 
 // POST /api/leads/[id]/book-call
 // Marks a lead as "Call Booked" and immediately generates + emails a pre-call brief to Barry
@@ -13,6 +14,9 @@ export async function POST(
   if (auth.response) return auth.response;
 
   const { id: leadId } = await params;
+  if (!/^[0-9a-zA-Z_-]{8,64}$/.test(leadId)) {
+    return NextResponse.json({ success: false, error: 'Invalid lead id.' }, { status: 400 });
+  }
 
   try {
     // Update lead status
@@ -35,7 +39,7 @@ export async function POST(
       success: true,
       message: 'Lead marked as Call Booked. Pre-call brief is being generated and will be emailed to you.',
     });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

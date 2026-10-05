@@ -4,7 +4,7 @@ import React from 'react';
 
 /**
  * CEO Agent — animated particle sphere (fibonacci lattice, tri-color
- * cyan→violet→magenta by latitude, additive blend). Ported from the
+ * deep-violet→neon-purple→magenta-purple by latitude, additive blend). Ported from the
  * prototype's _startCeo / ceoCanvasRef canvas routine. Pointer-steered,
  * click to pulse, and coupled to the hero's orbital tilt via `tiltRef`.
  */
@@ -90,26 +90,26 @@ const CeoSphere = React.forwardRef<
         c.isSpeaking = !!e.detail.isSpeaking;
       }
     };
-    window.addEventListener('veltrix-voice-status', handleVoiceStatus as any);
+    window.addEventListener('postelos-voice-status', handleVoiceStatus as EventListener);
 
     // dynamic gradient stops based on ARIA assistant states
     const col = (t: number) => {
       const stops = c.isListening
         ? [
-            [34, 211, 238], // cyan
-            [34, 211, 238], // cyan
-            [139, 92, 246], // violet
+            [177, 76, 255], // neon purple
+            [196, 123, 255], // bright lavender
+            [233, 213, 255], // near-white violet
           ]
         : c.isSpeaking
         ? [
-            [217, 70, 239], // magenta
-            [139, 92, 246], // violet
+            [192, 38, 211], // magenta-purple
+            [177, 76, 255], // neon purple
             [217, 70, 239], // magenta
           ]
         : [
-            [34, 211, 238], // cyan
-            [139, 92, 246], // violet
-            [217, 70, 239], // magenta
+            [109, 40, 217], // deep violet
+            [177, 76, 255], // neon purple
+            [192, 38, 211], // magenta-purple
           ];
 
       const seg = t * 2,
@@ -183,7 +183,7 @@ const CeoSphere = React.forwardRef<
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('veltrix-voice-status', handleVoiceStatus as any);
+      window.removeEventListener('postelos-voice-status', handleVoiceStatus as EventListener);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerenter', onEnter);
       canvas.removeEventListener('pointerleave', onLeave);

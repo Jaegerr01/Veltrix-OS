@@ -2,7 +2,7 @@ import { BusinessProfile, Goal, Offer, Lead, Task, Memory, DailyReport, ContentI
 
 export const defaultBusinessProfile: BusinessProfile = {
   id: 'bp-veltrix-1',
-  business_name: 'VELTRIX',
+  business_name: 'PostelOS',
   description: 'Futuristic AI and creative technology studio providing websites, branding, AI chatbots, receptionists, and growth consulting.',
   services: [
     'Branding',
@@ -294,7 +294,7 @@ export const defaultMemories: Memory[] = [
   {
     id: 'mem-1',
     type: 'Business',
-    content: 'VELTRIX provides premium AI automations and high-end creative technology services. We position ourselves as an elite agency, not budget freelancers.',
+    content: 'PostelOS provides premium AI automations and high-end creative technology services. We position ourselves as an elite agency, not budget freelancers.',
     tags: ['positioning', 'agency-identity'],
     importance: 9,
     source: 'Manual',
@@ -377,7 +377,7 @@ export const defaultContentIdeas: ContentIdea[] = [
     platform: 'Instagram',
     title: 'Before & After: Dental Website Booking Flow Redesign',
     hook: 'Stop forcing patient prospects to dial a phone number in 2026.',
-    content: 'Visual slider idea showing: Slide 1: Old text-heavy clinic page with a giant phone number and no booking link. Slide 2: Modern dark-glass VELTRIX layout with a glowing "Book Appointment Instantly" chatbot floating at the bottom. Detail how this doubles conversion rates.',
+    content: 'Visual slider idea showing: Slide 1: Old text-heavy clinic page with a giant phone number and no booking link. Slide 2: Modern dark-glass PostelOS layout with a glowing "Book Appointment Instantly" chatbot floating at the bottom. Detail how this doubles conversion rates.',
     content_type: 'Image',
     status: 'Idea',
     created_at: new Date().toISOString(),
@@ -388,7 +388,7 @@ export const defaultContentIdeas: ContentIdea[] = [
     platform: 'YouTube',
     title: 'How I Built an AI Booking Agent in 2 Hours',
     hook: 'Watch me build an autonomous AI receptionist from scratch for a local salon.',
-    content: 'Video outline: 1. The Problem: Salon owner misses 30% of bookings. 2. Fetching FAQ data using a text scraper. 3. Building the logical appointment flows. 4. Live demo booking a hair salon appointment. CTA to check out VELTRIX automations.',
+    content: 'Video outline: 1. The Problem: Salon owner misses 30% of bookings. 2. Fetching FAQ data using a text scraper. 3. Building the logical appointment flows. 4. Live demo booking a hair salon appointment. CTA to check out PostelOS automations.',
     content_type: 'Short-form Video',
     status: 'Idea',
     created_at: new Date().toISOString(),

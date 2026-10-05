@@ -1,6 +1,6 @@
 # Trend Scan
 
-Weekly intelligence scan on AI automation, web design, and digital agency trends — surfaces content opportunities and positioning angles for VELTRIX.
+Weekly intelligence scan on AI automation, web design, and digital agency trends — surfaces content opportunities and positioning angles for PostelOS.
 
 ## What it does
 
@@ -11,7 +11,7 @@ Weekly intelligence scan on AI automation, web design, and digital agency trends
 ## Steps
 
 1. Call `POST /api/ai/command-deck` with `{ "command": "trend-scan" }`
-2. Ryan (Content Agent) synthesizes trend intelligence with a VELTRIX positioning lens
+2. Ryan (Content Agent) synthesizes trend intelligence with a PostelOS positioning lens
 3. Results saved as a memory note for future reference
 
 ## Usage

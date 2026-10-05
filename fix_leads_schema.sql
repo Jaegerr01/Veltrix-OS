@@ -1,10 +1,24 @@
 -- ================================================================
--- VELTRIX Command OS — Leads Schema Fix
+-- PostelOS — Leads Schema Fix
 -- Run in: supabase.com/dashboard/project/sxueyuqpqeqvzuzhrhxo/sql/new
 -- Safe to run: all affected tables are currently empty
 -- ================================================================
 
--- Step 1: Drop tables that depend on leads (all empty, no data lost)
+-- Step 1: SAFETY GUARD - refuse to drop anything that contains rows. (Previously this dropped tables unconditionally.)
+do $guard$
+declare t text; n bigint;
+begin
+  foreach t in array array['proposals','followups','outreach_messages','lead_scores','leads'] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('select count(*) from public.%I', t) into n;
+      if n > 0 then
+        raise exception 'fix_leads_schema.sql aborted: public.% has % rows. Back up and migrate manually; this script only rebuilds EMPTY tables.', t, n;
+      end if;
+    end if;
+  end loop;
+end
+$guard$;
+
 drop table if exists public.proposals cascade;
 drop table if exists public.followups cascade;
 drop table if exists public.outreach_messages cascade;
@@ -143,7 +157,7 @@ begin
   insert into public.profiles (
     id, business_name, description, target_monthly_revenue, autopilot
   ) values (
-    new.id, 'VELTRIX Enterprise', 'A business powered by VELTRIX OS.', 6000, false
+    new.id, 'PostelOS Enterprise', 'A business powered by PostelOS.', 6000, false
   );
   return new;
 end;

@@ -6,40 +6,58 @@ on:
   pull_request:
     branches: [main]
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
-    # Placeholder values only — no real secrets are needed to type-check or build.
-    # Supabase/Gemini clients in this codebase are all guarded to no-op when these
-    # are absent/fake, so `next build` succeeds without live credentials.
+jobs:
+  quality:
+    name: Lint, types, unit tests, build
+    runs-on: ubuntu-latest
+    # Placeholder values only: no real secrets are needed to lint, type-check, test or build.
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
       SUPABASE_SERVICE_ROLE_KEY: placeholder
       GEMINI_API_KEY: placeholder
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
+      - run: npm ci --legacy-peer-deps
+      - name: Lint (0 errors required)
+        run: npm run lint
       - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Lint
-        run: npx next lint || npx eslint .
-
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
       - name: Build
         run: npm run build
 
-      - name: Test
-        run: npm test
+  e2e:
+    name: Playwright smoke (mock Supabase, nothing can be sent)
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Build with the mock environment
+        run: node e2e/build.mjs
+      - name: Run e2e
+        run: npm run e2e
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

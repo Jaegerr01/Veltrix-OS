@@ -1,6 +1,5 @@
 import React from 'react';
 import { Memory } from '@/lib/types';
-import StatusBadge from './StatusBadge';
 import { Brain, Star } from 'lucide-react';
 
 interface MemoryCardProps {

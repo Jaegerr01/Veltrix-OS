@@ -1,8 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import Link from 'next/link';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
+import { asErr } from '@/lib/errors';
+import DialogOverlay from '@/components/DialogOverlay';
+import PageSkeleton from '@/components/PageSkeleton';
+import { clickable } from '@/lib/a11y';
 
 interface Client {
   id: string;
@@ -71,7 +76,8 @@ export default function ClientsPage() {
   };
 
   useEffect(() => {
-    fetchClients();
+    const t = setTimeout(() => { void fetchClients(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const handleAddClient = async (e: React.FormEvent) => {
@@ -108,7 +114,7 @@ export default function ClientsPage() {
 
       // Refresh List
       await fetchClients();
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       setFormError(`Failed to save client: ${err.message}`);
     }
   };
@@ -121,9 +127,7 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Accessing CRM database..." />
-      </div>
+      <PageSkeleton label="Accessing CRM database..." />
     );
   }
 
@@ -144,7 +148,7 @@ export default function ClientsPage() {
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -176,7 +180,7 @@ export default function ClientsPage() {
               key={c.id}
               className="vx-glass hover:border-white/20"
               style={clientCard}
-              onClick={() => setSelectedClient(c)}
+              {...clickable(() => setSelectedClient(c))}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.04em' }}>
@@ -199,9 +203,9 @@ export default function ClientsPage() {
                 </span>
               </div>
 
-              <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>
                 {c.business_name}
-              </h4>
+              </h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                 {c.contact_name ? `Contact: ${c.contact_name}` : 'No primary contact'}
               </p>
@@ -232,30 +236,15 @@ export default function ClientsPage() {
             </div>
           ))
         ) : (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              textAlign: 'center',
-              padding: 'var(--space-10) 0',
-              color: 'var(--text-dim)',
-              fontSize: 13.5,
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            No clients in your directory. Get proposals accepted or add a client manually.
-          </div>
+          <EmptyState icon="briefcase" title="No clients yet" body="Accepted proposals become clients, or you can add one by hand." action={<span style={{ display: 'inline-flex', gap: 12 }}><button type="button" className="vx-linkbtn" onClick={() => setIsModalOpen(true)}>Add a client</button><Link href="/proposals" className="vx-linkbtn">Open proposals</Link></span>} style={{ gridColumn: '1 / -1' }} />
         )}
       </section>
 
       {/* Add Client Modal */}
       {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Register new client profile" onClose={() => setIsModalOpen(false)}>
           <form
+            noValidate
             onSubmit={handleAddClient}
             className="vx-glass max-w-lg w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
             style={{ background: 'var(--grad-panel)' }}
@@ -264,15 +253,11 @@ export default function ClientsPage() {
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>
                 Register New Client Profile
               </h3>
-              <span style={{ cursor: 'pointer', fontSize: 20, color: 'var(--text-muted)' }} onClick={() => setIsModalOpen(false)}>
-                ×
-              </span>
+              <button type="button" aria-label="Close dialog" onClick={() => setIsModalOpen(false)} style={{ cursor: 'pointer', fontSize: 22, lineHeight: 1, color: 'var(--text-muted)', background: 'none', border: 0, minWidth: 44, minHeight: 44 }}>&times;</button>
             </div>
 
             {formError && (
-              <div style={{ color: 'var(--danger-400)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                ⚠️ {formError}
-              </div>
+              <div role="alert" className="vx-callout" data-tone="bad"><div><p className="vx-callout__body">{formError}</p></div></div>
             )}
 
             <div className="grid grid-cols-2 gap-4">
@@ -298,7 +283,7 @@ export default function ClientsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Service Purchased</label>
-                <select style={inputStyle} value={servicePurchased} onChange={(e) => setServicePurchased(e.target.value)}>
+                <select aria-label="Service purchased" style={inputStyle} value={servicePurchased} onChange={(e) => setServicePurchased(e.target.value)}>
                   <option value="AI Website System">AI Website System</option>
                   <option value="AI Receptionist Voice/Chatbot">AI Receptionist Voice/Chatbot</option>
                   <option value="AI Branding Package">AI Branding Package</option>
@@ -315,7 +300,7 @@ export default function ClientsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Status</label>
-                <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as any)}>
+                <select aria-label="Client status" style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                   <option value="Completed">Completed</option>
@@ -343,17 +328,12 @@ export default function ClientsPage() {
               Ratify Client Contract
             </button>
           </form>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* Client Details Modal */}
       {selectedClient && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedClient(null);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Client details" onClose={() => setSelectedClient(null)}>
           <div
             className="vx-glass max-w-md w-full p-6 rounded-2xl border border-white/[0.08]"
             style={{ background: 'var(--grad-panel)' }}
@@ -422,7 +402,7 @@ export default function ClientsPage() {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   );

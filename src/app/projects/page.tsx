@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
+import { asErr } from '@/lib/errors';
+import DialogOverlay from '@/components/DialogOverlay';
+import PageSkeleton from '@/components/PageSkeleton';
+import { clickable } from '@/lib/a11y';
 
 interface Client {
   id: string;
@@ -62,7 +66,7 @@ export default function ProjectsPage() {
   const [projectName, setProjectName] = useState('');
   const [clientId, setClientId] = useState('');
   const [serviceType, setServiceType] = useState('Website Development');
-  const [status, setStatus] = useState<Project['status']>('Discovery');
+  const [status] = useState<Project['status']>('Discovery');
   const [deadline, setDeadline] = useState('');
   const [deliverablesStr, setDeliverablesStr] = useState('');
   const [notes, setNotes] = useState('');
@@ -90,7 +94,8 @@ export default function ProjectsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const t = setTimeout(() => { void fetchData(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const getClientName = (cid: string) => {
@@ -145,7 +150,7 @@ export default function ProjectsPage() {
 
       // Refresh
       await fetchData();
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       setFormError(`Failed to save project: ${err.message}`);
     }
   };
@@ -173,9 +178,7 @@ export default function ProjectsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Connecting to Delivery Manager..." />
-      </div>
+      <PageSkeleton label="Connecting to Delivery Manager..." />
     );
   }
 
@@ -194,7 +197,7 @@ export default function ProjectsPage() {
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -233,9 +236,9 @@ export default function ProjectsPage() {
                     <span style={{ fontSize: 9.5, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
                       {proj.service_type.toUpperCase()}
                     </span>
-                    <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>
                       {proj.project_name}
-                    </h4>
+                    </h3>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                       Client: <span style={{ color: 'var(--violet-200)' }}>{getClientName(proj.client_id)}</span>
                     </p>
@@ -245,9 +248,9 @@ export default function ProjectsPage() {
                     {/* Status Select */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>WORKFLOW STATE</span>
-                      <select
+                      <select aria-label="Project workflow state"
                         value={proj.status}
-                        onChange={(e) => handleUpdateStatus(proj.id, e.target.value as any)}
+                        onChange={(e) => handleUpdateStatus(proj.id, e.target.value as Parameters<typeof handleUpdateStatus>[1])}
                         style={{
                           height: 32,
                           padding: '0 8px',
@@ -310,7 +313,7 @@ export default function ProjectsPage() {
                       {clientTasks.map((t) => (
                         <div
                           key={t.id}
-                          onClick={() => handleToggleTask(t.id, t.status)}
+                          {...clickable(() => handleToggleTask(t.id, t.status))}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -355,21 +358,15 @@ export default function ProjectsPage() {
             );
           })
         ) : (
-          <div style={{ textAlign: 'center', padding: 'var(--space-10) 0', color: 'var(--text-dim)', fontSize: 13.5, fontFamily: 'var(--font-mono)' }}>
-            No projects in delivery timeline. Link accepted proposals or register projects manually.
-          </div>
+          <EmptyState icon="folder" title="No projects yet" body="Link an accepted proposal or register a project by hand to track delivery." action={<button type="button" className="vx-linkbtn" onClick={() => setIsModalOpen(true)}>Register a project</button>} />
         )}
       </section>
 
       {/* New Project Modal */}
       {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Create project" onClose={() => setIsModalOpen(false)}>
           <form
+            noValidate
             onSubmit={handleCreateProject}
             className="vx-glass max-w-md w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
             style={{ background: 'var(--grad-panel)' }}
@@ -378,15 +375,11 @@ export default function ProjectsPage() {
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>
                 Initialize New Implementation Project
               </h3>
-              <span style={{ cursor: 'pointer', fontSize: 20, color: 'var(--text-muted)' }} onClick={() => setIsModalOpen(false)}>
-                ×
-              </span>
+              <button type="button" aria-label="Close dialog" onClick={() => setIsModalOpen(false)} style={{ cursor: 'pointer', fontSize: 22, lineHeight: 1, color: 'var(--text-muted)', background: 'none', border: 0, minWidth: 44, minHeight: 44 }}>&times;</button>
             </div>
 
             {formError && (
-              <div style={{ color: 'var(--danger-400)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                ⚠️ {formError}
-              </div>
+              <div role="alert" className="vx-callout" data-tone="bad"><div><p className="vx-callout__body">{formError}</p></div></div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -396,7 +389,7 @@ export default function ProjectsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Assign Customer (Client) *</label>
-                <select style={inputStyle} value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+                <select aria-label="Client" style={inputStyle} value={clientId} onChange={(e) => setClientId(e.target.value)} required>
                   {clients.length > 0 ? (
                     clients.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -410,7 +403,7 @@ export default function ProjectsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Service Category</label>
-                <select style={inputStyle} value={serviceType} onChange={(e) => setServiceType(e.target.value)}>
+                <select aria-label="Service category" style={inputStyle} value={serviceType} onChange={(e) => setServiceType(e.target.value)}>
                   <option value="Website Development">Website Development</option>
                   <option value="AI Receptionist">AI Receptionist</option>
                   <option value="Branding">Branding</option>
@@ -468,7 +461,7 @@ export default function ProjectsPage() {
               Deploy Project Roadmap
             </button>
           </form>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   );

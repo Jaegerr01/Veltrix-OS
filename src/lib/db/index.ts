@@ -12,9 +12,9 @@ import { getMemories, addMemory, searchMemories } from './memory';
 import { getAgentLogs, logAgentAction, getToolLogs, logToolAction } from './agents';
 import { getChatMessages, addChatMessage, clearChatMessages } from './chat';
 import { getContentIdeas, addContentIdea, updateContentIdea, getDailyReports, addDailyReport } from './content';
+import { claimForSending } from './sendState';
 import { getApprovalRequests, addApprovalRequest, updateApprovalRequest } from './approvals';
 import { getEntityGoals, addEntityGoal, updateEntityGoal } from './entityGoals';
-import { resetDatabase } from './seed';
 
 export const supabase = _supabase;
 export const isSupabaseConfigured = _isSupabaseConfigured;
@@ -34,6 +34,9 @@ export const db = {
   syncBusinessProfileToMemory,
   syncGoalToMemory,
   syncOfferToMemory,
+
+  // Send-state machine (atomic claim: Approved -> Sending)
+  claimForSending,
 
   // Leads & Lead Scores
   getLeads,
@@ -113,6 +116,9 @@ export const db = {
   addEntityGoal,
   updateEntityGoal,
 
-  // Database Reset
-  resetDatabase,
+  // NOTE: `resetDatabase` (src/lib/db/seed.ts) is deliberately NOT exposed here.
+  // It deletes every row across 15 tables for the current user with no
+  // confirmation, and nothing calls it — leaving it on the shared `db` object
+  // meant any future code could reach it by autocomplete. Import it directly,
+  // behind an explicit confirmation, if a reset feature is ever built.
 };

@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
+import { authFetch } from '@/lib/authFetch';
+import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface Lead {
   id: string;
@@ -17,7 +20,12 @@ interface Followup {
   followup_date: string;
   followup_type: string;
   message?: string;
-  status: 'Pending' | 'Drafted' | 'Approved' | 'Sent' | 'Completed' | 'Skipped';
+  status: 'Pending' | 'Drafted' | 'Approved' | 'Sending' | 'Sent' | 'Failed' | 'Completed' | 'Skipped';
+  provider?: string | null;
+  provider_message_id?: string | null;
+  sent_at?: string | null;
+  error?: string | null;
+  attempts?: number | null;
   created_at: string;
 }
 
@@ -61,6 +69,8 @@ export default function FollowUpsPage() {
   const [selectedDay, setSelectedDay] = useState(DAY_OPTIONS[0]);
   const [composerMessage, setComposerMessage] = useState('');
   const [creating, setCreating] = useState(false);
+  const refreshFollowups = async () => { setFollowups((await db.getFollowups()) as Followup[]); };
+  const { busyId, notice, setNotice, run } = useSendAction(refreshFollowups);
 
   const fetchData = async () => {
     try {
@@ -81,7 +91,8 @@ export default function FollowUpsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const t = setTimeout(() => { void fetchData(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const getLeadName = (id: string) => {
@@ -89,27 +100,29 @@ export default function FollowUpsPage() {
     return l ? l.business_name : 'Unknown Prospect';
   };
 
-  const getFollowupBody = (leadName: string, type: string) => {
-    if (type.includes('Day 3')) {
-      return `Hi ${leadName}, just wanted to check if you had a chance to look at the AI automation overview I sent over. Let me know if you have any questions!`;
-    }
-    if (type.includes('Day 7')) {
-      return `Hey ${leadName}, thought you might find this interesting. We recently launched a chatbot for a local practice that automated 40% of their calls. Would love to show you how it works.`;
-    }
-    if (type.includes('Day 14')) {
-      return `Hi ${leadName}, just checking in one last time regarding our chatbot demonstration. Let me know if we should schedule a call or pause here.`;
-    }
-    return `Hello ${leadName}, it's been a while since we connected. We've rolled out some updates to our AI Receptionist voice platform that I think you'd love. Let me know if you want to take a look!`;
-  };
-
   const handleCreateDraft = async () => {
     if (!selectedLeadId) return;
     setCreating(true);
 
-    const leadName = getLeadName(selectedLeadId);
-    const body = composerMessage || getFollowupBody(leadName, selectedDay);
-
     try {
+      if (!composerMessage.trim()) {
+        // No text typed: ask the Follow-up agent (Gemini) to write a real draft. No canned template is ever used.
+        const day = parseInt(selectedDay.match(/\d+/)?.[0] || '3', 10);
+        const res = await authFetch('/api/ai/followup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leadId: selectedLeadId, sequenceDay: day }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          setNotice({ ok: false, text: `AI draft failed: ${data.error || res.status}${data.hint ? ' - ' + data.hint : ''}` });
+        } else {
+          setNotice({ ok: true, text: 'Draft created by the Follow-up agent. It is NOT sent: review it below, then approve & send.' });
+        }
+        setFollowups((await db.getFollowups()) as Followup[]);
+        return;
+      }
+      const body = composerMessage.trim();
       await db.addFollowup({
         lead_id: selectedLeadId,
         followup_date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
@@ -141,13 +154,11 @@ export default function FollowUpsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Loading followup workflows..." />
-      </div>
+      <PageSkeleton label="Loading followup workflows..." />
     );
   }
 
-  const scheduleList = followups.filter(f => ['Pending', 'Drafted', 'Approved'].includes(f.status));
+  const scheduleList = followups.filter(f => ['Pending', 'Drafted', 'Approved', 'Sending', 'Failed'].includes(f.status));
   const completedList = followups.filter(f => ['Sent', 'Completed', 'Skipped'].includes(f.status));
 
   return (
@@ -157,10 +168,12 @@ export default function FollowUpsPage() {
         title="Follow-ups Pipeline"
         subtitle="Lucas orchestrates lead retention sequences — nudging, dropping values, and re-engaging prospects."
         stats={[
-          { value: String(scheduleList.length), label: 'PENDING REMINDERS', color: 'var(--warn-400)' },
-          { value: String(completedList.length), label: 'COMPLETED ACTIONS', color: 'var(--signal-400)' },
+          { value: String(scheduleList.length), label: 'NOT SENT YET', color: 'var(--warn-400)' },
+          { value: String(followups.filter(f => f.status === 'Sent' && !!f.provider_message_id).length), label: 'CONFIRMED SENT', color: 'var(--signal-400)' },
         ]}
       />
+
+      <Notice notice={notice} onClose={() => setNotice(null)} />
 
       <section style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 'var(--space-6)', alignItems: 'start' }}>
         {/* Left lists */}
@@ -195,6 +208,7 @@ export default function FollowUpsPage() {
                       <span style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>
                         {getLeadName(f.lead_id)}
                       </span>
+                      <SendStateBadge record={f} />
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--warn-400)' }}>
                         {f.followup_type.toUpperCase()} · Due {f.followup_date}
                       </span>
@@ -204,21 +218,16 @@ export default function FollowUpsPage() {
                         &ldquo;{f.message}&rdquo;
                       </p>
                     )}
+                    <SendDetails record={f} />
                     <div style={{ display: 'flex', gap: 8, marginTop: 4, justifyContent: 'flex-end' }}>
-                      <button
-                        onClick={() => handleUpdateStatus(f.id, 'Sent')}
-                        style={{
-                          background: 'rgba(46,230,160,0.1)',
-                          border: '1px solid rgba(46,230,160,0.2)',
-                          color: 'var(--signal-400)',
-                          fontSize: 11,
-                          padding: '4px 10px',
-                          borderRadius: 4,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Mark Sent
-                      </button>
+                      {f.status === 'Failed' ? (
+                        <SendButton label="Retry send" tone="warn" busy={busyId === f.id} onClick={() => run('followups', f.id, { retry: true })} />
+                      ) : f.status !== 'Sending' ? (
+                        <>
+                          <SendButton label="Approve & send" tone="info" busy={busyId === f.id} onClick={() => run('followups', f.id)} title="Approves and emails this follow-up to the lead now" />
+                          <SendButton label="Mark sent (I sent it)" tone="ok" busy={busyId === f.id} onClick={() => run('followups', f.id, { manual: true })} title="You sent it yourself outside the app. Records your confirmation only." />
+                        </>
+                      ) : null}
                       <button
                         onClick={() => handleUpdateStatus(f.id, 'Skipped')}
                         style={{
@@ -238,9 +247,7 @@ export default function FollowUpsPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', color: 'var(--text-dim)', fontSize: 12.5, fontFamily: 'var(--font-mono)' }}>
-                No active follow-up reminders at this time.
-              </div>
+              <EmptyState compact icon="calendar" title="Nothing due right now" body="Reminders appear here when a lead needs a follow-up." />
             )}
           </div>
 
@@ -285,9 +292,7 @@ export default function FollowUpsPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', color: 'var(--text-dim)', fontSize: 12.5, fontFamily: 'var(--font-mono)' }}>
-                No follow-ups have been logged yet.
-              </div>
+              <EmptyState compact icon="check" title="No follow-ups logged yet" body="Once you log or send one, the history is kept here." />
             )}
           </div>
         </div>
@@ -315,7 +320,7 @@ export default function FollowUpsPage() {
           <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', marginBottom: 8 }}>
             Select Potential Client (Lead)
           </div>
-          <select
+          <select aria-label="Potential client (lead)"
             value={selectedLeadId}
             onChange={(e) => setSelectedLeadId(e.target.value)}
             style={selectStyle}
@@ -334,7 +339,7 @@ export default function FollowUpsPage() {
           <div className="vx-eyebrow" style={{ color: 'var(--text-muted)', margin: 'var(--space-5) 0 8px' }}>
             Select Follow-up Stage
           </div>
-          <select
+          <select aria-label="Follow-up stage"
             value={selectedDay}
             onChange={(e) => setSelectedDay(e.target.value)}
             style={selectStyle}

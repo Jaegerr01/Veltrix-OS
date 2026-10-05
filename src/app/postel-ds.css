@@ -1,0 +1,554 @@
+/* ============================================================
+   PostelOS — DESIGN SYSTEM
+   The single source of truth for every value in the app.
+
+   Originally ported from the Claude Design handoff bundle, then
+   consolidated: the legacy "cyber neon" palette that used to live
+   alongside this file in globals.css now aliases into these tokens,
+   so there is one violet, one cyan, one green — not two of each.
+
+   House style: Postel Studio — deep black surfaces, electric-purple primary
+   (violet #8B5CF6 → neon #B14CFF → magenta-purple #C026D3), white type,
+   soft purple glows on hover / focus / active. Blue and cyan survive only
+   as minor info accents.
+   (Webfonts are loaded via next/font in layout.tsx.)
+   ============================================================ */
+
+:root {
+  /* ---- Core neutrals — deepened toward void ---- */
+  --ink-900:     #04030C;  /* app background */
+  --ink-800:     #080613;  /* base surface */
+  --ink-700:     #0D0A1A;  /* raised surface / panel */
+  --ink-600:     #140F26;  /* card / elevated */
+  --ink-500:     #241A4A;  /* hover surface */
+  --ink-400:     #35286E;  /* border-strong */
+  --ink-300:     #473792;
+
+  --white:       #FFFFFF;
+  --mist-100:    #F3EEFF;
+  --mist-200:    #D4CAF2;
+  --mist-300:    #A99FD0;
+  /* Lightened from #6E6794 (3.9:1 — failed WCAG AA). This drives --text-dim,
+     which labels 10–12px data throughout the design system, so it must clear
+     4.5:1 against --ink-900. Now ~4.8:1. */
+  --mist-400:    #8B82B0;
+  --mist-500:    #554E7A;
+
+  /* ---- Brand violet (primary) ---- */
+  --violet-50:   #F5F0FF;
+  --violet-100:  #E9DDFF;
+  --violet-200:  #CDB8FF;
+  --violet-300:  #A78BFA;
+  --violet-400:  #8B5CF6;
+  --violet-500:  #7C3AED;
+  --violet-600:  #6D28D9;
+  --violet-700:  #5B21B6;
+  
+  /* ---- Neon accent (glow / highlights) — from the Postel splash ---- */
+  --neon-400:    #C47BFF;
+  --neon-500:    #B14CFF;  /* electric neon purple */
+  --neon-600:    #9B2EF0;
+  --glow-neon:   0 0 28px rgba(177,76,255,0.55), 0 0 8px rgba(196,123,255,0.7);
+
+  /* ---- Electric blue (secondary) ---- */
+  --blue-300:    #9AA5FF;
+  --blue-400:    #6F7DFF;
+  --blue-500:    #5766F2;
+  --blue-600:    #4452DC;
+  --blue-700:    #3541B4;
+
+  /* ---- Cyan accent ---- */
+  --cyan-300:    #67E8F9;
+  --cyan-400:    #22D3EE;
+  --cyan-500:    #06B6D4;
+
+  /* ---- Magenta accent ---- */
+  --magenta-300: #F0ABFC;
+  --magenta-400: #D946EF;
+  --magenta-500: #C026D3;
+
+  /* ---- Signal: green ("Active"/online) ---- */
+  --signal-300:  #6EF7C0;
+  --signal-400:  #2EE6A0;
+  --signal-500:  #14C98A;
+
+  /* ---- Status ---- */
+  --warn-400:    #F5B544;
+  --warn-500:    #E89C1C;
+  --danger-300:  #FF8099;
+  --danger-400:  #FF4D6D;
+  --danger-500:  #E5294F;
+
+  /* ---- Semantic surfaces ---- */
+  --bg-app:          var(--ink-900);
+  --bg-base:         var(--ink-800);
+  --surface-panel:   var(--ink-700);
+  --surface-card:    var(--ink-600);
+  --surface-hover:   var(--ink-500);
+  --surface-overlay: rgba(3, 2, 10, 0.78);   /* modal / drawer scrim */
+
+  /* ---- Text ---- */
+  --text-strong:     var(--white);
+  --text-body:       var(--mist-100);
+  --text-muted:      var(--mist-300);
+  --text-dim:        var(--mist-400);
+  --text-disabled:   var(--mist-500);
+  --text-on-accent:  var(--white);
+  --text-link:       var(--violet-300);
+
+  /* ---- Brand ---- */
+  --brand:           var(--violet-400);
+  --brand-strong:    var(--violet-500);
+  --accent-cyan:     var(--cyan-400);
+
+  --success:         var(--signal-400);
+  --warning:         var(--warn-400);
+  --danger:          var(--danger-400);
+  --info:            var(--cyan-400);
+
+  /* ---- Borders ---- */
+  --border-subtle:   rgba(139, 92, 246, 0.12);
+  --border-default:  rgba(139, 92, 246, 0.22);
+  --border-strong:   rgba(139, 92, 246, 0.42);
+  --hairline:        rgba(237, 234, 251, 0.08);
+
+  /* ---- Focus ----
+     The app previously had no focus styling at all, against 39 `outline: none`
+     declarations. --focus-ring is the accessibility floor; see the
+     :focus-visible rule below. */
+  --border-focus:    var(--violet-300);
+  --focus-ring:      var(--neon-500);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* ---- Corner radii ---- */
+  --radius-xs:   6px;
+  --radius-sm:   10px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+  --radius-2xl:  36px;
+  --radius-pill: 999px;
+  --radius-full: 50%;
+
+  --bw-hair:   1px;
+
+  /* ---- Ambient shadows ---- */
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md:   0 6px 20px rgba(0,0,0,0.45);
+  --shadow-lg:   0 18px 50px rgba(0,0,0,0.55);
+  --shadow-xl:   0 32px 80px rgba(0,0,0,0.6);
+
+  /* ---- Glows — for active/focus emphasis, not general decoration ---- */
+  --glow-violet:  0 0 24px rgba(139,92,246,0.5), 0 0 6px rgba(177,76,255,0.65);
+  --glow-cyan:    0 0 24px rgba(34,211,238,0.45),  0 0 4px rgba(34,211,238,0.55);
+  --glow-signal:  0 0 18px rgba(46,230,160,0.5),   0 0 4px rgba(46,230,160,0.6);
+  --glow-soft:    0 0 60px rgba(177,76,255,0.28);
+
+  --sheen-top:    inset 0 1px 0 rgba(255,255,255,0.06);
+  --inner-ring:   inset 0 0 0 1px rgba(139,92,246,0.18);
+
+  --elev-card:    var(--shadow-md), var(--sheen-top);
+  --elev-popover: var(--shadow-lg), var(--inner-ring);
+
+  --blur-sm:   blur(6px);
+  --blur-md:   blur(14px);
+  --blur-lg:   blur(28px);
+
+  /* ---- Gradients ----
+     Reserved for the dashboard hero, primary CTAs and the panel finish.
+     Decorative aurora/metal gradients were removed. */
+  --grad-brand: linear-gradient(135deg, #7C3AED 0%, #9333EA 50%, #B02FE0 100%);
+  --grad-panel: linear-gradient(155deg, rgba(38,22,84,0.58) 0%, rgba(9,6,22,0.62) 100%);
+  --grad-halo:  radial-gradient(60% 60% at 50% 0%, rgba(177,76,255,0.38) 0%, rgba(139,92,246,0) 70%);
+
+  --bg-space: radial-gradient(120% 80% at 12% -10%, rgba(139,92,246,0.28) 0%, rgba(139,92,246,0) 46%),
+              radial-gradient(90% 70% at 100% 0%, rgba(177,76,255,0.15) 0%, rgba(177,76,255,0) 42%),
+              radial-gradient(100% 90% at 50% 125%, rgba(124,58,237,0.24) 0%, rgba(124,58,237,0) 54%),
+              var(--ink-900);
+
+  /* ---- Motion ---- */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:    120ms;
+  --dur-base:    220ms;
+  --dur-slow:    420ms;
+
+  /* ---- Spacing (8px grid) ---- */
+  --space-0:   0;
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+  --space-20:  80px;
+  --space-24:  96px;
+
+  --control-h-sm: 32px;
+  --control-h-md: 40px;
+  --control-h-lg: 48px;
+
+  --sidebar-w:     264px;
+
+  /* ---- Type families ----
+     Two fonts only: Outfit (geometric) = display, Jakarta = everything else.
+     --font-mono intentionally resolves to Jakarta — data alignment comes from
+     tabular-nums on body, not from a third font family.
+     Actual family names are injected by next/font in layout.tsx. */
+  --font-display: var(--font-outfit), system-ui, sans-serif;
+  --font-body:    var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  --font-mono:    var(--font-jakarta), system-ui, -apple-system, sans-serif;
+
+  /* ---- Type scale ----
+     Replaces the magic numbers (10.5, 11.5, 12.5, 13, 19, 26 …) that used to be
+     written inline on every element. Sized for a dense operator UI, so the body
+     step is 14px rather than 16px. */
+  --text-2xs:     0.6875rem;  /* 11px — eyebrows, micro labels */
+  --text-xs:      0.75rem;    /* 12px — helper text, table meta */
+  --text-sm:      0.8125rem;  /* 13px — secondary body, dense rows */
+  --text-base:    0.875rem;   /* 14px — body default */
+  --text-lg:      1rem;       /* 16px — emphasised body, card titles */
+  --text-xl:      1.1875rem;  /* 19px — section titles */
+  --text-2xl:     1.5rem;     /* 24px — page titles */
+  --text-3xl:     1.875rem;   /* 30px — key metrics */
+  --text-display: 2.5rem;     /* 40px — hero only */
+
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+  --fw-extrabold: 800;
+
+  /* Line heights, paired to the scale above. */
+  --lh-display:   1.05;  /* --text-3xl and up */
+  --lh-tight:     1.05;
+  --lh-snug:      1.2;   /* --text-xl / --text-2xl */
+  --lh-normal:    1.5;   /* body */
+  --lh-relaxed:   1.65;  /* long-form prose */
+
+  --ls-mega:      0.18em;
+  --ls-wide:      0.08em;
+  --ls-normal:    0;
+  --ls-tight:     -0.02em;
+}
+
+/* ---- Typography sugar classes ---- */
+.vx-eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Frost, for the few hero surfaces that earn it. Most panels are solid. */
+.vx-glass {
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+}
+
+/* ---- Base app chrome ---- */
+.vx-root {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.011em;
+  font-family: var(--font-body);
+  color: var(--text-body);
+}
+.vx-root ::selection { background: rgba(139,92,246,0.35); color: #fff; }
+.vx-root ::-webkit-scrollbar { width: 8px; height: 8px; }
+.vx-root ::-webkit-scrollbar-thumb { background: var(--ink-400); border-radius: 999px; }
+.vx-root ::-webkit-scrollbar-track { background: transparent; }
+.vx-root a { color: var(--text-link); }
+.vx-root a:hover { color: var(--violet-200); }
+
+/* ============================================================
+   FOCUS — accessibility floor
+   Keyboard users previously had no visible focus anywhere in the app.
+   `!important` is deliberate: it has to defeat the inline `outline: none`
+   declarations still present in page markup, which a stylesheet rule
+   cannot otherwise outrank. Components may raise the ring, never remove it.
+   ============================================================ */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring) !important;
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Skip link — visually hidden until focused. */
+.vx-skip-link {
+  position: fixed;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 100;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  transform: translateY(-200%);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.vx-skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/* ============================================================
+   DATALIST — table on desktop, cards on mobile
+   Paired with src/components/ds/DataList.tsx. The component sets explicit
+   ARIA roles because the display switch below removes the implicit table
+   semantics browsers would otherwise expose.
+   ============================================================ */
+.vx-datalist table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.vx-datalist th {
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-display);
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+
+.vx-datalist td {
+  padding: var(--space-4);
+  color: var(--text-body);
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: middle;
+}
+
+.vx-datalist tbody tr:last-child td { border-bottom: none; }
+
+.vx-datalist tr[data-clickable] { cursor: pointer; }
+.vx-datalist tr[data-clickable]:hover td { background: var(--surface-hover); }
+
+/* Below the md breakpoint each row becomes a card and every cell shows its
+   column header as an inline label. */
+@media (max-width: 767px) {
+  .vx-datalist thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .vx-datalist table,
+  .vx-datalist tbody,
+  .vx-datalist tr,
+  .vx-datalist td {
+    display: block;
+    width: 100%;
+  }
+
+  .vx-datalist tr {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface-card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+  }
+
+  .vx-datalist td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-2) 0;
+    text-align: left !important;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .vx-datalist td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-family: var(--font-display);
+    font-size: var(--text-2xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--ls-wide);
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* The primary column reads as the card's title, so it loses its label and
+     spans the full width. */
+  .vx-datalist td[data-primary] {
+    display: block;
+    padding-top: var(--space-3);
+    font-size: var(--text-lg);
+    font-weight: var(--fw-semibold);
+    color: var(--text-strong);
+  }
+  .vx-datalist td[data-primary]::before { content: none; }
+
+  .vx-datalist td:last-child { border-bottom: none; }
+}
+
+/* ============================================================
+   KEYFRAMES — only the ones that are actually used
+   ============================================================ */
+@keyframes vxFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* For elements centred with top/left 50%. */
+@keyframes vxHaloBreathe {
+  0%, 100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.55; }
+  50%      { transform: translate(-50%,-50%) scale(1.14); opacity: 0.9; }
+}
+
+/* Skeleton shimmer. Neutralised by the reduced-motion rule below. */
+@keyframes vxShimmer {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0 50%; }
+}
+
+/* Plain rotation. This used to bake in `translate(-50%,-50%)`, which yanked
+   every spinner that wasn't centred that way up and to the left by half its
+   size — all five call sites (the refresh icons and PostelSpinner's ring). */
+@keyframes vxRingSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   POSTEL SPINNER — mark + orbiting neon ring
+   Paired with src/components/ds/PostelSpinner.tsx
+   ============================================================ */
+.vx-spinner { position: relative; display: grid; place-items: center; }
+.vx-spinner__halo {
+  position: absolute; top: 50%; left: 50%; width: 150%; height: 150%;
+  border-radius: 50%; pointer-events: none; filter: blur(8px);
+  background: radial-gradient(circle, rgba(177,76,255,0.5) 0%, rgba(139,92,246,0.18) 45%, transparent 70%);
+  animation: vxHaloBreathe 3s ease-in-out infinite;
+}
+.vx-spinner__track { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(139,92,246,0.2); }
+.vx-spinner__ring,
+.vx-spinner__orbit { position: absolute; inset: 0; border-radius: 50%; animation: vxRingSpin 1.6s linear infinite; }
+.vx-spinner__ring {
+  background: conic-gradient(from 0deg, rgba(177,76,255,0) 0deg, rgba(177,76,255,0) 100deg, rgba(139,92,246,0.85) 310deg, #E9D5FF 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-w, 2px) - 0.5px), #000 calc(100% - var(--ring-w, 2px)));
+          mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-w, 2px) - 0.5px), #000 calc(100% - var(--ring-w, 2px)));
+}
+.vx-spinner__orbit::after {
+  content: ''; position: absolute; top: calc(var(--ring-w, 2px) / -2 - 2px); left: 50%;
+  width: 6px; height: 6px; margin-left: -3px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 10px 3px rgba(177,76,255,0.9), 0 0 22px 6px rgba(139,92,246,0.5);
+}
+.vx-spinner__mark { position: relative; animation: vxMarkPulse 2.4s ease-in-out infinite; }
+
+@keyframes vxMarkPulse {
+  0%, 100% { opacity: 0.82; filter: drop-shadow(0 0 4px rgba(177,76,255,0.4)); }
+  50%      { opacity: 1;    filter: drop-shadow(0 0 12px rgba(196,123,255,0.9)); }
+}
+@keyframes vxOrbFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+/* ============================================================
+   LOGIN / SPLASH — dark stage, glowing orb, light ribbons
+   Mirrors public/brand/postel-splash-dark.png. Used by AuthGate.
+   ============================================================ */
+.vx-login {
+  position: relative; min-height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-8); padding: var(--space-8) var(--space-5);
+  background:
+    radial-gradient(60% 45% at 50% 30%, rgba(124,58,237,0.34) 0%, rgba(70,24,160,0.14) 48%, transparent 78%),
+    radial-gradient(80% 40% at 50% 112%, rgba(139,92,246,0.28) 0%, transparent 70%),
+    var(--ink-900);
+}
+.vx-login__stars {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.7;
+  background-image:
+    radial-gradient(1px 1px at 8% 18%, rgba(196,123,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 22% 64%, rgba(255,255,255,0.7) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 35% 12%, rgba(177,76,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 47% 82%, rgba(196,123,255,0.8) 50%, transparent 52%),
+    radial-gradient(1px 1px at 63% 24%, rgba(255,255,255,0.6) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 78% 70%, rgba(177,76,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 88% 15%, rgba(196,123,255,0.8) 50%, transparent 52%),
+    radial-gradient(1px 1px at 94% 52%, rgba(255,255,255,0.6) 50%, transparent 52%),
+    radial-gradient(1px 1px at 15% 88%, rgba(196,123,255,0.7) 50%, transparent 52%),
+    radial-gradient(1px 1px at 71% 92%, rgba(255,255,255,0.5) 50%, transparent 52%);
+}
+.vx-login__ribbon {
+  position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; pointer-events: none;
+  filter: blur(46px); opacity: 0.55;
+  background: conic-gradient(from 210deg, transparent 0deg, rgba(177,76,255,0.55) 70deg, rgba(124,58,237,0.2) 120deg, transparent 200deg);
+}
+.vx-login__ribbon--tl { top: -48vmax; left: -38vmax; }
+.vx-login__ribbon--br { bottom: -50vmax; right: -40vmax; transform: rotate(180deg); }
+.vx-login__floor {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 24vh; pointer-events: none;
+  background: linear-gradient(to top, rgba(139,92,246,0.16), transparent);
+  border-top: 1px solid rgba(139,92,246,0.12);
+}
+.vx-login__brand { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-5); }
+.vx-login__orb {
+  position: relative; width: 156px; height: 156px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 28%, rgba(210,160,255,0.55), rgba(110,40,225,0.38) 46%, rgba(18,7,44,0.75) 78%);
+  border: 1px solid rgba(196,123,255,0.4);
+  box-shadow: 0 0 56px 6px rgba(139,92,246,0.5), 0 0 130px 26px rgba(177,76,255,0.22), inset 0 0 36px rgba(255,255,255,0.08);
+  animation: vxOrbFloat 6s ease-in-out infinite;
+}
+.vx-login__orb::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.16) 40deg, transparent 110deg, rgba(177,76,255,0.3) 220deg, transparent 300deg);
+  -webkit-mask: radial-gradient(circle, transparent 38%, #000 100%); mask: radial-gradient(circle, transparent 38%, #000 100%);
+  animation: vxRingSpin 20s linear infinite;
+}
+.vx-login__card {
+  position: relative; z-index: 1; width: 100%; max-width: 420px; padding: var(--space-8);
+  border-radius: var(--radius-xl); overflow: hidden;
+  background: linear-gradient(160deg, rgba(34,20,76,0.62) 0%, rgba(8,5,20,0.78) 100%);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xl), 0 0 80px rgba(139,92,246,0.14), var(--sheen-top);
+  backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
+}
+.vx-login__card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--neon-500), transparent);
+}
+@media (max-width: 480px) {
+  .vx-login { gap: var(--space-5); }
+  .vx-login__orb { width: 120px; height: 120px; }
+  .vx-login__card { padding: var(--space-6); }
+}
+
+/* ============================================================
+   REDUCED MOTION
+   The previous rule matched `[style*="animation"]` only, so it missed
+   transitions, framer-motion's JS-driven transforms, and the canvas loop
+   entirely. Components that animate outside CSS check the media query
+   directly (see CeoSphere / OrbitalCommand).
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

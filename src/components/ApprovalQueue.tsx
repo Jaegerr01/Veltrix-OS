@@ -1,9 +1,9 @@
 'use client';
 
-// Entity Phase 1 — Barry's Approval Queue.
+// Entity Phase 1 — Approval Queue (titled from the saved profile name).
 // Every autonomous external action lands here as a decision-ready card:
 // context, exact payload, agent confidence. Approve / Edit & Approve / Reject.
-// Doctrine: Obsidian → Entity/VELTRIX Constitution.md (Article 3).
+// Doctrine: PostelOS Constitution (Memory Vault note "Constitution") (Article 3).
 
 import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,6 +11,8 @@ import { ShieldCheck, Check, X, Pencil, RefreshCw, ChevronDown, ChevronUp, Send,
 import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
 import type { ApprovalRequest } from '@/lib/types';
+import { asErr } from '@/lib/errors';
+import { approvalQueueTitle, DISPLAY_NAME_KEY } from '@/lib/displayName';
 
 const DEPT_COLORS: Record<string, string> = {
   revenue: 'text-neon-purple bg-neon-purple/10 border-neon-purple/20',
@@ -26,22 +28,33 @@ export default function ApprovalQueue() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedText, setEditedText] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [title, setTitle] = useState('Approval Queue');
+  useEffect(() => {
+    const id = setTimeout(() => setTitle(approvalQueueTitle(localStorage.getItem(DISPLAY_NAME_KEY))), 0);
+    return () => clearTimeout(id);
+  }, []);
   const toast = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authFetch('/api/entity/approvals?status=pending');
-      const data = await res.json();
-      if (data.success) setRequests(data.requests || []);
-    } catch {
-      // silent — panel shows empty state
+      // pending = waiting for a decision; failed = approved but the action did NOT happen (retryable)
+      const [p, f] = await Promise.all([
+        authFetch('/api/entity/approvals?status=pending').then(r => r.json()),
+        authFetch('/api/entity/approvals?status=failed').then(r => r.json()),
+      ]);
+      if (p.success || f.success) setRequests([...(f.requests || []), ...(p.requests || [])]);
+      else setLoadError(p.error || f.error || 'Could not load the approval queue.');
+      if (p.success || f.success) setLoadError(null);
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
+      setLoadError(`Could not load the approval queue: ${e?.message || 'network error'}`);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); }, [load]);
 
   const decide = async (
     req: ApprovalRequest,
@@ -55,9 +68,13 @@ export default function ApprovalQueue() {
         body: JSON.stringify({ decision, editedPayload }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.executed === false) {
+        // Approved, but the action did NOT happen. Say so plainly and keep the card for retry.
+        toast.error('Approved - but NOT sent', data.error || data.executionNote || 'The action did not complete.');
+        await load();
+      } else if (data.success) {
         if (decision === 'approve') {
-          toast.success('Approved', data.executionNote || 'Action executed.');
+          toast.success('Done', data.executionNote || 'Action executed.');
         } else {
           toast.info('Rejected', 'The entity will learn from this.');
         }
@@ -67,7 +84,7 @@ export default function ApprovalQueue() {
       } else {
         toast.error('Decision failed', data.error);
       }
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       toast.error('Decision failed', e?.message);
     } finally {
       setBusyId(null);
@@ -77,7 +94,7 @@ export default function ApprovalQueue() {
   const startEdit = (req: ApprovalRequest) => {
     setEditingId(req.id);
     setExpandedId(req.id);
-    setEditedText(String((req.payload as any)?.text ?? ''));
+    setEditedText(String((req.payload as { text?: unknown } | undefined)?.text ?? ''));
   };
 
   return (
@@ -85,24 +102,33 @@ export default function ApprovalQueue() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.18em]">Entity · Propose-then-Approve</p>
-          <h3 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
+          <h2 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
             <ShieldCheck size={15} className="text-neon-purple" />
-            Barry&apos;s Approval Queue
+            {title}
             <span className="text-[11px] font-mono font-normal text-neon-purple bg-neon-purple/10 px-1.5 py-0.5 rounded-full border border-neon-purple/20">
               {requests.length}
             </span>
-          </h3>
+          </h2>
         </div>
         <button
           onClick={load}
           className="p-1.5 rounded-lg hover:bg-white/5 text-white/30 hover:text-neon-cyan transition-colors cursor-pointer"
           title="Refresh queue"
+          aria-label="Refresh approval queue"
         >
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
 
-      {requests.length === 0 && !loading && (
+      {loadError && (
+        <div className="rounded-lg border border-red-400/30 bg-red-400/5 p-2.5 text-[11px] font-mono text-red-300">{loadError}</div>
+      )}
+
+      {requests.length === 0 && loading && !loadError && (
+        <div role="status" className="py-8 text-center text-[11px] font-mono text-white/25">Loading approvals...</div>
+      )}
+
+      {requests.length === 0 && !loading && !loadError && (
         <div className="py-8 text-center text-[11px] font-mono text-white/25">
           ✓ Queue clear — nothing awaiting your decision
         </div>
@@ -110,7 +136,7 @@ export default function ApprovalQueue() {
 
       <AnimatePresence>
         {requests.map(req => {
-          const payload = (req.payload ?? {}) as any;
+          const payload = (req.payload ?? {}) as Record<string, string | undefined>;
           const expanded = expandedId === req.id;
           const editing = editingId === req.id;
           const busy = busyId === req.id;
@@ -139,14 +165,22 @@ export default function ApprovalQueue() {
                       <span className="text-[9px] font-mono text-white/30">confidence {req.confidence}/10</span>
                     )}
                   </div>
-                  <h4 className="text-[13px] font-semibold text-white mt-1.5 leading-snug">{req.title}</h4>
+                  <h3 className="text-[13px] font-semibold text-white mt-1.5 leading-snug">{req.title}</h3>
+                  {req.status === 'failed' && (
+                    <p className="text-[11px] mt-1 font-mono text-red-300 break-words">
+                      Approved earlier, but NOT sent: {req.execution_result || 'the action failed'}. Fix the cause (see Settings → Email), then retry.
+                    </p>
+                  )}
                   {req.recommendation && (
                     <p className="text-[11px] text-neon-cyan/70 mt-0.5 font-sans">↳ {req.recommendation}</p>
                   )}
                 </div>
                 <button
+                  type="button"
+                  aria-label={expanded ? `Hide details for ${req.title}` : `Show details for ${req.title}`}
+                  aria-expanded={expanded}
                   onClick={() => setExpandedId(expanded ? null : req.id)}
-                  className="p-1 rounded-lg hover:bg-white/5 text-white/25 hover:text-white/60 transition-colors cursor-pointer shrink-0"
+                  className="vx-tap p-1 rounded-lg hover:bg-white/5 text-white/25 hover:text-white/60 transition-colors cursor-pointer shrink-0"
                 >
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
@@ -222,7 +256,7 @@ export default function ApprovalQueue() {
                     onClick={() => decide(req, 'approve')}
                     className="flex items-center gap-1.5 text-[11px] font-mono text-neon-green bg-neon-green/10 border border-neon-green/25 px-3 py-1.5 rounded-lg hover:bg-neon-green/20 transition-colors cursor-pointer disabled:opacity-40"
                   >
-                    <Check size={11} /> {busy ? 'Executing…' : isSocialDM ? 'I sent it — mark Sent' : 'Approve'}
+                    <Check size={11} /> {busy ? 'Executing…' : isSocialDM ? 'I sent it — mark Sent' : req.status === 'failed' ? 'Retry send' : req.type.endsWith('_send') ? 'Approve & send' : 'Approve'}
                   </button>
                 )}
                 {!editing && payload.text !== undefined && (

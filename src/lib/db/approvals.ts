@@ -19,12 +19,6 @@ export async function getApprovalRequests(status?: string): Promise<ApprovalRequ
 export async function addApprovalRequest(
   req: Omit<ApprovalRequest, 'id' | 'created_at' | 'status'> & { status?: ApprovalRequest['status'] }
 ): Promise<ApprovalRequest> {
-  const fallback: ApprovalRequest = {
-    id: 'mock-approval-' + Date.now(),
-    created_at: new Date().toISOString(),
-    status: 'pending',
-    ...req,
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -34,7 +28,7 @@ export async function addApprovalRequest(
       .single();
     if (error) throw error;
     return data;
-  }, fallback, 'addApprovalRequest');
+  }, 'addApprovalRequest');
 }
 
 export async function updateApprovalRequest(
@@ -52,5 +46,5 @@ export async function updateApprovalRequest(
       .single();
     if (error) throw error;
     return data;
-  }, null, 'updateApprovalRequest');
+  }, 'updateApprovalRequest');
 }

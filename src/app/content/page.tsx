@@ -92,7 +92,7 @@ export default function ContentPage() {
             <span style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 'var(--lh-normal)' }}>The AI will write a complete post with hook lines and post text customized for your potential clients.</span>
           </div>
           <div
-            onClick={writePosts}
+            role="button" tabIndex={0} onClick={writePosts} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); writePosts(); } }}
             style={{ textAlign: 'center', padding: '13px 0', borderRadius: 'var(--radius-md)', background: 'var(--grad-brand)', color: '#fff', fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: 'var(--glow-violet)', opacity: writing ? 0.7 : 1 }}
           >
             {writing ? 'Writing…' : 'Write Posts with AI'}

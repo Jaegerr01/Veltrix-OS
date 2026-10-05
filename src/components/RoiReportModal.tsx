@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, TrendingUp, Calendar, CheckSquare, DollarSign, BarChart2, Zap, Send, Loader2 } from 'lucide-react';
 import { Client } from '@/lib/types';
+import DialogOverlay from '@/components/DialogOverlay';
 
 interface RoiMetrics {
   setup_paid: number;
@@ -104,15 +105,16 @@ export default function RoiReportModal({ report, onClose, onSendEmail, canSendEm
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <DialogOverlay label="Client ROI report" onClose={onClose}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        aria-hidden="true"
         onClick={onClose}
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-neon-purple/30 bg-[#0A0A0F] shadow-[0_0_60px_rgba(168,85,247,0.15)]">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-neon-purple/30 bg-cyber-bg">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between p-6 border-b border-white/5 bg-[#0A0A0F]">
           <div>
@@ -171,7 +173,7 @@ export default function RoiReportModal({ report, onClose, onSendEmail, canSendEm
           {/* Disclaimer */}
           <p className="text-[10px] text-muted-foreground font-mono">
             * ROI figures are AI estimates based on industry benchmarks for {client.service_purchased || 'AI services'}.
-            Actual results vary. Contact VELTRIX to discuss tracked performance metrics.
+            Actual results vary. Contact PostelOS to discuss tracked performance metrics.
           </p>
 
           {/* Actions */}
@@ -200,6 +202,6 @@ export default function RoiReportModal({ report, onClose, onSendEmail, canSendEm
           </div>
         </div>
       </div>
-    </div>
+    </DialogOverlay>
   );
 }

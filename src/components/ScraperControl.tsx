@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Radar, Play, Loader2 } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
+import { asErr } from '@/lib/errors';
 
 const NICHES = ['Dental clinic', 'Real estate agency', 'Law firm', 'Chiropractor', 'Plumber', 'HVAC contractor'];
 
@@ -54,7 +55,7 @@ export default function ScraperControl() {
         toast.error('Scrape failed', data.error);
         setLastRun(`Failed: ${data.error}`);
       }
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       toast.error('Scrape failed', e?.message);
     } finally {
       setRunning(false);
@@ -65,10 +66,10 @@ export default function ScraperControl() {
     <div className="rounded-2xl bg-[rgba(13,13,22,0.55)] backdrop-blur-xl border border-white/[0.07] p-5 flex flex-col gap-4">
       <div>
         <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.18em]">Victor · Lead Scout</p>
-        <h3 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
+        <h2 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
           <Radar size={15} className="text-neon-cyan" />
           Lead Scraper Control
-        </h3>
+        </h2>
       </div>
 
       {configured === false && (
@@ -83,7 +84,7 @@ export default function ScraperControl() {
       <div className="grid grid-cols-2 gap-2.5">
         <div className="col-span-1">
           <label className="text-[9px] font-mono text-white/30 uppercase tracking-wider">Niche</label>
-          <select
+          <select aria-label="Niche"
             value={niche}
             onChange={e => setNiche(e.target.value)}
             className="w-full mt-1 rounded-lg bg-black/40 border border-white/[0.1] px-2.5 py-2 text-[12px] text-white/80 focus:outline-none focus:border-neon-cyan/50 cursor-pointer"
@@ -94,6 +95,7 @@ export default function ScraperControl() {
         <div className="col-span-1">
           <label className="text-[9px] font-mono text-white/30 uppercase tracking-wider">Location</label>
           <input
+            aria-label="Location"
             value={location}
             onChange={e => setLocation(e.target.value)}
             placeholder="Austin, TX"
@@ -103,7 +105,7 @@ export default function ScraperControl() {
         <div className="col-span-1">
           <label className="text-[9px] font-mono text-white/30 uppercase tracking-wider">Max leads</label>
           <input
-            type="number" min={1} max={100}
+            type="number" aria-label="Max leads" min={1} max={100}
             value={limit}
             onChange={e => setLimit(Math.min(100, Math.max(1, Number(e.target.value) || 20)))}
             className="w-full mt-1 rounded-lg bg-black/40 border border-white/[0.1] px-2.5 py-2 text-[12px] text-white/80 focus:outline-none focus:border-neon-cyan/50"
@@ -111,11 +113,11 @@ export default function ScraperControl() {
         </div>
         <div className="col-span-1 flex flex-col justify-end gap-1.5 pb-1">
           <label className="flex items-center gap-2 text-[11px] font-mono text-white/45 cursor-pointer select-none">
-            <input type="checkbox" checked={research} onChange={e => setResearch(e.target.checked)} className="accent-[#a855f7]" />
+            <input type="checkbox" checked={research} onChange={e => setResearch(e.target.checked)} className="accent-neon-purple" />
             Auto-research (Daniel)
           </label>
           <label className="flex items-center gap-2 text-[11px] font-mono text-white/45 cursor-pointer select-none">
-            <input type="checkbox" checked={sheets} onChange={e => setSheets(e.target.checked)} className="accent-[#06b6d4]" />
+            <input type="checkbox" checked={sheets} onChange={e => setSheets(e.target.checked)} className="accent-neon-cyan" />
             Write to Google Sheets
           </label>
         </div>

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { LooseSupabase } from './types';
 
 const getSupabaseUrl = () => {
   let url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -15,4 +16,4 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const supabase = (supabaseUrl && supabaseAnonKey && supabaseUrl !== 'undefined' && supabaseAnonKey !== 'undefined')
   ? createClient(supabaseUrl, supabaseAnonKey)
-  : null as any;
+  : (null as unknown as LooseSupabase);

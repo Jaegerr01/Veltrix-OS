@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface DailyReport {
   id: string;
@@ -12,8 +13,8 @@ interface DailyReport {
   pipeline_value: number;
   revenue_gap: number;
   top_priority?: string;
-  leads_to_contact?: any;
-  followups_due?: any;
+  leads_to_contact?: unknown;
+  followups_due?: unknown;
   content_to_post?: string;
   recommended_action?: string;
   created_at: string;
@@ -51,7 +52,8 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
-    fetchReports();
+    const t = setTimeout(() => { void fetchReports(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const handleCompileBrief = async () => {
@@ -64,8 +66,9 @@ export default function ReportsPage() {
       const proposals = await db.getProposals();
 
       const closedRevenue = revenue.reduce((sum, r) => sum + (r.amount || 0), 0);
-      const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status)).reduce((sum, p) => sum + (p.price || 0), 0);
-      const target = 6000;
+      const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status) && !!p.provider_message_id).reduce((sum, p) => sum + (p.price || 0), 0);
+      const profile = await db.getBusinessProfile();
+      const target = profile.target_monthly_revenue || 6000; // your configured monthly target (Settings/profile)
       const gap = Math.max(0, target - closedRevenue);
 
       const newLeads = leads.filter(l => l.status === 'New').slice(0, 3).map(l => l.business_name);
@@ -77,10 +80,10 @@ export default function ReportsPage() {
         closed_revenue: closedRevenue,
         pipeline_value: pipelineValue,
         revenue_gap: gap,
-        top_priority: newLeads.length > 0 ? `Outreach to ${newLeads[0]} and other prospects.` : 'Index Obsidian brain for new strategy signals.',
+        top_priority: newLeads.length > 0 ? `Outreach to ${newLeads[0]} and other prospects.` : 'Review pending approvals and open follow-ups.',
         leads_to_contact: newLeads,
         followups_due: pendingFollows,
-        content_to_post: 'Compose post: "Why local practices are bleeding customers by neglecting automated booking receptionists."',
+        content_to_post: 'No post planned - ask Ryan (Content agent) in the CEO Console for ideas.',
         recommended_action: newLeads.length > 0 ? 'Draft customized outreach messaging for your newly scraped leads.' : 'Activate Maps Scraper to index local prospects.',
       });
 
@@ -103,9 +106,7 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Accessing report vaults..." />
-      </div>
+      <PageSkeleton label="Accessing report vaults..." />
     );
   }
 
@@ -165,7 +166,7 @@ export default function ReportsPage() {
                   <VxIcon name="chartbar" size={18} />
                 </span>
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, letterSpacing: '0.02em', color: 'var(--violet-200)', textTransform: 'uppercase' }}>
-                  VELTRIX Daily Command Brief
+                  PostelOS Daily Command Brief
                 </span>
               </div>
               <span
@@ -273,9 +274,7 @@ export default function ReportsPage() {
           </section>
         ))
       ) : (
-        <div style={{ textAlign: 'center', padding: 'var(--space-10) 0', color: 'var(--text-dim)', fontSize: 13.5, fontFamily: 'var(--font-mono)' }}>
-          No reports generated yet. Click &quot;Compile Today&apos;s Brief&quot; above to synthesize workspace statistics.
-        </div>
+        <EmptyState icon="chartbar" title="No reports yet" body="Use Compile Today's Brief at the top of this page to build your first daily report from real workspace numbers." />
       )}
     </div>
   );

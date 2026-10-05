@@ -1,3 +1,4 @@
+import { asErr } from '@/lib/errors';
 /**
  * Lead research helpers — gives Daniel (Lead Research Agent) actual eyes.
  *
@@ -82,7 +83,7 @@ export async function fetchWebsiteSnapshot(rawUrl: string): Promise<WebsiteSnaps
           signal: controller.signal,
           redirect: 'manual',
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; VeltrixResearch/1.0)',
+            'User-Agent': 'Mozilla/5.0 (compatible; PostelOSResearch/1.0)',
             Accept: 'text/html,application/xhtml+xml',
           },
         });
@@ -119,7 +120,7 @@ export async function fetchWebsiteSnapshot(rawUrl: string): Promise<WebsiteSnaps
       title: titleMatch ? htmlToText(titleMatch[1]) : undefined,
       text,
     };
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     const msg = err?.name === 'AbortError' ? 'Timed out after 10s' : err?.message || 'Fetch failed';
     return { ok: false, url, error: msg };
   }
@@ -128,7 +129,7 @@ export async function fetchWebsiteSnapshot(rawUrl: string): Promise<WebsiteSnaps
 export interface ResearchBrief {
   summary: string;
   observations: string[];   // concrete, citable facts from their site
-  opportunities: string[];  // what VELTRIX can fix/sell
+  opportunities: string[];  // what PostelOS can fix/sell
   personalization_hooks: string[]; // lines Emma can open with
 }
 

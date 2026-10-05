@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { db } from '@/lib/db';
 import { gemini } from '@/lib/ai/gemini';
+import { asErr } from '@/lib/errors';
 
 export async function GET() {
   // SECURITY: dev-only diagnostic. In production this endpoint created a user
@@ -11,8 +12,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   try {
-    const email = 'test-vector-operator@veltrix.os';
-    const password = 'VeltrixVectorPassword123!';
+    // Credentials come from the dev environment only — nothing is hardcoded.
+    const email = process.env.TEST_USER_EMAIL;
+    const password = process.env.TEST_USER_PASSWORD;
+    if (!email || !password) {
+      return NextResponse.json(
+        { success: false, error: 'Set TEST_USER_EMAIL and TEST_USER_PASSWORD in .env.local (dev only, throwaway values) to run this diagnostic.' },
+        { status: 400 }
+      );
+    }
 
     console.log('Ensuring test user session...');
     try {
@@ -21,7 +29,7 @@ export async function GET() {
         password,
         email_confirm: true
       });
-    } catch (e) {}
+    } catch {}
 
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -55,7 +63,7 @@ export async function GET() {
 
     // 1. Test Embedding Generation
     console.log('Testing embedding generation...');
-    const embedding = await gemini.getEmbedding('Test business fact for VELTRIX OS memory retrieval.');
+    const embedding = await gemini.getEmbedding('Test business fact for PostelOS memory retrieval.');
     const embeddingValid = Array.isArray(embedding) && embedding.length === 768;
     console.log(`Embedding valid: ${embeddingValid}, dimensions: ${embedding?.length}`);
 
@@ -122,10 +130,10 @@ export async function GET() {
       }
     });
 
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     try {
       await supabase.auth.signOut();
-    } catch (e) {}
+    } catch {}
     return NextResponse.json({ success: false, error: err.message || err }, { status: 500 });
   }
 }

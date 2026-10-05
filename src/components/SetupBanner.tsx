@@ -1,74 +1,42 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { VxIcon } from '@/components/ds';
+import { useWorkspaceStatus } from '@/lib/status/useWorkspaceStatus';
+
+const KEY = 'postelos-setup-dismissed';
 
 /**
- * Shows a guided banner whenever a critical integration (Supabase / Gemini / Resend)
- * is not yet configured. Reads /api/health. Renders nothing when everything is live
- * or while loading. Dismissible for the session.
+ * Compact reminder, pinned to the bottom of the content (so its late arrival can never push the page down), on every page except the dashboard (which shows the full checklist) while
+ * the workspace is not fully configured. Driven by the real /api/workspace/status.
+ * Renders nothing while loading, on error, or when setup is complete.
  */
 export default function SetupBanner() {
-  const [missing, setMissing] = useState<string[] | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const pathname = usePathname();
+  const { status } = useWorkspaceStatus();
+  const [dismissed, setDismissed] = React.useState(false);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('veltrix-setup-dismissed') === '1') {
-      setDismissed(true);
-    }
-    fetch('/api/health', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d && !d.ready && d.checks) {
-          const down = Object.entries(d.checks)
-            .filter(([, c]: any) => !c.ok)
-            .map(([k]) => k);
-          setMissing(down);
-        } else {
-          setMissing([]);
-        }
-      })
-      .catch(() => setMissing([]));
+  React.useEffect(() => {
+    const t = setTimeout(() => setDismissed(sessionStorage.getItem(KEY) === '1'), 0);
+    return () => clearTimeout(t);
   }, []);
 
-  if (dismissed || !missing || missing.length === 0) return null;
-
-  const label: Record<string, string> = {
-    supabase: 'Database',
-    supabaseAdmin: 'Server writes',
-    gemini: 'Agent brains',
-    resend: 'Email delivery',
-  };
+  if (dismissed || !status || status.onboarding.complete || pathname === '/' || pathname === '/settings') return null;
+  const { steps, done, total } = status.onboarding;
+  const next = steps.find(s => !s.done);
 
   return (
-    <div className="rounded-2xl border border-neon-orange/40 bg-neon-orange/[0.07] backdrop-blur-xl px-5 py-4 flex items-center gap-4">
-      <AlertTriangle className="text-neon-orange shrink-0" size={20} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white/90">Setup incomplete — autonomy is paused</p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Not yet configured:{' '}
-          <span className="text-neon-orange font-medium">
-            {missing.map((m) => label[m] || m).join(', ')}
-          </span>
-          . Add the missing keys to bring the pipeline online.
-        </p>
+    <div className="vx-callout" data-tone="warn" role="region" aria-label="Setup reminder" style={{ position: 'sticky', bottom: 'calc(var(--space-4) + env(safe-area-inset-bottom, 0px))', marginTop: 'var(--space-4)', paddingRight: 84, zIndex: 20, background: 'var(--ink-800)', boxShadow: 'var(--shadow-lg)' }}>
+      <VxIcon name="alert" size={18} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p className="vx-callout__title">Setup incomplete - {done} of {total} steps done</p>
+        {next ? <p className="vx-callout__body">Next: {next.title}. {next.detail}</p> : null}
       </div>
-      <Link
-        href="/health"
-        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neon-orange/15 hover:bg-neon-orange/25 border border-neon-orange/30 text-neon-orange text-xs font-medium transition shrink-0"
-      >
-        Fix it <ArrowRight size={13} />
-      </Link>
-      <button
-        onClick={() => {
-          setDismissed(true);
-          sessionStorage.setItem('veltrix-setup-dismissed', '1');
-        }}
-        className="text-white/30 hover:text-white/70 transition shrink-0"
-        aria-label="Dismiss"
-      >
-        <X size={16} />
+      {next ? <Link href={next.href} className="vx-linkbtn">Fix it</Link> : null}
+      <button type="button" className="vx-iconaction" aria-label="Dismiss setup reminder" onClick={() => { setDismissed(true); sessionStorage.setItem(KEY, '1'); }}>
+        <VxIcon name="close" size={16} />
       </button>
     </div>
   );

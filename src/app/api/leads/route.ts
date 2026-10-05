@@ -1,7 +1,9 @@
+import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth/requireUser';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { asErr } from '@/lib/errors';
 
 export async function GET(req: Request) {
   try {
@@ -16,7 +18,7 @@ export async function GET(req: Request) {
 
     if (error) throw error;
     return NextResponse.json({ success: true, data: data || [] });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
@@ -26,11 +28,17 @@ export async function POST(req: Request) {
     const { user, response } = await requireUser(req);
     if (response) return response;
 
-    const body = await req.json();
-
-    if (!body.business_name) {
-      return NextResponse.json({ success: false, error: 'business_name is required' }, { status: 400 });
+    const str = (n: number) => z.string().trim().max(n).nullish();
+    const parsedLead = z.object({
+      business_name: z.string().trim().min(1, 'business_name is required').max(200),
+      contact_name: str(200), industry: str(120), website: str(500), email: str(254), phone: str(60),
+      social_link: str(500), location: str(200), pain_point: str(2000), notes: str(5000), source: str(80), status: str(40),
+      lead_score: z.number().min(0).max(10).nullish(),
+    }).safeParse(await req.json().catch(() => null));
+    if (!parsedLead.success) {
+      return NextResponse.json({ success: false, error: 'Invalid lead: ' + parsedLead.error.issues.slice(0, 3).map(i => `${i.path.join('.') || 'body'} ${i.message}`).join('; ') }, { status: 400 });
     }
+    const body = parsedLead.data;
 
     const { data, error } = await supabaseAdmin
       .from('leads')
@@ -68,7 +76,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, data });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

@@ -20,8 +20,11 @@ export default function PendingCard({ task, onApprove, onDismiss }: Props) {
           <Cpu size={13} className="text-neon-purple" />
         </div>
         <button
+          type="button"
+          aria-label="More actions"
+          aria-expanded={open}
           onClick={() => setOpen(o => !o)}
-          className="p-1 rounded-lg hover:bg-white/5 text-white/25 hover:text-white/60 transition-colors cursor-pointer"
+          className="vx-tap p-1 rounded-lg hover:bg-white/5 text-white/25 hover:text-white/60 transition-colors cursor-pointer"
         >
           <MoreHorizontal size={14} />
         </button>

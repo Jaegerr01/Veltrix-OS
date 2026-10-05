@@ -3,6 +3,8 @@
 import React, { useMemo, useState } from 'react';
 import { authFetch } from '@/lib/authFetch';
 import { X, Upload, FileJson, Radar, CheckCircle2, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
+import { asErr } from '@/lib/errors';
+import DialogOverlay from '@/components/DialogOverlay';
 
 /**
  * ScraperImport — bridge between Barry's Python Google Maps scraper and the
@@ -110,7 +112,7 @@ function parseScraperOutput(text: string): { leads: ParsedLead[]; error?: string
       return leads.length
         ? { leads }
         : { leads: [], error: 'No rows had a recognizable business name field.' };
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       return { leads: [], error: `Invalid JSON: ${e.message}` };
     }
   }
@@ -172,7 +174,7 @@ export default function ScraperImport({ onClose, onImported }: Props) {
       setDone({ imported, skipped, researched: 0 });
       setProgress('');
       onImported();
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       setError(e.message || 'Import failed');
       setProgress('');
     } finally {
@@ -181,10 +183,9 @@ export default function ScraperImport({ onClose, onImported }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+    <DialogOverlay label="Fetch leads: scraper import" onClose={onClose}>
       <div
         className="glass-panel w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 p-6 space-y-5"
-        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -295,7 +296,7 @@ export default function ScraperImport({ onClose, onImported }: Props) {
                   type="checkbox"
                   checked={autoResearch}
                   onChange={e => setAutoResearch(e.target.checked)}
-                  className="accent-[#a855f7] w-3.5 h-3.5"
+                  className="accent-neon-purple w-3.5 h-3.5"
                 />
                 <span className="text-xs text-foreground/85 flex items-center gap-1.5">
                   <Sparkles size={12} className="text-neon-purple" />
@@ -306,7 +307,7 @@ export default function ScraperImport({ onClose, onImported }: Props) {
               <button
                 onClick={runImport}
                 disabled={!parsed.leads.length || importing}
-                className="px-5 py-2.5 bg-neon-purple hover:bg-neon-purple/85 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer shadow-[0_0_14px_rgba(168,85,247,0.25)]"
+                className="px-5 py-2.5 bg-neon-purple hover:bg-neon-purple/85 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer"
               >
                 {importing ? <Loader2 size={14} className="animate-spin" /> : <Radar size={14} />}
                 <span>{importing ? (progress || 'IMPORTING…') : `PUSH ${parsed.leads.length || ''} TO PIPELINE`}</span>
@@ -321,6 +322,6 @@ export default function ScraperImport({ onClose, onImported }: Props) {
           </>
         )}
       </div>
-    </div>
+    </DialogOverlay>
   );
 }

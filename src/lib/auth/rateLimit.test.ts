@@ -82,7 +82,20 @@ describe('checkRateLimit', () => {
     expect(r.allowed).toBe(true);
   });
 
-  it('fails open if the count query errors', async () => {
+  // Without the counter table there is no limit at all, so allowing through in
+  // production would leave every Gemini/email spender unthrottled.
+  it('blocks requests when Supabase is not configured in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      const checkRateLimit = await loadRateLimit(null);
+      const r = await checkRateLimit('user:d', { limit: 5 });
+      expect(r.allowed).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('fails CLOSED by default if the count query errors (send/AI routes)', async () => {
     const client = {
       from: () => ({
         delete: () => ({ eq: () => ({ lt: () => Promise.resolve({ error: null }) }) }),
@@ -92,6 +105,20 @@ describe('checkRateLimit', () => {
     };
     const checkRateLimit = await loadRateLimit(client);
     const r = await checkRateLimit('user:e', { limit: 1 });
+    expect(r.allowed).toBe(false);
+    expect(r.unavailable).toBe(true);
+  });
+
+  it('fails open on a limiter error only when a route opts out (failClosed:false)', async () => {
+    const client = {
+      from: () => ({
+        delete: () => ({ eq: () => ({ lt: () => Promise.resolve({ error: null }) }) }),
+        select: () => ({ eq: () => ({ gte: () => Promise.resolve({ count: null, error: new Error('table missing') }) }) }),
+        insert: () => Promise.resolve({ error: null }),
+      }),
+    };
+    const checkRateLimit = await loadRateLimit(client);
+    const r = await checkRateLimit('user:e', { limit: 1, failClosed: false });
     expect(r.allowed).toBe(true);
   });
 });

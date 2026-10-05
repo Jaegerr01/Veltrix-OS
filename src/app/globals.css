@@ -1,32 +1,39 @@
-/* Two fonts, on purpose (design rule 3):
-   Bricolage Grotesque = display/headings/eyebrows only.
-   Plus Jakarta Sans   = everything else (body, data, labels).
-   Never add a third family. Numeric data uses tabular figures, not a mono font. */
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
-@import "./veltrix-ds.css";
+@import "./postel-ds.css";
+@import "./shell.css";
+@import "./ui.css";
 
-:root {
-  --background: #06060a;
-  --foreground: #f1f1f6;
-  --card-bg: rgba(13, 13, 22, 0.7);
-  --border-color: rgba(168, 85, 247, 0.15);
-}
+/* ============================================================
+   TAILWIND THEME BRIDGE
 
+   The app grew two palettes: this "cyber neon" set (#a855f7 violet,
+   #06b6d4 cyan, #10b981 green) delivered as Tailwind utilities, and the
+   PostelOS design system (#8B5CF6, #22D3EE, #2EE6A0) delivered as CSS
+   variables. Both rendered at once, so a design-system panel and a legacy
+   card showed two different violets side by side — and AppearanceProvider,
+   which only rewrites design-system tokens, could not theme half the app.
+
+   Every legacy utility now resolves to a design-system token. The class
+   names survive so the ~600 existing usages keep working; they are retired
+   file by file as components move onto the primitives (Phase 2 / Phase 4).
+   ============================================================ */
 @theme {
-  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-mono: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-cyber-bg: #06060a;
-  --color-cyber-card: #0d0d16;
-  --color-cyber-border: rgba(168, 85, 247, 0.15);
-  --color-neon-purple: #a855f7;
-  --color-neon-cyan: #06b6d4;
-  --color-neon-pink: #ec4899;
-  --color-neon-green: #10b981;
-  --color-neon-orange: #f97316;
-  --color-muted-foreground: #94a3b8;
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-mono: var(--font-jakarta), system-ui, sans-serif;
+
+  --color-background: var(--ink-900);
+  --color-foreground: var(--text-body);
+
+  --color-cyber-bg:     var(--ink-900);
+  --color-cyber-border: var(--border-subtle);
+
+  --color-neon-purple:  var(--violet-400);
+  --color-neon-cyan:    var(--cyan-400);
+  --color-neon-pink:    var(--magenta-400);
+  --color-neon-green:   var(--signal-400);
+  --color-neon-orange:  var(--warn-400);
+
+  --color-muted-foreground: var(--text-muted);
 }
 
 body {
@@ -38,313 +45,55 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* =========================================
-   VELTRIX Glassmorphism 3.0 System
-   ========================================= */
+/* ============================================================
+   PANEL SURFACES
 
-/* Decorative loop keyframes (shimmer / floatCard / borderPulse / ambientGlow)
-   removed per design rule 2 — motion must have a reason. */
-
-/* Base glass panel */
+   Calmed per the PostelOS design rules: a solid card surface with a hairline
+   border, not a 20px backdrop-blur. Blur is expensive (these panels stack
+   over a fixed blurred backdrop, forcing full-viewport GPU recomposites on
+   scroll) and, at this density, it made the interface noisy rather than
+   premium. Hover raises the border, not the whole surface.
+   ============================================================ */
 .glass-panel {
-  background: rgba(13, 13, 22, 0.45);
-  backdrop-filter: blur(20px) saturate(200%);
-  -webkit-backdrop-filter: blur(20px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 16px;
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.2),
-    0 16px 40px 0 rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(168, 85, 247, 0.03);
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--grad-panel);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-card);
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
   position: relative;
-  overflow: hidden;
-}
-
-.glass-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.035) 0%, transparent 50%);
-  pointer-events: none;
-  border-radius: inherit;
 }
 
 .glass-panel:hover {
-  background: rgba(15, 15, 26, 0.6);
-  border-color: rgba(168, 85, 247, 0.28);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.2),
-    0 20px 48px 0 rgba(0, 0, 0, 0.55),
-    0 0 24px 2px rgba(168, 85, 247, 0.1),
-    0 0 0 1px rgba(168, 85, 247, 0.12);
-  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg), var(--glow-soft), var(--sheen-top);
 }
 
-/* Premium card — used for primary panels */
-.glass-card {
-  background: rgba(12, 12, 20, 0.55);
-  backdrop-filter: blur(24px) saturate(210%);
-  -webkit-backdrop-filter: blur(24px) saturate(210%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.25),
-    0 24px 56px 0 rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(168, 85, 247, 0.04);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  overflow: hidden;
-}
+/* Accent hover variants — kept for the three call sites in RevenueProgress. */
+.glass-panel-purple:hover { border-color: var(--border-strong); }
+.glass-panel-cyan:hover   { border-color: rgba(34, 211, 238, 0.42); }  /* minor accent */
+.glass-panel-pink:hover   { border-color: rgba(217, 70, 239, 0.42); }
 
-.glass-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.045) 0%, transparent 45%);
-  pointer-events: none;
-  border-radius: inherit;
-}
-
-.glass-card:hover {
-  background: rgba(14, 14, 24, 0.65);
-  border-color: rgba(168, 85, 247, 0.22);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.3),
-    0 28px 64px 0 rgba(0, 0, 0, 0.6),
-    0 0 32px 4px rgba(168, 85, 247, 0.08),
-    0 0 0 1px rgba(168, 85, 247, 0.14);
-  transform: translateY(-3px);
-}
-
-/* .shimmer-hover kept as a no-op for existing markup — the decorative sweep
-   was removed (rule 2/6). Hover feedback comes from the panel border/shadow. */
-.shimmer-hover {
-  position: relative;
-  overflow: hidden;
-}
-
-/* Gradient top accent line on cards */
-.card-top-glow-purple::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 10%; right: 10%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(168,85,247,0.6), transparent);
-  pointer-events: none;
-}
-.card-top-glow-cyan::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 10%; right: 10%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(6,182,212,0.6), transparent);
-  pointer-events: none;
-}
-.card-top-glow-pink::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 10%; right: 10%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(236,72,153,0.55), transparent);
-  pointer-events: none;
-}
-
-/* Glass panel accent color hover glow states */
-.glass-panel-purple:hover {
-  border-color: rgba(168, 85, 247, 0.32);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    0 20px 48px 0 rgba(0, 0, 0, 0.55),
-    0 0 28px 3px rgba(168, 85, 247, 0.14),
-    0 0 0 1px rgba(168, 85, 247, 0.14);
-}
-
-.glass-panel-cyan:hover {
-  border-color: rgba(6, 182, 212, 0.32);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    0 20px 48px 0 rgba(0, 0, 0, 0.55),
-    0 0 28px 3px rgba(6, 182, 212, 0.14),
-    0 0 0 1px rgba(6, 182, 212, 0.14);
-}
-
-.glass-panel-pink:hover {
-  border-color: rgba(236, 72, 153, 0.32);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    0 20px 48px 0 rgba(0, 0, 0, 0.55),
-    0 0 28px 3px rgba(236, 72, 153, 0.14),
-    0 0 0 1px rgba(236, 72, 153, 0.14);
-}
-
-.glass-panel-green:hover {
-  border-color: rgba(16, 185, 129, 0.32);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    0 20px 48px 0 rgba(0, 0, 0, 0.55),
-    0 0 28px 3px rgba(16, 185, 129, 0.14),
-    0 0 0 1px rgba(16, 185, 129, 0.14);
-}
-
-.glass-panel-orange:hover {
-  border-color: rgba(249, 115, 22, 0.32);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    0 20px 48px 0 rgba(0, 0, 0, 0.55),
-    0 0 28px 3px rgba(249, 115, 22, 0.14),
-    0 0 0 1px rgba(249, 115, 22, 0.14);
-}
-
-/* Cyber Neon Borders and Glows */
+/* Dashed emphasis border, used by empty states. */
 .neon-border-purple {
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  box-shadow: 0 0 14px rgba(168, 85, 247, 0.15), inset 0 0 14px rgba(168,85,247,0.04);
-}
-.neon-border-cyan {
-  border: 1px solid rgba(6, 182, 212, 0.35);
-  box-shadow: 0 0 14px rgba(6, 182, 212, 0.15), inset 0 0 14px rgba(6,182,212,0.04);
-}
-.neon-border-pink {
-  border: 1px solid rgba(236, 72, 153, 0.35);
-  box-shadow: 0 0 14px rgba(236, 72, 153, 0.15), inset 0 0 14px rgba(236,72,153,0.04);
+  border: 1px solid var(--border-strong);
 }
 
 .neon-glow-purple {
-  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3), 0 0 60px rgba(168, 85, 247, 0.1);
-}
-.neon-glow-cyan {
-  box-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 60px rgba(6, 182, 212, 0.1);
-}
-.neon-glow-pink {
-  box-shadow: 0 0 20px rgba(236, 72, 153, 0.3), 0 0 60px rgba(236, 72, 153, 0.1);
+  box-shadow: var(--glow-violet);
 }
 
-/* Custom Scrollbar for Sci-fi feel */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+/* ============================================================
+   NO-OP COMPATIBILITY CLASSES
 
-::-webkit-scrollbar-track {
-  background: rgba(6, 6, 10, 0.5);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(168, 85, 247, 0.3);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(6, 182, 212, 0.5);
-}
-
-/* .scanlines kept as a no-op — the CRT overlay was decorative clutter (rule 6). */
-.scanlines {
-  position: relative;
-  overflow: hidden;
-}
-
-/* .animate-pulse-glow kept as a no-op — perpetual pulsing dots removed (rule 6).
-   Status is communicated by color + static glow instead. */
-.animate-pulse-glow {
-  animation: none;
-}
-
-.font-mono {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
-  font-variant-numeric: tabular-nums;
-}
-.font-sans {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
-}
-
-/* Jarvis Voice Console Animations */
-@keyframes orbPulse {
-  0% {
-    transform: scale(0.92);
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4), inset 0 0 15px rgba(168, 85, 247, 0.3);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 40px rgba(6, 182, 212, 0.7), inset 0 0 25px rgba(6, 182, 212, 0.5);
-  }
-  100% {
-    transform: scale(0.92);
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4), inset 0 0 15px rgba(168, 85, 247, 0.3);
-  }
-}
-
-@keyframes voiceWave {
-  0%, 100% {
-    height: 10%;
-  }
-  50% {
-    height: 90%;
-  }
-}
-
-@keyframes spinSlow {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes spinReverse {
-  from {
-    transform: rotate(360deg);
-  }
-  to {
-    transform: rotate(0deg);
-  }
-}
-
-.animate-orb-pulse {
-  animation: orbPulse 2s infinite ease-in-out;
-}
-
-.animate-spin-slow {
-  animation: spinSlow 12s infinite linear;
-}
-
-.animate-spin-reverse {
-  animation: spinReverse 8s infinite linear;
-}
-
-.sound-wave-bar {
-  display: inline-block;
-  width: 3px;
-  height: 20px;
-  margin: 0 1.5px;
-  background-color: #06b6d4;
-  border-radius: 3px;
-  animation: voiceWave 1s infinite ease-in-out;
-}
-
-.sound-wave-bar:nth-child(2) {
-  animation-delay: 0.15s;
-  background-color: #a855f7;
-}
-
-.sound-wave-bar:nth-child(3) {
-  animation-delay: 0.3s;
-  background-color: #ec4899;
-}
-
-.sound-wave-bar:nth-child(4) {
-  animation-delay: 0.45s;
-  background-color: #06b6d4;
-}
-
-.sound-wave-bar:nth-child(5) {
-  animation-delay: 0.25s;
-  background-color: #a855f7;
-}
-
+   These decorative effects (a shimmer sweep, a CRT scanline overlay, a
+   perpetually pulsing glow) were removed as visual noise, but the class
+   names are still typed in markup. They stay as no-ops until the last
+   consumer is rewritten, so nobody re-adds the effect by accident.
+   ============================================================ */
+.shimmer-hover { position: relative; overflow: hidden; }
+.scanlines     { position: relative; overflow: hidden; }
+.animate-pulse-glow { animation: none; }

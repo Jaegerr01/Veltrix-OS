@@ -4,10 +4,13 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import LoadingState from './LoadingState';
 import { ShieldAlert, Lock, ShieldCheck } from 'lucide-react';
-import { AmbientBackground, Input, Button, VxIcon } from './ds';
+import { AmbientBackground, Input, Button, VxIcon, PostelMark, PostelLogo } from './ds';
+import { BRAND } from '@/lib/brand';
+import { asErr } from '@/lib/errors';
+import type { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
-  user: any;
+  user: User | null;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -20,8 +23,23 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Public registration is OFF unless explicitly enabled. PostelOS is a single-owner system (see OWNER_EMAIL);
+// the server also rejects any signed-in user who is not the owner, so this only removes a dead-end button.
+const ALLOW_SIGNUP = process.env.NEXT_PUBLIC_ALLOW_SIGNUP === 'true';
+
+/** True only for requests to THIS app's own /api/ routes (never third-party URLs that merely contain "/api/"). */
+export function isSameOriginApi(input: RequestInfo | URL, origin: string): boolean {
+  try {
+    const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+    const u = new URL(raw, origin);
+    return u.origin === origin && u.pathname.startsWith('/api/');
+  } catch {
+    return false;
+  }
+}
+
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -35,32 +53,31 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isDbOnline) {
-      setLoading(false);
-      return;
+      const t = setTimeout(() => setLoading(false), 0);
+      return () => clearTimeout(t);
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: any) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Intercept fetch calls to attach auth token and developer integrations
+    // Intercept fetch calls to attach the session token to our own API routes.
     const originalFetch = window.fetch;
     window.fetch = async (input, init) => {
       // Avoid intercepting requests to the Supabase API itself to prevent infinite recursion
-      const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : '');
-      const isLocalApi = url.startsWith('/api/') || url.includes('/api/') || (typeof window !== 'undefined' && url.includes(window.location.origin + '/api/'));
+      const isLocalApi = isSameOriginApi(input, window.location.origin);
       
       if (isLocalApi) {
         try {
-          const { data: { session } } = (await supabase.auth.getSession()) as any;
+          const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token;
           
           init = init || {};
@@ -70,23 +87,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             headers.set('Authorization', `Bearer ${token}`);
           }
           
-          // Forward developer integration overrides from localStorage
-          const localKeys = [
-            ['x-github-token', 'vx_github_token'],
-            ['x-github-repo', 'vx_github_repo'],
-            ['x-gemini-key', 'vx_gemini_key'],
-            ['x-claude-key', 'vx_claude_key'],
-            ['x-obsidian-path', 'vx_obsidian_path'],
-            ['x-scraper-path', 'vx_scraper_path'],
-          ];
-          
-          for (const [header, lsKey] of localKeys) {
-            const val = localStorage.getItem(lsKey);
-            if (val) {
-              headers.set(header, val);
-            }
-          }
-          
+          // API keys, vault paths and repo slugs used to be read from
+          // localStorage here and forwarded as x-* headers on every request.
+          // Any XSS on any page could read them, and the server trusted them.
+          // Those values now come from the server environment only.
+
           init.headers = headers;
         } catch (e) {
           console.warn('Failed to attach auth token to fetch request:', e);
@@ -105,6 +110,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isDbOnline || submitting) return;
+    if (isSignUp && !ALLOW_SIGNUP) { setErrorMsg('Registration is disabled for this workspace.'); return; }
 
     setErrorMsg('');
     setSuccessMsg('');
@@ -131,7 +137,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         });
         if (error) throw error;
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       console.warn('Authentication failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
     } finally {
@@ -186,27 +192,31 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
     );
   }
 
-  // 2. Auth Screen
+  // 2. Auth Screen — mirrors the Postel splash: black stage, glowing orb, light ribbons
   if (!user) {
     return (
-      <div className="vx-root min-h-screen text-foreground flex items-center justify-center p-6 relative overflow-hidden" style={{ background: 'var(--ink-900)' }}>
-        <AmbientBackground />
-        
-        {/* Glow halo in the background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] pointer-events-none rounded-full opacity-40" style={{ background: 'var(--grad-halo)', filter: 'blur(40px)' }} />
+      <main className="vx-root vx-login text-foreground">
+        <div className="vx-login__stars" aria-hidden="true" />
+        <div className="vx-login__ribbon vx-login__ribbon--tl" aria-hidden="true" />
+        <div className="vx-login__ribbon vx-login__ribbon--br" aria-hidden="true" />
+        <div className="vx-login__floor" aria-hidden="true" />
 
-        <div className="vx-glass max-w-md w-full p-8 rounded-[28px] relative overflow-hidden z-10" style={{ background: 'var(--grad-panel)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-xl)' }}>
-          {/* Top glowing line */}
-          <div className="absolute top-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-[var(--brand)] to-transparent" />
+        {/* Brand: orb + monogram + POSTEL STUDIO wordmark */}
+        <div className="vx-login__brand">
+          <div className="vx-login__orb">
+            <PostelMark size={96} glow title="Postel Studio" />
+          </div>
+          <PostelLogo showMark={false} fontSize={26} suffix="STUDIO" />
+          <p className="text-[11px] text-[var(--text-muted)] tracking-[0.14em] uppercase text-center" style={{ fontFamily: 'var(--font-display)' }}>
+            {BRAND.short}
+          </p>
+        </div>
 
-          {/* Logo Brand Header */}
-          <div className="flex flex-col items-center space-y-4 text-center mb-8">
-            <div className="flex items-center space-x-3">
-              <span className="text-xl font-bold tracking-widest text-[var(--text-strong)]" style={{ fontFamily: 'var(--font-display)' }}>VELTRIX</span>
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[var(--border-default)] border border-[var(--border-strong)] text-[var(--brand)] uppercase font-bold tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
-                COMMAND OS
-              </span>
-            </div>
+        <div className="vx-login__card">
+          <div className="text-center mb-8 space-y-2">
+            <h1 className="text-lg font-semibold text-[var(--text-strong)]" style={{ fontFamily: 'var(--font-display)' }}>
+              Postel<span style={{ fontWeight: 300, color: 'var(--violet-300)' }}>OS</span>
+            </h1>
             <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]" style={{ fontFamily: 'var(--font-display)' }}>
               {isSignUp ? 'REGISTER SYSTEM OPERATOR' : 'ENTER OPERATOR CREDENTIALS'}
             </p>
@@ -216,9 +226,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
             {/* Email input */}
             <Input
               type="email"
+              autoComplete="email"
               required
               label="Email Address"
-              placeholder="operator@veltrix.ai"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               leadingIcon={<VxIcon name="mail" size={16} />}
@@ -228,6 +239,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
             {/* Password input */}
             <Input
               type="password"
+              autoComplete="current-password"
               required
               label="Password"
               placeholder="••••••••"
@@ -239,13 +251,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
 
             {/* Notifications */}
             {errorMsg && (
-              <div className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(255,77,109,0.06)', borderColor: 'rgba(255,77,109,0.22)', color: 'var(--danger-300)' }}>
+              <div role="alert" className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(255,77,109,0.06)', borderColor: 'rgba(255,77,109,0.22)', color: 'var(--danger-300)' }}>
                 <ShieldAlert size={16} className="mt-0.5 flex-shrink-0" />
                 <span className="font-mono leading-relaxed">{errorMsg}</span>
               </div>
             )}
             {successMsg && (
-              <div className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(46,230,160,0.06)', borderColor: 'rgba(46,230,160,0.22)', color: 'var(--signal-400)' }}>
+              <div role="status" className="p-4 rounded-xl border flex items-start space-x-3 text-xs" style={{ background: 'rgba(46,230,160,0.06)', borderColor: 'rgba(46,230,160,0.22)', color: 'var(--signal-400)' }}>
                 <ShieldCheck size={16} className="mt-0.5 flex-shrink-0" />
                 <span className="font-mono leading-relaxed">{successMsg}</span>
               </div>
@@ -270,7 +282,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
           {/* Social logins (Google, Microsoft) temporarily removed — provider setup issues, see SETUP.md §2b */}
 
           {/* Toggle Login/Signup */}
-          <div className="text-center pt-6">
+          {ALLOW_SIGNUP && (<div className="text-center pt-6">
             <button
               onClick={() => {
                 setIsSignUp(!isSignUp);
@@ -281,9 +293,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
             >
               {isSignUp ? 'Already registered? Login here' : 'Need operator account? Register here'}
             </button>
-          </div>
+          </div>)}
         </div>
-      </div>
+      </main>
     );
   }
 

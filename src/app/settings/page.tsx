@@ -2,9 +2,15 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Button, Input, Switch, VxIcon, VeltrixSpinner, useAppearance } from '@/components/ds';
+import { Button, Input, Skeleton, Switch, VxIcon, useAppearance } from '@/components/ds';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
 import { db } from '@/lib/db';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/components/AuthGate';
+import { SUPPORT_EMAIL } from '@/lib/brand';
+import { EmailPanel, AiConnectionPanel } from '@/components/SystemConnections';
+import { asErr } from '@/lib/errors';
+import { clickable } from '@/lib/a11y';
 
 const settingsCard: React.CSSProperties = {
   padding: 'var(--space-6)',
@@ -15,16 +21,16 @@ const settingsCard: React.CSSProperties = {
 };
 
 const PRESETS: Record<string, { name: string; swatch: string; accent: string }> = {
-  violet: { name: 'Violet', swatch: 'linear-gradient(135deg,#8B5CF6,#4F6BFF)', accent: '#8B5CF6' },
-  cyan: { name: 'Cyan', swatch: 'linear-gradient(135deg,#22D3EE,#4F6BFF)', accent: '#22D3EE' },
+  violet: { name: 'Postel Violet', swatch: 'linear-gradient(135deg,#8B5CF6,#B02FE0)', accent: '#8B5CF6' },
+  cyan: { name: 'Cyan', swatch: 'linear-gradient(135deg,#22D3EE,#8B5CF6)', accent: '#22D3EE' },
   emerald: { name: 'Emerald', swatch: 'linear-gradient(135deg,#2EE6A0,#22D3EE)', accent: '#2EE6A0' },
-  magenta: { name: 'Magenta', swatch: 'linear-gradient(135deg,#D946EF,#8B5CF6)', accent: '#D946EF' },
+  magenta: { name: 'Neon Orchid', swatch: 'linear-gradient(135deg,#C026D3,#8B5CF6)', accent: '#C026D3' },
 };
 
 const PREF_DEFS = [
   { key: 'desktop', name: 'Desktop Notifications', desc: 'Alerts for agent events & deals' },
-  { key: 'voice', name: 'Voice Commands', desc: 'CEO agent listens for wake word' },
-  { key: 'autopilot', name: 'Full Autopilot', desc: 'Agents act without approval' },
+  { key: 'voice', name: 'Voice Commands', desc: 'ARIA voice assistant (push-to-talk / hands-free toggle)' },
+  { key: 'autopilot', name: 'Autopilot drafting', desc: 'Agents draft and queue work on their own. Emails still wait for your approval.' },
   { key: 'weekly', name: 'Weekly Reports', desc: 'Emailed performance summary' },
 ] as const;
 
@@ -41,11 +47,12 @@ export default function SettingsPage() {
   } = useAppearance();
 
   const toast = useToast();
+  const { user } = useAuth();
 
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [displayName, setDisplayName] = React.useState('Operator');
-  const [workspaceName, setWorkspaceName] = React.useState('Veltrix HQ');
+  const [workspaceName, setWorkspaceName] = React.useState('PostelOS HQ');
   const [prefs, setPrefs] = React.useState<Record<string, boolean>>({
     desktop: true,
     voice: true,
@@ -53,12 +60,7 @@ export default function SettingsPage() {
     weekly: true,
   });
 
-  // Developer Integrations state
-  const [claudeKey, setClaudeKey] = React.useState('');
-  const [geminiKey, setGeminiKey] = React.useState('');
-  const [githubToken, setGithubToken] = React.useState('');
-  const [githubRepo, setGithubRepo] = React.useState('');
-  const [obsidianPath, setObsidianPath] = React.useState('');
+  // Developer Integrations state (paths only - API keys/tokens live in server env vars, never in the browser)
   const [scraperPath, setScraperPath] = React.useState('');
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -69,7 +71,7 @@ export default function SettingsPage() {
       try {
         const profile = await db.getBusinessProfile();
         if (profile) {
-          setWorkspaceName(profile.business_name || 'Veltrix HQ');
+          setWorkspaceName(profile.business_name || 'PostelOS HQ');
           setPrefs((prev) => ({
             ...prev,
             autopilot: !!profile.autopilot,
@@ -92,11 +94,10 @@ export default function SettingsPage() {
         } catch {}
       }
 
-      setClaudeKey(localStorage.getItem('vx_claude_key') || '');
-      setGeminiKey(localStorage.getItem('vx_gemini_key') || '');
-      setGithubToken(localStorage.getItem('vx_github_token') || '');
-      setGithubRepo(localStorage.getItem('vx_github_repo') || '');
-      setObsidianPath(localStorage.getItem('vx_obsidian_path') || '');
+      // Purge secrets older versions stored in the browser.
+      ['vx_claude_key', 'vx_gemini_key', 'vx_github_token'].forEach((k) => localStorage.removeItem(k));
+      // The external vault integration was removed (PostelOS has a built-in Memory Vault); purge its old keys.
+      ['vx_github_repo', 'vx_obsidian_path'].forEach((k) => localStorage.removeItem(k));
       setScraperPath(localStorage.getItem('vx_scraper_path') || '');
 
       setLoading(false);
@@ -134,15 +135,10 @@ export default function SettingsPage() {
       localStorage.setItem('vx_preferences', JSON.stringify(prefs));
 
       // Persist developer integrations
-      localStorage.setItem('vx_claude_key', claudeKey);
-      localStorage.setItem('vx_gemini_key', geminiKey);
-      localStorage.setItem('vx_github_token', githubToken);
-      localStorage.setItem('vx_github_repo', githubRepo);
-      localStorage.setItem('vx_obsidian_path', obsidianPath);
       localStorage.setItem('vx_scraper_path', scraperPath);
 
       toast.success('Settings Saved', 'System profile and visual preferences updated successfully.');
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       toast.error('Save Failed', err.message || 'Could not save profile settings.');
     } finally {
       setSaving(false);
@@ -155,29 +151,33 @@ export default function SettingsPage() {
       'This will permanently shut down all active agents and archive telemetry. This action is irreversible.'
     );
     if (confirm) {
-      toast.warning('Initiating shutdown...', 'Command OS workspace decommissioned.');
+      toast.info('Not available', 'Decommission is not implemented, so nothing was changed. To pause outbound email set OUTREACH_SEND_ENABLED=false.');
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <VeltrixSpinner message="Accessing secure core profile..." />
+      <div className="vx-stack" role="status" aria-label="Loading settings">
+        <Skeleton width={260} height={30} />
+        <Skeleton height={220} />
+        <Skeleton height={220} />
       </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
+      <OnboardingChecklist variant="health" />
+
       {/* Dynamic page card */}
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)', alignItems: 'stretch', maxWidth: 1200 }}>
         {/* Operator Profile */}
         <div style={settingsCard} className="vx-glass flex flex-col gap-6">
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Operator Profile</div>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Operator Profile</h2>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)' }}>
             <div 
-              onClick={() => fileInputRef.current?.click()}
+              role="button" tabIndex={0} onClick={() => fileInputRef.current?.click()} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileInputRef.current?.click(); } }}
               style={{
                 position: 'relative',
                 width: 88,
@@ -191,8 +191,7 @@ export default function SettingsPage() {
               }}
             >
               {avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <Image src={avatar} alt="Avatar" width={88} height={88} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'var(--ink-600)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', alignContent: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-display)', fontSize: 11 }}>Photo</div>
               )}
@@ -210,7 +209,7 @@ export default function SettingsPage() {
             
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, color: 'var(--text-strong)' }}>{displayName}</div>
-              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>admin@veltrix.ai</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>{user?.email ?? SUPPORT_EMAIL}</div>
               <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 8 }}>Drop or click the avatar to change your photo.</div>
             </div>
           </div>
@@ -236,7 +235,7 @@ export default function SettingsPage() {
         {/* Preferences */}
         <div style={settingsCard} className="vx-glass flex flex-col justify-between gap-6">
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 'var(--space-4)' }}>Preferences</div>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 'var(--space-4)' }}>Preferences</h2>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {PREF_DEFS.map((p, i) => (
                 <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '14px 0', borderBottom: i < PREF_DEFS.length - 1 ? '1px solid var(--hairline)' : 'none' }}>
@@ -244,7 +243,7 @@ export default function SettingsPage() {
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600, color: 'var(--text-strong)' }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{p.desc}</div>
                   </div>
-                  <Switch checked={prefs[p.key]} onChange={(v) => setPrefs((s) => ({ ...s, [p.key]: v }))} />
+                  <Switch ariaLabel={p.name} checked={prefs[p.key]} onChange={(v) => setPrefs((s) => ({ ...s, [p.key]: v }))} />
                 </div>
               ))}
             </div>
@@ -261,51 +260,12 @@ export default function SettingsPage() {
 
         {/* Developer Integrations */}
         <div style={settingsCard} className="vx-glass flex flex-col gap-6">
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Developer Integrations</div>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Developer Integrations</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Input
-              label="Claude API Key"
-              type="password"
-              value={claudeKey}
-              onChange={(e) => setClaudeKey(e.target.value)}
-              placeholder="sk-ant-..."
-              size="md"
-              style={{ width: '100%' }}
-            />
-            <Input
-              label="Gemini API Key"
-              type="password"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-              placeholder="AIzaSy..."
-              size="md"
-              style={{ width: '100%' }}
-            />
-            <Input
-              label="GitHub Personal Access Token"
-              type="password"
-              value={githubToken}
-              onChange={(e) => setGithubToken(e.target.value)}
-              placeholder="github_pat_..."
-              size="md"
-              style={{ width: '100%' }}
-            />
-            <Input
-              label="Obsidian GitHub Repository"
-              value={githubRepo}
-              onChange={(e) => setGithubRepo(e.target.value)}
-              placeholder="username/vault-repo"
-              size="md"
-              style={{ width: '100%' }}
-            />
-            <Input
-              label="Local Obsidian Vault Disk Path"
-              value={obsidianPath}
-              onChange={(e) => setObsidianPath(e.target.value)}
-              placeholder="E:\Vetrix-app\Veltrix"
-              size="md"
-              style={{ width: '100%' }}
-            />
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              API keys and tokens (GEMINI_API_KEY, email credentials) are server environment variables - set them in
+              <code> .env.local </code> or Netlify, not here. They are intentionally not stored in the browser.
+            </div>
             <Input
               label="Local Maps Scraper Script Path"
               value={scraperPath}
@@ -317,10 +277,14 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <AiConnectionPanel />
+
+        <EmailPanel />
+
         {/* Appearance & Theme (Accent Palette & Background Color) */}
         <div style={{ ...settingsCard, gridColumn: '1 / -1' }} className="vx-glass flex flex-col gap-6">
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Appearance &amp; Theme</div>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>Appearance &amp; Theme</h2>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Customize the visual command environment</span>
           </div>
 
@@ -335,7 +299,7 @@ export default function SettingsPage() {
                   return (
                     <div
                       key={k}
-                      onClick={() => setTheme(k)}
+                      {...clickable(() => setTheme(k))}
                       style={{
                         position: 'relative',
                         display: 'flex',
@@ -364,6 +328,7 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-default)' }}>
                 <input
                   type="color"
+                  aria-label="Custom accent color"
                   value={accentColor}
                   onChange={(e) => setAccentColor(e.target.value)}
                   style={{
@@ -389,6 +354,7 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: '12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-default)' }}>
                 <input
                   type="color"
+                  aria-label="Background canvas color"
                   value={backgroundColor}
                   onChange={(e) => setBackgroundColor(e.target.value)}
                   style={{

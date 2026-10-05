@@ -1,6 +1,6 @@
 # paul:init
 
-Initialize a new VELTRIX build task. Runs a requirements walkthrough and creates a structured brief before any code is written.
+Initialize a new PostelOS build task. Runs a requirements walkthrough and creates a structured brief before any code is written.
 
 ## What it does
 
@@ -19,7 +19,7 @@ Type `/paul:init` and describe the task. Claude will run the walkthrough.
 ## Example
 
 ```
-/paul:init Add a new "Reels Tracker" page to Veltrix OS that shows Instagram reel performance metrics pulled from a manual input form backed by Supabase.
+/paul:init Add a new "Reels Tracker" page to PostelOS that shows Instagram reel performance metrics pulled from a manual input form backed by Supabase.
 ```
 
 Claude will respond with:

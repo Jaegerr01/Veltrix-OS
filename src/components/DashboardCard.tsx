@@ -12,31 +12,37 @@ interface DashboardCardProps {
   borderAccent?: 'purple' | 'cyan' | 'pink' | 'green' | 'orange';
 }
 
+/**
+ * `topLine` and the hover treatment used to hardcode the legacy palette's rgba
+ * literals, which rendered a second violet/cyan/green alongside the design
+ * system's. They now read design tokens, and the heavy coloured drop shadow is
+ * replaced by a border lift — glow is reserved for active and focus states.
+ */
 const accentMap = {
   purple: {
     icon: 'text-neon-purple bg-neon-purple/10',
-    glow: 'hover:shadow-[0_12px_40px_rgba(168,85,247,0.22),0_0_0_1px_rgba(168,85,247,0.18)] hover:border-neon-purple/30',
-    topLine: 'rgba(168,85,247,0.7)',
+    glow: 'hover:border-neon-purple/30',
+    topLine: 'var(--violet-400)',
   },
   cyan: {
     icon: 'text-neon-cyan bg-neon-cyan/10',
-    glow: 'hover:shadow-[0_12px_40px_rgba(6,182,212,0.22),0_0_0_1px_rgba(6,182,212,0.18)] hover:border-neon-cyan/30',
-    topLine: 'rgba(6,182,212,0.7)',
+    glow: 'hover:border-neon-cyan/30',
+    topLine: 'var(--cyan-400)',
   },
   pink: {
     icon: 'text-neon-pink bg-neon-pink/10',
-    glow: 'hover:shadow-[0_12px_40px_rgba(236,72,153,0.22),0_0_0_1px_rgba(236,72,153,0.18)] hover:border-neon-pink/30',
-    topLine: 'rgba(236,72,153,0.65)',
+    glow: 'hover:border-neon-pink/30',
+    topLine: 'var(--magenta-400)',
   },
   green: {
     icon: 'text-neon-green bg-neon-green/10',
-    glow: 'hover:shadow-[0_12px_40px_rgba(16,185,129,0.22),0_0_0_1px_rgba(16,185,129,0.18)] hover:border-neon-green/30',
-    topLine: 'rgba(16,185,129,0.65)',
+    glow: 'hover:border-neon-green/30',
+    topLine: 'var(--signal-400)',
   },
   orange: {
     icon: 'text-neon-orange bg-neon-orange/10',
-    glow: 'hover:shadow-[0_12px_40px_rgba(249,115,22,0.22),0_0_0_1px_rgba(249,115,22,0.18)] hover:border-neon-orange/30',
-    topLine: 'rgba(249,115,22,0.65)',
+    glow: 'hover:border-neon-orange/30',
+    topLine: 'var(--warn-400)',
   },
 };
 

@@ -10,6 +10,7 @@ import { Target, RefreshCw, GitBranch } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
 import type { EntityGoal } from '@/lib/types';
+import { asErr } from '@/lib/errors';
 
 const DEPT_LABEL: Record<string, string> = {
   growth: 'Growth', revenue: 'Revenue', delivery: 'Delivery', product: 'Product',
@@ -41,7 +42,7 @@ export default function GoalCascadePanel() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); }, [load]);
 
   const draft = async () => {
     setDrafting(true);
@@ -53,14 +54,14 @@ export default function GoalCascadePanel() {
       } else {
         toast.error('Draft failed', data.error);
       }
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       toast.error('Draft failed', e?.message);
     } finally {
       setDrafting(false);
     }
   };
 
-  const target = Number((month?.target as any)?.revenue ?? 0);
+  const target = Number((month?.target as { revenue?: number } | undefined)?.revenue ?? 0);
   const pct = target > 0 ? Math.min(100, Math.round((closed / target) * 100)) : 0;
 
   return (
@@ -68,12 +69,12 @@ export default function GoalCascadePanel() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.18em]">Entity · Goal Cascade</p>
-          <h3 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
+          <h2 className="text-[15px] font-bold text-white mt-1 flex items-center gap-2">
             <Target size={15} className="text-neon-purple" />
             {periods.month || 'This Month'} · {periods.week || ''}
-          </h3>
+          </h2>
         </div>
-        <button onClick={load} className="p-1.5 rounded-lg hover:bg-white/5 text-white/30 hover:text-neon-cyan transition-colors cursor-pointer">
+        <button onClick={load} aria-label="Refresh goal cascade" className="p-1.5 rounded-lg hover:bg-white/5 text-white/30 hover:text-neon-cyan transition-colors cursor-pointer">
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
@@ -91,6 +92,10 @@ export default function GoalCascadePanel() {
             />
           </div>
           <p className="text-[10px] font-mono text-white/30 mt-1.5">{month.title}</p>
+        </div>
+      ) : loading ? (
+        <div role="status" className="rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 text-[11px] font-sans text-white/40">
+          Loading goals...
         </div>
       ) : (
         <div className="rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 text-[11px] font-sans text-white/40">

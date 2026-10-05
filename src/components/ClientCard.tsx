@@ -4,16 +4,21 @@ import React, { useState } from 'react';
 import { Client } from '@/lib/types';
 import { authFetch } from '@/lib/authFetch';
 import StatusBadge from './StatusBadge';
-import RoiReportModal from './RoiReportModal';
 import { Briefcase, Mail, Phone, ExternalLink, DollarSign, TrendingUp, Loader2 } from 'lucide-react';
+import { useToast } from '@/components/Toast';
+import type { ComponentProps } from 'react';
+import dynamic from 'next/dynamic';
+
+const RoiReportModal = dynamic(() => import('./RoiReportModal'), { ssr: false });
 
 interface ClientCardProps {
   client: Client;
 }
 
 export default function ClientCard({ client }: ClientCardProps) {
+  const toast = useToast();
   const [loadingReport, setLoadingReport] = useState(false);
-  const [report, setReport] = useState<any>(null);
+  const [report, setReport] = useState<ComponentProps<typeof RoiReportModal>['report'] | null>(null);
 
   const handleRoiReport = async () => {
     if (loadingReport) return;
@@ -28,11 +33,11 @@ export default function ClientCard({ client }: ClientCardProps) {
       if (data.success) {
         setReport(data.report);
       } else {
-        alert(data.error || 'Failed to generate ROI report.');
+        toast.error('Could not generate the ROI report', data.error || undefined);
       }
     } catch (err) {
       console.warn('ROI report generation failed:', err);
-      alert('Failed to reach the server. Please try again.');
+      toast.error('Could not reach the server', 'Please try again.');
     } finally {
       setLoadingReport(false);
     }
@@ -46,10 +51,9 @@ export default function ClientCard({ client }: ClientCardProps) {
     });
     const data = await res.json();
     if (!data.emailDelivered) {
-      alert(
-        data.error ||
-          'Email could not be sent. Check that RESEND_API_KEY and RESEND_FROM_EMAIL are set in .env.local.'
-      );
+      toast.error('Email was NOT sent', data.emailError || data.error || 'Check Settings -> Email for provider status.');
+    } else {
+      toast.success('Email sent', 'The provider confirmed delivery to the mail server.');
     }
   };
 

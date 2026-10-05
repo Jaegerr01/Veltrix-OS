@@ -1,5 +1,5 @@
 /**
- * VELTRIX Autonomous Agency Pipeline
+ * PostelOS Autonomous Agency Pipeline
  *
  * This is the master orchestrator. It runs on a schedule (every 30 min via Netlify Scheduled Functions)
  * and processes ALL leads through the full sales lifecycle with zero human input.
@@ -11,9 +11,9 @@
 import { db } from '../db';
 import { runAgentLogic } from './executor';
 import { gemini } from '../ai/gemini';
-import { getResendClient, FROM_EMAIL } from '../email/resend';
-
-const BARRY_EMAIL = process.env.NOTIFY_EMAIL || 'tahakh5510@gmail.com';
+import { sendEmail } from '../email/send';
+import { getOwnerEmail } from '../auth/owner';
+import { asErr } from '@/lib/errors';
 const MONTHLY_TARGET = 6000;
 
 // Serverless functions time out (~26s). Each lead makes an LLM call, so we can only
@@ -40,17 +40,14 @@ function daysSince(dateStr: string): number {
 }
 
 async function notifyBarry(subject: string, body: string) {
+  // Internal notification to the account owner only (never a lead). Failures are logged, not hidden.
+  const owner = getOwnerEmail();
+  if (!owner) { console.warn('[Pipeline] Owner notification skipped: OWNER_EMAIL is not set.'); return; }
   try {
-    const resend = getResendClient();
-    if (!resend) return;
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [BARRY_EMAIL],
-      subject: `[VELTRIX] ${subject}`,
-      text: body,
-    });
+    const r = await sendEmail({ to: owner, subject: `[PostelOS] ${subject}`, text: body, kind: 'transactional', unsubscribe: false });
+    if (!r.delivered) console.warn('[Pipeline] Owner notification NOT delivered:', r.reason);
   } catch (err) {
-    console.warn('[Pipeline] Barry notification failed:', err);
+    console.warn('[Pipeline] Owner notification failed:', err);
   }
 }
 
@@ -74,7 +71,7 @@ async function processNewLeads(actions: string[], errors: string[]): Promise<num
         actions.push(`[Daniel] Researched & scored: ${lead.business_name}`);
         count++;
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Daniel] Failed to research ${lead.business_name}: ${err.message}`);
     }
     // Small delay to avoid rate limits
@@ -115,10 +112,12 @@ async function processQualifiedLeads(actions: string[], errors: string[]): Promi
         true
       );
       if (result.success) {
-        actions.push(`[Emma] Outreach + proposal processed for: ${lead.business_name} via ${channel}`);
+        actions.push(`[Emma] Outreach drafted for ${lead.business_name} via ${channel} - ${result.needsApproval ? 'awaiting your approval (NOT sent)' : 'saved as Draft (NOT sent)'}`);
         count++;
+      } else {
+        errors.push(`[Emma] Outreach for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Emma] Outreach failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -153,16 +152,18 @@ async function processFollowups(actions: string[], errors: string[]): Promise<nu
         f =>
           f.lead_id === lead.id &&
           f.followup_type === `Day ${sequenceDay} Follow-up` &&
-          (f.status === 'Sent' || f.status === 'Completed')
+          !['Failed', 'Skipped'].includes(f.status) // any live follow-up (drafted/approved/sent) means this step is handled
       );
       if (alreadySent) continue;
 
       const result = await runAgentLogic('followup', { leadId: lead.id, sequenceDay }, true);
       if (result.success) {
-        actions.push(`[Lucas] Day ${sequenceDay} follow-up sent to: ${lead.business_name}`);
+        actions.push(`[Lucas] Day ${sequenceDay} follow-up drafted for ${lead.business_name} - ${result.needsApproval ? 'awaiting your approval (NOT sent)' : 'saved as Drafted (NOT sent)'}`);
         count++;
+      } else {
+        errors.push(`[Lucas] Follow-up for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Lucas] Follow-up failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -200,10 +201,12 @@ async function processRepliedLeads(actions: string[], errors: string[]): Promise
         true
       );
       if (result.success) {
-        actions.push(`[Olivia] Proposal sent to: ${lead.business_name} — ${offerName} @ $${price}`);
+        actions.push(`[Olivia] Proposal drafted for ${lead.business_name} - ${offerName} @ $${price} - ${result.needsApproval ? 'awaiting your approval (NOT sent)' : 'saved as Draft (NOT sent)'}`);
         count++;
+      } else {
+        errors.push(`[Olivia] Proposal for ${lead.business_name} did not complete: ${result.error || 'unknown error'}`);
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Olivia] Proposal failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -231,7 +234,7 @@ export async function generatePreCallBrief(leadId: string): Promise<string> {
   const latestScore = scores[0];
 
   const prompt = `
-You are preparing a PRE-CALL CLIENT BRIEF for Barry (VELTRIX founder) before he jumps on a discovery call with a potential client.
+You are preparing a PRE-CALL CLIENT BRIEF for Barry (PostelOS founder) before he jumps on a discovery call with a potential client.
 
 CLIENT INFORMATION:
 - Business Name: ${lead.business_name}
@@ -270,7 +273,7 @@ Generate a sharp, executive-style pre-call brief for Barry. Include:
 1. **WHO THEY ARE** — 2-3 sentences on the business and what they do
 2. **WHY THEY'RE TALKING TO US** — The specific pain point that made them engage
 3. **WHERE THEY ARE IN THE JOURNEY** — What outreach was sent, what they responded to
-4. **WHAT TO PITCH** — The specific VELTRIX offer, price point, and value prop to lead with
+4. **WHAT TO PITCH** — The specific PostelOS offer, price point, and value prop to lead with
 5. **LIKELY OBJECTIONS** — Top 3 objections they'll raise and how to handle each
 6. **TONE TO USE** — How to approach this person (casual? formal? technical? business-focused?)
 7. **DEAL POTENTIAL** — Likelihood of closing (low/medium/high), estimated value
@@ -282,7 +285,7 @@ Keep it sharp, actionable, and under 600 words. Barry needs to be able to read t
 
   const brief = await gemini.callRawLLM(
     prompt,
-    'You are the VELTRIX CEO Agent preparing a pre-call brief. Be concise, sharp, and strategic. Use clear markdown headers.'
+    'You are the PostelOS CEO Agent preparing a pre-call brief. Be concise, sharp, and strategic. Use clear markdown headers.'
   );
 
   // Save brief as a high-importance memory
@@ -306,7 +309,7 @@ Keep it sharp, actionable, and under 600 words. Barry needs to be able to read t
   // Notify Barry via email
   await notifyBarry(
     `Pre-Call Brief: ${lead.business_name}`,
-    `Hi Barry,\n\nYou have a call coming up with ${lead.business_name}. Here's your brief:\n\n${brief}\n\n— VELTRIX Autonomous Agency`
+    `Hi Barry,\n\nYou have a call coming up with ${lead.business_name}. Here's your brief:\n\n${brief}\n\n— PostelOS Autonomous Agency`
   );
 
   return brief;
@@ -331,7 +334,7 @@ async function processCallBookedLeads(actions: string[], errors: string[]): Prom
       await generatePreCallBrief(lead.id);
       actions.push(`[Alex] Pre-call brief generated for: ${lead.business_name} — Barry notified`);
       count++;
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Alex] Pre-call brief failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -367,25 +370,42 @@ async function processProposalSentLeads(actions: string[], errors: string[]): Pr
         'You are Emma, the Outreach Agent. Keep it casual and under 4 sentences.'
       );
 
-      await db.addFollowup({
+      // Draft only. It becomes 'Sent' exclusively through lib/email/delivery.ts after approval.
+      const fu = await db.addFollowup({
         lead_id: lead.id,
         followup_date: new Date().toISOString().split('T')[0],
         followup_type: 'Proposal Follow-up',
         message: followupMsg,
-        status: 'Sent'
+        status: 'Drafted'
       });
+
+      let queued = false;
+      if (lead.email) {
+        const { requestApproval } = await import('../entity/approvals');
+        await requestApproval({
+          type: 'followup_send',
+          department: 'revenue',
+          createdByAgent: 'Lucas (Follow-up Agent)',
+          title: `Send proposal follow-up to ${lead.business_name}`,
+          context: `Proposal went out ${daysSinceProposal} days ago with no reply.`,
+          payload: { leadId: lead.id, followupId: fu.id, to: lead.email, subject: `Following up - ${lead.business_name}`, text: followupMsg },
+          recommendation: 'Send. Short, low-pressure nudge.',
+          confidence: 6,
+        });
+        queued = true;
+      }
 
       await db.logAgentAction(
         'Follow-up Agent',
-        'Proposal Follow-up Sent',
+        'Proposal Follow-up Drafted',
         `leadId=${lead.id}, business=${lead.business_name}`,
         followupMsg,
-        'Success'
+        'Pending Approval'
       );
 
-      actions.push(`[Lucas] Proposal follow-up sent to: ${lead.business_name}`);
+      actions.push(`[Lucas] Proposal follow-up drafted for ${lead.business_name} - ${queued ? 'awaiting your approval (NOT sent)' : 'no email on file, saved as Drafted (NOT sent)'}`);
       count++;
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       errors.push(`[Lucas] Proposal follow-up failed for ${lead.business_name}: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, 300));
@@ -450,7 +470,7 @@ export async function runFullPipeline(): Promise<PipelineRun> {
     }
 
     return summary;
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     errors.push(`Pipeline fatal error: ${err.message}`);
     await logAction('Pipeline Error', err.message);
     return {
@@ -486,7 +506,7 @@ export async function generateDailyBrief(): Promise<string> {
     const { getCascadeSnapshot } = await import('../entity/cascade');
     const snap = await getCascadeSnapshot();
     if (snap.month) {
-      const target = Number((snap.month.target as any)?.revenue ?? 0);
+      const target = Number((snap.month.target as { revenue?: number } | undefined)?.revenue ?? 0);
       cascadeSection = [
         `Month goal (${snap.monthPeriod}): $${snap.closedThisMonth.toLocaleString()} closed of $${target.toLocaleString()} target.`,
         snap.weekly.length > 0
@@ -509,7 +529,7 @@ export async function generateDailyBrief(): Promise<string> {
     .length * 1200; // avg deal value estimate
 
   const todayActivities = activities
-    .filter((a: any) => {
+    .filter((a) => {
       const d = new Date(a.created_at);
       const today = new Date();
       return d.toDateString() === today.toDateString();
@@ -536,7 +556,7 @@ export async function generateDailyBrief(): Promise<string> {
   };
 
   const prompt = `
-Generate a sharp daily operations brief for Barry, the VELTRIX founder. It is 10:00 PM.
+Generate a sharp daily operations brief for Barry, the PostelOS founder. It is 10:00 PM.
 
 TODAY'S METRICS:
 - Revenue Target: $${profile.target_monthly_revenue || MONTHLY_TARGET}
@@ -584,7 +604,7 @@ Keep it tight, no fluff. Barry reads this in 3 minutes before sleeping.
 
   const brief = await gemini.callRawLLM(
     prompt,
-    'You are Alex, the VELTRIX CEO Agent. Generate the daily brief in clean, sharp markdown. Be direct and data-driven.'
+    'You are Alex, the PostelOS CEO Agent. Generate the daily brief in clean, sharp markdown. Be direct and data-driven.'
   );
 
   // Save to daily_reports
@@ -614,7 +634,7 @@ Keep it tight, no fluff. Barry reads this in 3 minutes before sleeping.
   // Email Barry
   await notifyBarry(
     `Daily Brief — ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
-    `Hi Barry,\n\nHere's your 10PM daily brief:\n\n${brief}\n\n— VELTRIX Autonomous Agency\n\nPipeline: ${byStage.contacted} contacted, ${byStage.callBooked} calls booked, $${closedRevenue} closed.`
+    `Hi Barry,\n\nHere's your 10PM daily brief:\n\n${brief}\n\n— PostelOS Autonomous Agency\n\nPipeline: ${byStage.contacted} contacted, ${byStage.callBooked} calls booked, $${closedRevenue} closed.`
   );
 
   await logAction('Daily Brief Sent', `10PM brief generated and emailed to Barry`);

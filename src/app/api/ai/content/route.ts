@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { gemini } from '@/lib/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
+import { validateText, badRequest, LIMITS } from '@/lib/validation';
+import { asErr } from '@/lib/errors';
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
@@ -11,10 +13,10 @@ export async function POST(req: Request) {
   if (!rl.allowed) return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
 
   try {
-    const { topic } = await req.json();
-    if (!topic) {
-      return NextResponse.json({ success: false, error: 'topic is required' }, { status: 400 });
-    }
+    const body = await req.json().catch(() => ({}));
+    const check = validateText(body.topic, 'Topic', { max: LIMITS.prompt });
+    if (!check.ok) return badRequest(check.error);
+    const topic = check.value;
 
     // Call Gemini content generation logic
     const ideas = await gemini.generateContentIdeas(topic);
@@ -43,7 +45,7 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ success: true, ideas: savedIdeas });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error generating content API:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

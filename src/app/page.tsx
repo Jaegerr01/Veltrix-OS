@@ -1,587 +1,250 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
-import { OrbitalCommand, VxIcon, VeltrixSpinner } from '@/components/ds';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { Badge, Button, EmptyState, Skeleton, Switch, VxIcon } from '@/components/ds';
 import { db } from '@/lib/db';
+import type { BusinessProfile, Goal, Lead, Revenue, Task } from '@/lib/types';
+import { asErr } from '@/lib/errors';
+import { useToast } from '@/components/Toast';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
+import StatusStrip from '@/components/StatusStrip';
 
-const dashCard: React.CSSProperties = {
-  padding: 'var(--space-6)',
-  borderRadius: 28,
-  background: 'rgba(20,13,44,0.2)',
-  border: '1px solid var(--border-default)',
-  boxShadow: 'var(--shadow-lg), var(--sheen-top)',
-};
+// The orbital network is a heavy animated scene: load it after first paint, with a same-size placeholder (no layout shift).
+const OrbitalCommand = dynamic(() => import('@/components/ds/OrbitalCommand'), {
+  ssr: false,
+  loading: () => <div className="vx-card vx-hero-slot" role="status" aria-label="Loading agent network"><Skeleton height="100%" style={{ minHeight: 380 }} /></div>,
+});
 
-const tileStyle: React.CSSProperties = {
-  padding: 'var(--space-4)',
-  borderRadius: 'var(--radius-md)',
-  background: 'var(--ink-700)',
-  border: '1px solid var(--hairline)',
-  textAlign: 'center',
-};
-
-const formatRevenue = (val: number) => {
-  if (val >= 1000) return `$${(val / 1000).toFixed(0)}K`;
-  return `$${val}`;
-};
+const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
+const greeting = (d: Date) => (d.getHours() < 12 ? 'Good morning' : d.getHours() < 18 ? 'Good afternoon' : 'Good evening');
+const PRIORITY_TONE: Record<string, string> = { Critical: 'danger', High: 'warning', Medium: 'neutral', Low: 'neutral' };
 
 export default function DashboardPage() {
-  const router = useRouter();
-
+  const toast = useToast();
   const [loading, setLoading] = React.useState(true);
-  const [profile, setProfile] = React.useState<any>(null);
-  const [goals, setGoals] = React.useState<any[]>([]);
-  const [tasks, setTasks] = React.useState<any[]>([]);
-  const [leads, setLeads] = React.useState<any[]>([]);
-  const [revenue, setRevenue] = React.useState<any[]>([]);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [profile, setProfile] = React.useState<BusinessProfile | null>(null);
+  const [goals, setGoals] = React.useState<Goal[]>([]);
+  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [leads, setLeads] = React.useState<Lead[]>([]);
+  const [revenue, setRevenue] = React.useState<Revenue[]>([]);
   const [displayName, setDisplayName] = React.useState('Operator');
-  
   const [goalDraft, setGoalDraft] = React.useState('');
-  const [goalsLoading, setGoalsLoading] = React.useState(false);
+  const [goalBusy, setGoalBusy] = React.useState(false);
 
-  const loadDashboardData = async () => {
+  const load = React.useCallback(async () => {
+    setLoadError(null);
     try {
-      const [profData, goalsData, tasksData, leadsData, revData] = await Promise.all([
-        db.getBusinessProfile(),
-        db.getGoals(),
-        db.getTasks(),
-        db.getLeads(),
-        db.getRevenue()
-      ]);
-
-      setProfile(profData);
-      setGoals(goalsData.filter((g: any) => g.status !== 'Abandoned'));
-      setTasks(tasksData);
-      setLeads(leadsData);
-      setRevenue(revData);
-    } catch (err) {
-      console.warn('Failed to load dashboard data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  React.useEffect(() => {
-    loadDashboardData();
-    
-    // Load display name from localStorage
-    const savedName = localStorage.getItem('vx_display_name') || 'Operator';
-    setDisplayName(savedName);
+      const [p, g, t, l, r] = await Promise.all([db.getBusinessProfile(), db.getGoals(), db.getTasks(), db.getLeads(), db.getRevenue()]);
+      setProfile(p);
+      setGoals(g.filter(x => x.status !== 'Abandoned'));
+      setTasks(t); setLeads(l); setRevenue(r);
+    } catch (e) {
+      setLoadError(asErr(e).message || 'Could not load your workspace data.');
+    } finally { setLoading(false); }
   }, []);
 
-  const toggleAutopilot = async () => {
+  React.useEffect(() => {
+    const t = setTimeout(() => { void load(); setDisplayName(localStorage.getItem('vx_display_name') || 'Operator'); }, 0);
+    return () => clearTimeout(t);
+  }, [load]);
+
+  const toggleAutopilot = async (next: boolean) => {
     if (!profile) return;
-    const newAutopilot = !profile.autopilot;
-    
-    setProfile((p: any) => ({ ...p, autopilot: newAutopilot }));
-    
+    setProfile({ ...profile, autopilot: next });
     try {
-      await db.updateBusinessProfile({ autopilot: newAutopilot });
-      
-      // Dispatch a custom event to notify Settings page if open
+      await db.updateBusinessProfile({ autopilot: next });
       window.dispatchEvent(new Event('vx_settings_updated'));
-    } catch (err) {
-      console.warn('Failed to update autopilot:', err);
-      // rollback
-      setProfile((p: any) => ({ ...p, autopilot: !newAutopilot }));
+      toast.success(next ? 'Autopilot is on' : 'Autopilot is on standby');
+    } catch (e) {
+      setProfile({ ...profile, autopilot: !next });
+      toast.error('Could not change autopilot', asErr(e).message);
     }
   };
 
-  const handleAddGoal = async () => {
-    const t = goalDraft.trim();
-    if (!t) return;
-    setGoalsLoading(true);
+  const addGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = goalDraft.trim();
+    if (!title || goalBusy) return;
+    setGoalBusy(true);
     try {
-      const newGoal = await db.addGoal({
-        title: t,
-        description: 'Goal added from command center dashboard.',
-        status: 'Pending',
-        priority: 'Medium'
+      const g = await db.addGoal({ title, description: 'Added from the dashboard.', status: 'Pending', priority: 'Medium' });
+      setGoals(prev => [g, ...prev]); setGoalDraft('');
+    } catch (err) { toast.error('Could not add the goal', asErr(err).message); }
+    finally { setGoalBusy(false); }
+  };
+
+  const toggleGoal = async (g: Goal) => {
+    const next: Goal['status'] = g.status === 'Completed' ? 'Pending' : 'Completed';
+    setGoals(prev => prev.map(x => (x.id === g.id ? { ...x, status: next } : x)));
+    try { await db.updateGoal(g.id, { status: next }); }
+    catch (err) { setGoals(prev => prev.map(x => (x.id === g.id ? { ...x, status: g.status } : x))); toast.error('Could not update the goal', asErr(err).message); }
+  };
+
+  const archiveGoal = async (g: Goal) => {
+    setGoals(prev => prev.filter(x => x.id !== g.id));
+    try {
+      await db.updateGoal(g.id, { status: 'Abandoned' });
+      toast.undoable(`Archived "${g.title}"`, async () => {
+        await db.updateGoal(g.id, { status: g.status });
+        setGoals(prev => [g, ...prev]);
       });
-      setGoals((prev) => [newGoal, ...prev]);
-      setGoalDraft('');
-    } catch (err) {
-      console.warn('Failed to add goal:', err);
-    } finally {
-      setGoalsLoading(false);
-    }
+    } catch (err) { setGoals(prev => [g, ...prev]); toast.error('Could not archive the goal', asErr(err).message); }
   };
 
-  const handleToggleGoal = async (goalId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'Completed' ? 'Pending' : 'Completed';
-    setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, status: newStatus } : g));
-    try {
-      await db.updateGoal(goalId, { status: newStatus });
-    } catch (err) {
-      console.warn('Failed to update goal status:', err);
-      // rollback
-      setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, status: currentStatus } : g));
-    }
-  };
-
-  const handleRemoveGoal = async (goalId: string) => {
-    setGoals((prev) => prev.filter((g) => g.id !== goalId));
-    try {
-      await db.updateGoal(goalId, { status: 'Abandoned' });
-    } catch (err) {
-      console.warn('Failed to abandon goal:', err);
-      // reload
-      const updatedGoals = await db.getGoals();
-      setGoals(updatedGoals.filter((g: any) => g.status !== 'Abandoned'));
-    }
-  };
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const paidThisMonth = revenue.filter(r => r.status === 'Paid' && r.month === month).reduce((s, r) => s + Number(r.amount), 0);
+  const pipelineValue = revenue.filter(r => ['Expected', 'Invoiced', 'Overdue'].includes(r.status)).reduce((s, r) => s + Number(r.amount), 0);
+  const target = profile?.target_monthly_revenue || 0;
+  const pct = target > 0 ? Math.min(100, Math.round((paidThisMonth / target) * 100)) : 0;
+  const count = (...s: string[]) => leads.filter(l => s.includes(l.status)).length;
+  const funnel: [string, number, boolean][] = [
+    ['New', count('New', 'Researched', 'Qualified'), false], ['Contacted', count('Contacted'), false], ['Replied', count('Replied'), false],
+    ['Booked', count('Call Booked'), true], ['Proposal', count('Proposal Sent'), true], ['Won', count('Won'), true],
+  ];
+  const maxF = Math.max(1, ...funnel.map(f => f[1]));
+  const active = tasks.filter(t => t.status === 'In Progress' || t.status === 'Needs Approval').slice(0, 6);
+  const goalsDone = goals.filter(g => g.status === 'Completed').length;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Loading your pipeline, revenue and tasks…" />
+      <div className="vx-stack" role="status" aria-label="Loading dashboard">
+        <Skeleton width={320} height={34} />
+        <div className="vx-grid vx-grid--stats">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="vx-stat"><Skeleton width="50%" height={12} /><Skeleton width="35%" height={30} /></div>)}</div>
+        <div className="vx-card vx-hero-slot"><Skeleton height="100%" style={{ minHeight: 380 }} /></div>
       </div>
     );
   }
 
-  // calculations
-  const totalLeads = leads.length;
-  const bookedLeads = leads.filter(l => l.status === 'Call Booked').length;
-  const wonLeads = leads.filter(l => l.status === 'Won').length;
-
-  const completedTasks = tasks.filter(t => t.status === 'Completed').length;
-  const approvalTasks = tasks.filter(t => t.status === 'Needs Approval').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'In Progress');
-
-  // lead funnel counts
-  const newCount = leads.filter(l => ['New', 'Researched', 'Qualified'].includes(l.status)).length;
-  const contactedCount = leads.filter(l => l.status === 'Contacted').length;
-  const repliedCount = leads.filter(l => l.status === 'Replied').length;
-  const bookedCount = leads.filter(l => l.status === 'Call Booked').length;
-  const proposalCount = leads.filter(l => l.status === 'Proposal Sent').length;
-  const wonCount = leads.filter(l => l.status === 'Won').length;
-
-  const maxFunnel = Math.max(newCount, contactedCount, repliedCount, bookedCount, proposalCount, wonCount, 1);
-  // Real data only (rule 5): a stage with zero leads renders as an empty
-  // hairline, not an inflated 5% bar pretending there's something there.
-  const funnelBars: [string, number, string, number][] = [
-    ['New', (newCount / maxFunnel) * 100, 'var(--violet-400)', newCount],
-    ['Contact', (contactedCount / maxFunnel) * 100, 'var(--violet-400)', contactedCount],
-    ['Replied', (repliedCount / maxFunnel) * 100, 'var(--violet-400)', repliedCount],
-    ['Booked', (bookedCount / maxFunnel) * 100, 'var(--cyan-400)', bookedCount],
-    ['Proposal', (proposalCount / maxFunnel) * 100, 'var(--cyan-400)', proposalCount],
-    ['Won', (wonCount / maxFunnel) * 100, 'var(--cyan-400)', wonCount],
-  ];
-
-  // revenue target dial
-  const closedRevenue = profile?.current_monthly_revenue || 0;
-  const targetRevenue = profile?.target_monthly_revenue || 6000;
-  const targetPercent = Math.min(100, Math.round((closedRevenue / targetRevenue) * 100));
-
-  const pipelineValue = revenue
-    .filter((r) => ['Expected', 'Invoiced', 'Overdue'].includes(r.status))
-    .reduce((sum, r) => sum + Number(r.amount), 0);
-
-  const revenueLegend = [
-    { label: 'Goal', value: formatRevenue(targetRevenue), color: 'var(--mist-400)' },
-    { label: 'Earned', value: formatRevenue(closedRevenue), color: 'var(--brand)' },
-    { label: 'Pipeline', value: formatRevenue(pipelineValue), color: 'var(--cyan-400)' },
-  ];
-
-  const overviewTiles = [
-    { value: String(totalLeads), label: 'LEADS', color: 'var(--cyan-300)' },
-    { value: String(bookedLeads), label: 'BOOKED', color: 'var(--text-strong)' },
-    { value: String(wonLeads), label: 'WON', color: 'var(--signal-400)' },
-  ];
-
-  const goalsDone = `${goals.filter((g) => g.status === 'Completed').length} / ${goals.length} done`;
-
-  // Fake progress % (derived from title char codes) removed per design rule 5 —
-  // never display invented data. Tasks show their real priority instead.
-  const getTaskColor = (priority: string) => {
-    if (priority === 'Critical') return 'var(--danger-400)';
-    if (priority === 'High') return 'var(--warn-400)';
-    if (priority === 'Medium') return 'var(--violet-300)';
-    return 'var(--cyan-400)';
-  };
-
-  const formattedDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
-  });
-
   return (
-    /* Spacing rhythm (rule 1): tight greeting→hero (space-6), the hero dominates,
-       then a deliberate wide break (space-16) before the denser data sections,
-       which sit closer together (space-8). Not one even column. */
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Greeting + autopilot */}
-      <section style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap', marginBottom: 'var(--space-6)' }}>
+    <div className="vx-stack" style={{ gap: 'var(--space-6)' }}>
+      <header className="vx-pagehead">
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-strong)' }}>
-            Good morning, {displayName}
-          </div>
-          <div style={{ fontSize: 13.5, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
-            {formattedDate} · ${closedRevenue.toLocaleString()} closed of ${targetRevenue.toLocaleString()} target
-          </div>
+          <h2 className="vx-pagehead__title">{greeting(now)}, {displayName}</h2>
+          <p className="vx-pagehead__sub">
+            {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            {' - '}{money(paidThisMonth)} paid this month{target > 0 ? <> of {money(target)} target</> : <> (<Link href="/settings">set a monthly target</Link>)</>}
+          </p>
         </div>
-        <div
-          onClick={toggleAutopilot}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 9,
-            padding: '9px 16px',
-            borderRadius: 999,
-            cursor: 'pointer',
-            background: profile?.autopilot ? 'rgba(46,230,160,0.12)' : 'rgba(255,255,255,0.03)',
-            border: profile?.autopilot ? '1px solid rgba(46,230,160,0.35)' : '1px solid var(--border-default)',
-            boxShadow: profile?.autopilot ? '0 0 18px rgba(46,230,160,0.3)' : 'none',
-            transition: 'all var(--dur-base) var(--ease-out)',
-          }}
-        >
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: profile?.autopilot ? 'var(--signal-400)' : 'var(--mist-400)',
-              /* Static glow — color carries the state, no blinking (rule 6) */
-              boxShadow: profile?.autopilot ? '0 0 8px var(--signal-400)' : 'none',
-            }}
-          />
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 'var(--ls-wide)',
-              textTransform: 'uppercase',
-              color: profile?.autopilot ? 'var(--signal-400)' : 'var(--text-muted)',
-            }}
-          >
-            {profile?.autopilot ? 'Autopilot Active' : 'Autopilot Standby'}
-          </span>
-        </div>
-      </section>
+        {profile ? (
+          <Switch checked={profile.autopilot} onChange={toggleAutopilot} label={profile.autopilot ? 'Autopilot on' : 'Autopilot standby'} />
+        ) : null}
+      </header>
 
-      {/* Orbital hero — the one big open moment on the page */}
-      <div style={{ marginBottom: 'var(--space-16)' }}>
-        <OrbitalCommand />
+      {loadError ? (
+        <div className="vx-callout" data-tone="bad" role="alert">
+          <VxIcon name="alert" size={18} />
+          <div>
+            <p className="vx-callout__title">Could not load some workspace data</p>
+            <p className="vx-callout__body">{loadError}</p>
+            <button type="button" className="vx-linkbtn" style={{ marginTop: 8 }} onClick={() => { setLoading(true); void load(); }}>Try again</button>
+          </div>
+        </div>
+      ) : null}
+
+      <OnboardingChecklist />
+      <StatusStrip />
+
+      <OrbitalCommand />
+
+      <div className="vx-grid vx-grid--3">
+        <section className="vx-card" aria-labelledby="d-overview">
+          <div className="vx-card__head"><div><p className="vx-card__eyebrow">Agents</p><h2 className="vx-card__title" id="d-overview">Business overview</h2></div></div>
+          <div className="vx-row" style={{ gap: 'var(--space-8)' }}>
+            <div><div className="vx-stat__value">{tasks.filter(t => t.status === 'Completed').length}</div><div className="vx-stat__note">Tasks completed</div></div>
+            <div><div className="vx-stat__value" style={{ color: 'var(--violet-300)' }}>{tasks.filter(t => t.status === 'Needs Approval').length}</div><div className="vx-stat__note">Need approval</div></div>
+          </div>
+          <dl className="vx-row" style={{ gap: 'var(--space-3)', marginTop: 'var(--space-6)', flexWrap: 'nowrap' }}>
+            {[['Leads', leads.length], ['Booked', count('Call Booked')], ['Won', count('Won')]].map(([k, v]) => (
+              <div key={k} style={{ flex: 1, textAlign: 'center', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)' }}>
+                <dd style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text-strong)' }}>{v}</dd>
+                <dt className="vx-stat__label" style={{ marginTop: 4 }}>{k}</dt>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="vx-card" aria-labelledby="d-funnel">
+          <div className="vx-card__head"><div><p className="vx-card__eyebrow">Pipeline</p><h2 className="vx-card__title" id="d-funnel">Lead funnel</h2></div><span className="vx-card__meta">{leads.length} leads</span></div>
+          {leads.length === 0 ? (
+            <EmptyState compact icon="users" title="No leads yet" body="Import a CSV, add one by hand, or ask the CEO to research prospects." action={<Link href="/leads" className="vx-linkbtn">Add leads</Link>} />
+          ) : (
+            <ul className="vx-bars">
+              {funnel.map(([label, n, alt]) => (
+                <li key={label}><span className="vx-bars__label">{label}</span><span className="vx-bars__track"><span className="vx-bars__fill" data-alt={alt} style={{ width: `${(n / maxF) * 100}%` }} /></span><span className="vx-bars__n">{n}</span></li>
+              ))}
+            </ul>
+          )}
+          <p className="vx-stat__note" style={{ marginTop: 'var(--space-4)' }}>Pipeline value (expected + invoiced): <strong style={{ color: 'var(--text-strong)' }}>{money(pipelineValue)}</strong></p>
+        </section>
+
+        <section className="vx-card" aria-labelledby="d-revenue">
+          <div className="vx-card__head"><div><p className="vx-card__eyebrow">This month</p><h2 className="vx-card__title" id="d-revenue">Revenue target</h2></div></div>
+          {target > 0 ? (
+            <div className="vx-row" style={{ gap: 'var(--space-5)', flexWrap: 'nowrap' }}>
+              <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={`${pct}% of the monthly revenue target`}
+                style={{ width: 96, height: 96, borderRadius: '50%', flex: '0 0 auto', display: 'grid', placeItems: 'center', background: `conic-gradient(var(--violet-400) ${pct * 3.6}deg, rgba(255,255,255,0.08) 0)` }}>
+                <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'var(--ink-800)', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'var(--text-xl)', color: 'var(--text-strong)' }}>{pct}%</div>
+              </div>
+              <dl style={{ margin: 0, flex: 1, display: 'grid', gap: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>
+                {[['Target', money(target)], ['Paid', money(paidThisMonth)], ['Pipeline', money(pipelineValue)]].map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><dt style={{ color: 'var(--text-muted)' }}>{k}</dt><dd style={{ margin: 0, color: 'var(--text-strong)', fontWeight: 600 }}>{v}</dd></div>
+                ))}
+              </dl>
+            </div>
+          ) : (
+            <EmptyState compact icon="dollar" title="No monthly target set" body="Set a revenue target so the CEO can plan against it." action={<Link href="/settings" className="vx-linkbtn">Set target</Link>} />
+          )}
+          <p style={{ margin: 'var(--space-4) 0 0' }}><Link href="/revenue" className="vx-linkbtn">View revenue</Link></p>
+        </section>
       </div>
 
-      {/* Overview / Funnel / Revenue — dense detail band */}
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 1fr', gap: 'var(--space-6)', alignItems: 'stretch', marginBottom: 'var(--space-8)' }}>
-        {/* Business Overview */}
-        <div className="vx-glass" style={dashCard}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>This month</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>Business Overview</div>
-            </div>
-            <span
-              style={{
-                width: 34,
-                height: 34,
-                flex: '0 0 auto',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--violet-200)',
-                background: 'rgba(139,92,246,0.14)',
-                border: '1px solid var(--border-default)',
-              }}
-            >
-              <VxIcon name="sparkle" size={18} />
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-6)', marginTop: 'var(--space-6)' }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 700, lineHeight: 1, color: 'var(--text-strong)', letterSpacing: '-0.02em' }}>{completedTasks}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>Tasks completed</div>
-            </div>
-            <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 700, lineHeight: 1, color: 'var(--violet-300)', letterSpacing: '-0.02em' }}>{approvalTasks}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>Need approval</div>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
-            {overviewTiles.map((t) => (
-              <div key={t.label} style={tileStyle}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, color: t.color, lineHeight: 1 }}>{t.value}</div>
-                <div style={{ fontSize: 9.5, color: 'var(--text-dim)', fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: 'var(--ls-wide)', marginTop: 8 }}>{t.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Lead Funnel */}
-        <div className="vx-glass" style={dashCard}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>Pipeline</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>Lead Funnel</div>
-            </div>
-            <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--text-muted)' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--violet-400)' }} />Leads
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--text-muted)' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cyan-400)' }} />Won
-              </span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, marginTop: 'var(--space-6)' }}>
-            {funnelBars.map(([label, h, c, count]) => (
-              <div key={label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, height: '100%', justifyContent: 'flex-end' }}>
-                {count > 0 ? (
-                  <div style={{ width: '100%', height: `${Math.max(6, h)}%`, borderRadius: '6px 6px 2px 2px', background: `linear-gradient(180deg, ${c}, rgba(139,92,246,0.15))`, boxShadow: `0 0 12px ${c}44` }} />
-                ) : (
-                  <div style={{ width: '100%', height: 2, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }} />
-                )}
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-dim)', textTransform: 'uppercase' }}>{label}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-5)', paddingTop: 'var(--space-5)', borderTop: '1px solid var(--hairline)' }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: 'var(--ls-wide)' }}>PIPELINE VALUE</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, color: 'var(--cyan-300)', marginTop: 4 }}>${pipelineValue.toLocaleString()}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: 'var(--ls-wide)' }}>TOTAL LEADS</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, color: 'var(--text-strong)', marginTop: 4 }}>{totalLeads}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Revenue Target */}
-        <div className="vx-glass" style={dashCard}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>Monthly Goal</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>Revenue Target</div>
-            </div>
-            <span
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: 'var(--ls-wide)',
-                textTransform: 'uppercase',
-                color: targetPercent >= 100 ? 'var(--signal-400)' : 'var(--warn-400)',
-                padding: '5px 12px',
-                borderRadius: 999,
-                background: targetPercent >= 100 ? 'rgba(46,230,160,0.1)' : 'rgba(245,158,11,0.10)',
-                border: targetPercent >= 100 ? '1px solid rgba(46,230,160,0.3)' : '1px solid rgba(245,158,11,0.3)',
-              }}
-            >
-              {targetPercent >= 100 ? 'On Track' : 'Behind'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)', marginTop: 'var(--space-6)' }}>
-            <div
-              style={{
-                width: 120,
-                height: 120,
-                flex: '0 0 auto',
-                borderRadius: '50%',
-                background: `conic-gradient(var(--brand) 0% ${targetPercent}%, rgba(255,255,255,0.06) ${targetPercent}% 100%)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: 'var(--glow-violet)',
-              }}
-            >
-              <div style={{ width: 88, height: 88, borderRadius: '50%', background: 'var(--ink-800)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-subtle)' }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--text-strong)', lineHeight: 1 }}>{targetPercent}%</span>
-                <span style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 3 }}>of goal</span>
-              </div>
-            </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              {revenueLegend.map((r) => (
-                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: 3, flex: '0 0 auto', background: r.color }} />
-                  <span style={{ fontSize: 13, color: 'var(--text-body)', flex: 1 }}>{r.label}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-strong)' }}>{r.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div
-            onClick={() => router.push('/revenue')}
-            style={{
-              marginTop: 'var(--space-6)',
-              padding: '11px 0',
-              textAlign: 'center',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-body)',
-              fontFamily: 'var(--font-display)',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all var(--dur-base) var(--ease-out)',
-            }}
-          >
-            View Reports →
-          </div>
-        </div>
-      </section>
-
-      {/* Goals + Tasks in progress */}
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', alignItems: 'stretch' }}>
-        {/* Today's Goals */}
-        <div className="vx-glass" style={dashCard}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
-            <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>Priorities</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)', marginTop: 4 }}>Today&apos;s Goals</div>
-            </div>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-dim)' }}>{goalsDone}</span>
-          </div>
-          
-          <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+      <div className="vx-grid vx-grid--2">
+        <section className="vx-card" aria-labelledby="d-goals">
+          <div className="vx-card__head"><div><p className="vx-card__eyebrow">Priorities</p><h2 className="vx-card__title" id="d-goals">Goals</h2></div><span className="vx-card__meta">{goalsDone} / {goals.length} done</span></div>
+          <form onSubmit={addGoal} className="vx-row" style={{ flexWrap: 'nowrap', marginBottom: 'var(--space-3)' }}>
             <input
-              value={goalDraft}
-              onChange={(e) => setGoalDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddGoal();
-              }}
-              placeholder="Add a goal for today…"
-              style={{
-                flex: 1,
-                minWidth: 0,
-                height: 40,
-                padding: '0 14px',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--ink-700)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-strong)',
-                fontFamily: 'var(--font-body)',
-                fontSize: 13.5,
-                outline: 'none',
-              }}
+              value={goalDraft} onChange={e => setGoalDraft(e.target.value)} aria-label="New goal" placeholder="Add a goal..." maxLength={160}
+              style={{ flex: 1, minWidth: 0, height: 44, padding: '0 14px', borderRadius: 'var(--radius-md)', background: 'var(--ink-800)', border: '1px solid var(--border-default)', color: 'var(--text-body)', fontSize: 'var(--text-base)' }}
             />
-            <button
-              onClick={handleAddGoal}
-              disabled={goalsLoading || !goalDraft.trim()}
-              style={{
-                width: 40,
-                height: 40,
-                flex: '0 0 auto',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                background: 'var(--grad-brand)',
-                boxShadow: 'var(--glow-violet)',
-                cursor: 'pointer',
-                border: 'none',
-                opacity: goalsLoading || !goalDraft.trim() ? 0.5 : 1
-              }}
-            >
-              <VxIcon name="plus" size={16} color="#fff" />
-            </button>
-          </div>
-
-          {goals.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '280px', overflowY: 'auto' }}>
-              {goals.map((g, i) => {
-                const isCompleted = g.status === 'Completed';
-                return (
-                  <div
-                    key={g.id}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: i < goals.length - 1 ? '1px solid var(--hairline)' : 'none' }}
-                  >
-                    <span
-                      onClick={() => handleToggleGoal(g.id, g.status)}
-                      style={{
-                        width: 20,
-                        height: 20,
-                        flex: '0 0 auto',
-                        borderRadius: 6,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        background: isCompleted ? 'var(--grad-brand)' : 'transparent',
-                        border: isCompleted ? '1px solid transparent' : '1px solid var(--border-default)',
-                        boxShadow: isCompleted ? 'var(--glow-violet)' : 'none',
-                      }}
-                    >
-                      {isCompleted ? <VxIcon name="check" size={12} color="#fff" /> : null}
-                    </span>
-                    <span style={{ flex: 1, fontSize: 13.5, color: isCompleted ? 'var(--text-dim)' : 'var(--text-body)', textDecoration: isCompleted ? 'line-through' : 'none' }}>
-                      {g.title}
-                    </span>
-                    <span 
-                      onClick={() => handleRemoveGoal(g.id)} 
-                      style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--text-dim)', cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
-                      title="Archive Goal"
-                    >
-                      ×
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <Button type="submit" disabled={goalBusy || !goalDraft.trim()} leadingIcon={<VxIcon name="plus" size={16} color="#fff" />}>{goalBusy ? 'Adding...' : 'Add'}</Button>
+          </form>
+          {goals.length === 0 ? (
+            <EmptyState compact icon="target" title="No goals yet" body="Write down what has to happen this week; the CEO plans around it." />
           ) : (
-            <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', color: 'var(--text-dim)', fontSize: 13.5 }}>No active goals for today — add a priority above.</div>
+            <ul className="vx-list">
+              {goals.map(g => (
+                <li key={g.id}>
+                  <button type="button" role="checkbox" aria-checked={g.status === 'Completed'} aria-label={`Mark "${g.title}" ${g.status === 'Completed' ? 'not done' : 'done'}`} className="vx-check" onClick={() => toggleGoal(g)}>
+                    <span className="vx-check__box">{g.status === 'Completed' ? <VxIcon name="check" size={13} color="#fff" /> : null}</span>
+                  </button>
+                  <span className="vx-list__text" data-done={g.status === 'Completed'}>{g.title}</span>
+                  <button type="button" className="vx-iconaction" aria-label={`Archive goal "${g.title}"`} onClick={() => archiveGoal(g)}><VxIcon name="close" size={16} /></button>
+                </li>
+              ))}
+            </ul>
           )}
-        </div>
+        </section>
 
-        {/* Tasks In Progress */}
-        <div className="vx-glass" style={dashCard}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
-            <div>
-              <div className="vx-eyebrow" style={{ color: 'var(--text-muted)' }}>Action Queue</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>Tasks In Progress</span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                    color: 'var(--violet-200)',
-                    padding: '2px 9px',
-                    borderRadius: 999,
-                    background: 'rgba(139,92,246,0.14)',
-                    border: '1px solid var(--border-default)',
-                  }}
-                >
-                  {inProgressTasks.length}
-                </span>
-              </div>
-            </div>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => router.push('/tasks')}>All tasks →</span>
-          </div>
-
-          {inProgressTasks.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', maxHeight: '330px', overflowY: 'auto' }}>
-              {inProgressTasks.map((tk) => {
-                const taskColor = getTaskColor(tk.priority);
-                return (
-                  <div
-                    key={tk.id}
-                    style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)' }}
-                  >
-                    <span style={{ width: 8, height: 8, flex: '0 0 auto', borderRadius: '50%', background: taskColor, boxShadow: `0 0 8px ${taskColor}` }} />
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>{tk.title}</div>
-                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{tk.agent_name || 'System Agent'}</div>
-                    </div>
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: taskColor }}>{tk.priority}</span>
-                  </div>
-                );
-              })}
-            </div>
+        <section className="vx-card" aria-labelledby="d-active">
+          <div className="vx-card__head"><div><p className="vx-card__eyebrow">Agents</p><h2 className="vx-card__title" id="d-active">Active work</h2></div><Link href="/tasks" className="vx-linkbtn">All tasks</Link></div>
+          {active.length === 0 ? (
+            <EmptyState compact icon="usercheck" title="No agents are working right now" body="Give the CEO a goal and the tasks it creates will show up here." action={<Link href="/ceo" className="vx-linkbtn">Open CEO Console</Link>} />
           ) : (
-            <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', color: 'var(--text-dim)', fontSize: 13.5 }}>
-              No tasks currently in progress by autonomous agents.
-            </div>
+            <ul className="vx-list">
+              {active.map(t => (
+                <li key={t.id}>
+                  <span className="vx-list__text"><strong style={{ color: 'var(--text-strong)' }}>{t.title}</strong><br /><span className="vx-stat__note">{t.agent_name} - {t.status}</span></span>
+                  <Badge tone={PRIORITY_TONE[t.priority] ?? 'neutral'}>{t.priority}</Badge>
+                </li>
+              ))}
+            </ul>
           )}
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

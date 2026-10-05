@@ -1,19 +1,20 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { CheckCircle2, AlertTriangle, Info, XCircle, X } from 'lucide-react';
+import { Button, Modal } from '@/components/ds';
 
 /**
- * Toast notification system — replaces the browser alert()/confirm() popups
- * that blocked the whole UI. Non-blocking, stacked bottom-right, auto-dismiss
- * with a click-to-dismiss escape hatch.
+ * Toast notification system - replaces the browser alert()/confirm() popups that blocked the whole UI.
+ * Non-blocking, stacked bottom-right (full-width above the safe area on phones), auto-dismiss with a
+ * click-to-dismiss escape hatch. One persistent polite live region announces everything; errors use role=alert.
  *
- * Usage:
  *   const toast = useToast();
  *   toast.success('Lead imported');
- *   toast.error('Import failed', 'Batch too large — max 100 leads.');
- *   const ok = await toast.confirm('Delete this lead?');
+ *   toast.error('Import failed', 'Batch too large - max 100 leads.');
+ *   toast.undoable('Goal archived', () => restore());          // 8s window with an Undo button
+ *   const ok = await toast.confirm('Send this email?', 'It goes to dana@example.com.', { confirmLabel: 'Send' });
  */
 
 type ToastKind = 'success' | 'error' | 'info' | 'warning';
@@ -23,20 +24,27 @@ interface ToastItem {
   kind: ToastKind;
   title: string;
   detail?: string;
+  action?: { label: string; run: () => void };
 }
 
 interface ConfirmState {
   message: string;
   detail?: string;
+  confirmLabel: string;
+  danger: boolean;
   resolve: (ok: boolean) => void;
 }
+
+export interface ConfirmOptions { confirmLabel?: string; danger?: boolean }
 
 interface ToastApi {
   success: (title: string, detail?: string) => void;
   error: (title: string, detail?: string) => void;
   info: (title: string, detail?: string) => void;
   warning: (title: string, detail?: string) => void;
-  confirm: (message: string, detail?: string) => Promise<boolean>;
+  /** Shows an info toast with an Undo button for `windowMs` (default 8s). */
+  undoable: (title: string, onUndo: () => void | Promise<void>, detail?: string, windowMs?: number) => void;
+  confirm: (message: string, detail?: string, options?: ConfirmOptions) => Promise<boolean>;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -47,11 +55,12 @@ export function useToast(): ToastApi {
   return ctx;
 }
 
-const KIND_STYLE: Record<ToastKind, { icon: React.ReactNode; ring: string; iconColor: string }> = {
-  success: { icon: <CheckCircle2 size={16} />, ring: 'border-emerald-400/30', iconColor: 'text-emerald-400' },
-  error:   { icon: <XCircle size={16} />,      ring: 'border-red-400/30',     iconColor: 'text-red-400' },
-  warning: { icon: <AlertTriangle size={16} />, ring: 'border-amber-400/30',  iconColor: 'text-amber-400' },
-  info:    { icon: <Info size={16} />,          ring: 'border-cyan-400/30',   iconColor: 'text-cyan-400' },
+/** `label` names the tone in text so it is not carried by colour and glyph alone (WCAG 1.4.1). */
+const KIND_STYLE: Record<ToastKind, { icon: React.ReactNode; color: string; label: string }> = {
+  success: { icon: <CheckCircle2 size={16} />,  color: 'var(--signal-400)', label: 'Success' },
+  error:   { icon: <XCircle size={16} />,       color: 'var(--danger-400)', label: 'Error' },
+  warning: { icon: <AlertTriangle size={16} />, color: 'var(--warn-400)',   label: 'Warning' },
+  info:    { icon: <Info size={16} />,          color: 'var(--cyan-400)',   label: 'Information' },
 };
 
 const AUTO_DISMISS_MS = 5000;
@@ -60,24 +69,31 @@ let nextId = 1;
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const timers = useRef(new Map<number, number>());
 
   const dismiss = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    const t = timers.current.get(id);
+    if (t) { window.clearTimeout(t); timers.current.delete(id); }
+    setToasts(prev => prev.filter(x => x.id !== id));
   }, []);
 
-  const push = useCallback((kind: ToastKind, title: string, detail?: string) => {
+  const push = useCallback((kind: ToastKind, title: string, detail?: string, action?: ToastItem['action'], ms = AUTO_DISMISS_MS) => {
     const id = nextId++;
-    setToasts(prev => [...prev.slice(-4), { id, kind, title, detail }]);
-    window.setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
+    setToasts(prev => [...prev.slice(-3), { id, kind, title, detail, action }]);
+    timers.current.set(id, window.setTimeout(() => dismiss(id), ms));
   }, [dismiss]);
 
   const api: ToastApi = {
     success: (t, d) => push('success', t, d),
-    error:   (t, d) => push('error', t, d),
+    error:   (t, d) => push('error', t, d, undefined, 8000),
     info:    (t, d) => push('info', t, d),
-    warning: (t, d) => push('warning', t, d),
-    confirm: (message, detail) =>
-      new Promise<boolean>(resolve => setConfirmState({ message, detail, resolve })),
+    warning: (t, d) => push('warning', t, d, undefined, 7000),
+    undoable: (title, onUndo, detail, windowMs = 8000) => {
+      const id = nextId;
+      push('info', title, detail, { label: 'Undo', run: () => { dismiss(id); void onUndo(); } }, windowMs);
+    },
+    confirm: (message, detail, options) =>
+      new Promise<boolean>(resolve => setConfirmState({ message, detail, confirmLabel: options?.confirmLabel ?? 'Confirm', danger: !!options?.danger, resolve })),
   };
 
   const settleConfirm = (ok: boolean) => {
@@ -87,85 +103,62 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastContext.Provider value={api}>
-      {children}
+      <MotionConfig reducedMotion="user">
+        {children}
 
-      {/* Toast stack */}
-      <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 w-[min(22rem,calc(100vw-2.5rem))] pointer-events-none">
-        <AnimatePresence>
-          {toasts.map(t => {
-            const s = KIND_STYLE[t.kind];
-            return (
-              <motion.div
-                key={t.id}
-                layout
-                initial={{ opacity: 0, x: 24, scale: 0.97 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 24, scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                className={`pointer-events-auto rounded-xl border ${s.ring} bg-[#0d0d18]/95 backdrop-blur-xl shadow-[0_12px_32px_rgba(0,0,0,0.5)] p-3.5 flex gap-3`}
-                role="status"
-              >
-                <span className={`${s.iconColor} mt-0.5 flex-shrink-0`}>{s.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-white/90 leading-snug">{t.title}</p>
-                  {t.detail && <p className="text-[11.5px] text-white/50 mt-0.5 leading-snug">{t.detail}</p>}
-                </div>
-                <button
-                  onClick={() => dismiss(t.id)}
-                  className="text-white/30 hover:text-white/70 transition cursor-pointer flex-shrink-0 self-start"
-                  aria-label="Dismiss"
+        {/* Toast stack: one persistent polite live region. */}
+        <div
+          className="vx-toasts"
+          role="region"
+          aria-label="Notifications"
+          aria-live="polite"
+        >
+          <AnimatePresence>
+            {toasts.map(t => {
+              const s = KIND_STYLE[t.kind];
+              return (
+                <motion.div
+                  key={t.id}
+                  layout
+                  initial={{ opacity: 0, x: 24, scale: 0.97 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 24, scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                  className="vx-toast"
+                  style={{ borderColor: s.color }}
+                  role={t.kind === 'error' ? 'alert' : undefined}
                 >
-                  <X size={13} />
-                </button>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+                  <span style={{ color: s.color, marginTop: 2, flexShrink: 0 }} aria-hidden="true">{s.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="vx-sr-only">{s.label}: </span>
+                    <p className="vx-toast__title">{t.title}</p>
+                    {t.detail ? <p className="vx-toast__detail">{t.detail}</p> : null}
+                  </div>
+                  {t.action ? <button type="button" className="vx-toast__action" onClick={t.action.run}>{t.action.label}</button> : null}
+                  <button type="button" className="vx-toast__x" onClick={() => dismiss(t.id)} aria-label={`Dismiss ${s.label.toLowerCase()} notification`}>
+                    <X size={14} />
+                  </button>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
 
-      {/* Confirm dialog */}
-      <AnimatePresence>
-        {confirmState && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={() => settleConfirm(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d0d18] p-5 shadow-[0_24px_64px_rgba(0,0,0,0.6)]"
-              onClick={e => e.stopPropagation()}
-              role="alertdialog"
-              aria-modal="true"
-            >
-              <p className="text-[14px] font-semibold text-white/90">{confirmState.message}</p>
-              {confirmState.detail && (
-                <p className="text-[12px] text-white/50 mt-1.5 leading-relaxed">{confirmState.detail}</p>
-              )}
-              <div className="flex justify-end gap-2 mt-5">
-                <button
-                  onClick={() => settleConfirm(false)}
-                  className="px-4 py-2 rounded-lg text-[12px] font-medium text-white/60 hover:text-white/90 hover:bg-white/5 border border-white/10 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => settleConfirm(true)}
-                  autoFocus
-                  className="px-4 py-2 rounded-lg text-[12px] font-semibold text-white bg-neon-purple hover:bg-neon-purple/85 transition cursor-pointer shadow-[0_0_14px_rgba(168,85,247,0.3)]"
-                >
-                  Confirm
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Confirm dialog: the ds Modal supplies focus trap, Escape, scroll lock and focus restore. */}
+        <Modal
+          open={!!confirmState}
+          onClose={() => settleConfirm(false)}
+          title={confirmState?.message ?? ''}
+          description={confirmState?.detail}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => settleConfirm(false)}>Cancel</Button>
+              <Button variant={confirmState?.danger ? 'danger' : 'primary'} onClick={() => settleConfirm(true)}>{confirmState?.confirmLabel ?? 'Confirm'}</Button>
+            </>
+          }
+        />
+      </MotionConfig>
     </ToastContext.Provider>
   );
 }

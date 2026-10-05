@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { db } from '../db';
+import { asErr } from '@/lib/errors';
 
 /**
  * Victor (Lead Scout Agent) — bridge to Barry's local Google Maps scraper
@@ -49,12 +50,9 @@ export interface ScraperResult {
 const TIMEOUT_MS = 10 * 60_000; // scrapes with email extraction are slow — 10 min
 
 export async function getScraperScript(): Promise<string> {
-  try {
-    const { headers } = await import('next/headers');
-    const nextHeaders = await headers();
-    const headerPath = nextHeaders.get('x-scraper-path');
-    if (headerPath) return headerPath;
-  } catch {}
+  // Server environment only. This used to accept an `x-scraper-path` request
+  // header forwarded from the browser, meaning a caller could choose which file
+  // `execFile('python', …)` below would run.
   return process.env.SCRAPER_SCRIPT || DEFAULT_SCRIPT;
 }
 
@@ -257,7 +255,7 @@ export async function importScrapedLeads(scraped: ScrapedLead[], sourceLabel = '
       });
       imported.push({ id: lead.id, business_name: lead.business_name });
       keys.add(key);
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       console.warn(`[scout] failed to insert "${businessName}":`, err.message);
     }
   }

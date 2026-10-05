@@ -1,5 +1,6 @@
 import type { AgentLog, ToolLog } from '../types';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import type { DbRow } from './_core';
 
 export async function getAgentLogs(): Promise<AgentLog[]> {
   return safeRead(async () => {
@@ -13,9 +14,10 @@ export async function getAgentLogs(): Promise<AgentLog[]> {
 
     if (error) throw error;
 
-    return (data || []).map((act: any) => ({
+    return (data || []).map((act: DbRow) => ({
       id: act.id,
       user_id: act.user_id,
+      type: 'agent' as const,
       agent_name: act.actor || 'AI Agent',
       action: act.action,
       input: act.input,
@@ -33,17 +35,6 @@ export async function logAgentAction(
   output?: string,
   status: 'Success' | 'Failure' | 'Pending Approval' = 'Success'
 ): Promise<AgentLog> {
-  const fallbackLog: AgentLog = {
-    id: 'mock-act-' + Date.now(),
-    user_id: 'demo-user',
-    type: 'agent',
-    agent_name: agentName,
-    action,
-    input: input || '',
-    output: output || '',
-    status,
-    created_at: new Date().toISOString()
-  };
   return safeWrite<AgentLog>(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -73,7 +64,7 @@ export async function logAgentAction(
       status: data.status,
       created_at: data.created_at
     } as AgentLog;
-  }, fallbackLog, 'logAgentAction');
+  }, 'logAgentAction');
 }
 
 export async function getToolLogs(): Promise<ToolLog[]> {
@@ -88,7 +79,7 @@ export async function getToolLogs(): Promise<ToolLog[]> {
 
     if (error) throw error;
 
-    return (data || []).map((act: any) => ({
+    return (data || []).map((act: DbRow) => ({
       id: act.id,
       user_id: act.user_id,
       type: 'tool',
@@ -111,18 +102,6 @@ export async function logToolAction(
   status: 'Success' | 'Failure' = 'Success',
   error?: string
 ): Promise<ToolLog> {
-  const fallbackLog: ToolLog = {
-    id: 'mock-act-' + Date.now(),
-    user_id: 'demo-user',
-    type: 'tool',
-    actor: toolName,
-    action,
-    input: input || '',
-    output: output || '',
-    status,
-    error,
-    created_at: new Date().toISOString()
-  };
   return safeWrite<ToolLog>(async () => {
     const userId = await getUserId();
     const { data, error: err } = await supabase
@@ -154,5 +133,5 @@ export async function logToolAction(
       error: data.error,
       created_at: data.created_at
     } as ToolLog;
-  }, fallbackLog, 'logToolAction');
+  }, 'logToolAction');
 }

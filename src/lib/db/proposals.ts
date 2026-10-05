@@ -1,5 +1,7 @@
 import type { Proposal } from '../types';
-import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import { supabase, getUserId, safeRead, safeWrite, withOptionalColumns, assertTruthfulSent } from './_core';
+
+const OPTIONAL_COLS = ['provider', 'provider_message_id', 'error', 'attempts', 'sent_at'];
 import { updateLead } from './leads';
 import { addClient } from './clients';
 import { addRevenue } from './revenue';
@@ -21,58 +23,26 @@ export async function getProposals(): Promise<Proposal[]> {
 }
 
 export async function addProposal(prop: Omit<Proposal, 'id' | 'created_at' | 'updated_at'>): Promise<Proposal> {
-  const fallbackProposal: Proposal = {
-    id: 'mock-prop-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    user_id: 'demo-user',
-    ...prop
-  };
+  assertTruthfulSent('proposals', prop);
   return safeWrite(async () => {
     const userId = await getUserId();
-    const { data, error } = await supabase
-      .from('proposals')
-      .insert({ ...prop, user_id: userId })
-      .select()
-      .single();
+    const { data, error } = await withOptionalColumns({ ...prop, user_id: userId }, OPTIONAL_COLS, p =>
+      supabase.from('proposals').insert(p).select().single()
+    );
     if (error) throw error;
-
-    if (prop.lead_id) {
-      try {
-        await supabase
-          .from('leads')
-          .update({ status: 'Proposal Sent' })
-          .eq('id', prop.lead_id)
-          .eq('user_id', userId);
-      } catch (err) {
-        console.warn('Failed to update lead status during proposal creation:', err);
-      }
-    }
+    // NOTE: creating a proposal does NOT move the lead to 'Proposal Sent' (that was a lie:
+    // nothing had been sent). lib/email/delivery.ts does it once delivery is confirmed.
     return data;
-  }, fallbackProposal, 'addProposal');
+  }, 'addProposal');
 }
 
 export async function updateProposal(id: string, updates: Partial<Proposal>): Promise<Proposal> {
-  const fallbackProposal: Proposal = {
-    id,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    title: updates.title || '',
-    price: updates.price || 0,
-    status: updates.status || 'Draft',
-    deliverables: updates.deliverables || [],
-    user_id: 'demo-user',
-    ...updates
-  };
+  assertTruthfulSent('proposals', updates);
   return safeWrite(async () => {
     const userId = await getUserId();
-    const { data: proposal, error } = await supabase
-      .from('proposals')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const { data: proposal, error } = await withOptionalColumns({ ...updates, updated_at: new Date().toISOString() }, OPTIONAL_COLS, p =>
+      supabase.from('proposals').update(p).eq('id', id).eq('user_id', userId).select().single()
+    );
 
     if (error) throw error;
     if (!proposal) throw new Error('Proposal not found');
@@ -100,7 +70,7 @@ export async function updateProposal(id: string, updates: Partial<Proposal>): Pr
             website: lead.website || '',
             service_purchased: proposal.title,
             total_value: proposal.price,
-            monthly_retainer: proposal.title.toLowerCase().includes('receptionist') ? 250 : 0,
+            monthly_retainer: 0, // set the real retainer on the client record; never guessed
             status: 'Active'
           });
 
@@ -117,8 +87,7 @@ export async function updateProposal(id: string, updates: Partial<Proposal>): Pr
             proposal_id: proposal.id,
             amount: newClient.total_value,
             type: 'Setup Fee',
-            status: 'Paid',
-            payment_date: new Date().toISOString().split('T')[0],
+            status: 'Expected', // accepted != paid; mark Paid when money actually arrives
             month: new Date().toISOString().substring(0, 7),
             notes: `Onboarding setup for ${newClient.business_name}`
           });
@@ -142,7 +111,7 @@ Output ONLY a raw JSON array of strings, e.g. ["task 1", "task 2", ...], with no
             if (Array.isArray(parsed) && parsed.length > 0) {
               checklist = parsed;
             }
-          } catch (err) {
+          } catch {
             const isChatbot = proposal.title.toLowerCase().includes('receptionist');
             const isBranding = proposal.title.toLowerCase().includes('brand');
             checklist = isChatbot
@@ -193,5 +162,5 @@ Output ONLY a raw JSON array of strings, e.g. ["task 1", "task 2", ...], with no
     }
 
     return proposal;
-  }, fallbackProposal, 'updateProposal');
+  }, 'updateProposal');
 }

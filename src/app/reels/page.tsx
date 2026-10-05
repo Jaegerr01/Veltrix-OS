@@ -42,7 +42,7 @@ const SECTIONS = [
   { key: 'hook', label: 'Hook', timing: '0–2s', color: 'text-neon-purple' },
   { key: 'agitate', label: 'Agitate', timing: '2–8s', color: 'text-neon-orange' },
   { key: 'mechanism', label: 'Mechanism', timing: '8–18s', color: 'text-neon-cyan' },
-  { key: 'proof', label: 'Proof', timing: '18–25s', color: 'text-neon-blue' },
+  { key: 'proof', label: 'Proof', timing: '18–25s', color: 'text-neon-cyan' },
   { key: 'cta', label: 'CTA', timing: '25–30s', color: 'text-neon-green' },
   { key: 'caption', label: 'Caption', timing: '', color: 'text-white/60' },
   { key: 'hashtags', label: 'Hashtags', timing: '', color: 'text-neon-pink' },
@@ -70,7 +70,7 @@ const BATCH_POOL: Record<string, Array<{ vertical: string; offer: string; hook: 
   ],
 };
 
-const SYSTEM_PROMPT = `You are a direct-response copywriter for VELTRIX — a premium AI systems and web development studio targeting post-revenue SMBs. Write Instagram Reels scripts in Alex Hormozi's style: zero fluff, no welcome lines, speaks directly to business owners, uses real numbers and dollar amounts, confident and educational not salesy.
+const SYSTEM_PROMPT = `You are a direct-response copywriter for PostelOS — a premium AI systems and web development studio targeting post-revenue SMBs. Write Instagram Reels scripts in Alex Hormozi's style: zero fluff, no welcome lines, speaks directly to business owners, uses real numbers and dollar amounts, confident and educational not salesy.
 
 CRITICAL: Respond ONLY with a valid JSON object. No markdown fences, no preamble, no extra text. Just raw JSON.
 
@@ -79,7 +79,7 @@ Required keys: hook, agitate, mechanism, proof, cta, caption, hashtags, onscreen
 Rules:
 - hook: 1–2 punchy sentences. Callout exact person + painful situation. Stop-scroll energy.
 - agitate: 2–3 sentences. Real dollar/time cost. Urgency not fear.
-- mechanism: 3–4 sentences. Specific VELTRIX solution. Name the tech. Be concrete.
+- mechanism: 3–4 sentences. Specific PostelOS solution. Name the tech. Be concrete.
 - proof: 2–3 sentences. Use stat if given or create specific believable result.
 - cta: 1 sentence. One specific action only.
 - caption: 3–4 sentences. Hook + value + soft CTA. No hashtags here.
@@ -180,7 +180,7 @@ export default function ReelsEngine() {
     const oLabel = OFFERS.find(o => o.value === offer)?.label || offer;
     const cLabel = CTA_TYPES.find(c => c.value === ctaType)?.label || ctaType;
 
-    const msg = `Write a 30-second Instagram Reels script for VELTRIX.
+    const msg = `Write a 30-second Instagram Reels script for PostelOS.
 Vertical: ${vLabel}
 Hook style: ${hLabel}
 Offer: ${oLabel}
@@ -191,7 +191,7 @@ Return only the JSON object.`;
     try {
       const result = await callClaude(msg);
       setScript(result);
-    } catch (e) {
+    } catch {
       setError('Generation failed. Check your connection and try again.');
     }
     setGenerating(false);
@@ -207,7 +207,7 @@ Return only the JSON object.`;
 
     for (let i = 0; i < pool.length; i++) {
       const item = pool[i];
-      const msg = `Write a 30-second Instagram Reels script for VELTRIX.
+      const msg = `Write a 30-second Instagram Reels script for PostelOS.
 Vertical: ${item.vertical}
 Hook style: ${item.hook}
 Offer: ${item.offer}
@@ -228,7 +228,7 @@ Return only the JSON object.`;
   }
 
   function copyAllScripts() {
-    const lines: string[] = ['VELTRIX — WEEKLY REELS SCRIPT BATCH', `Generated: ${new Date().toLocaleDateString()}`, '='.repeat(50), ''];
+    const lines: string[] = ['PostelOS — WEEKLY REELS SCRIPT BATCH', `Generated: ${new Date().toLocaleDateString()}`, '='.repeat(50), ''];
     batchScripts.forEach(({ item, script }, i) => {
       if (!script) return;
       lines.push(`DAY ${i + 1} — ${item.vertical.toUpperCase()} | ${item.offer.toUpperCase()}`);
@@ -303,7 +303,7 @@ Return only the JSON object.`;
               ].map(({ label, options, value: val, setter }) => (
                 <div key={label}>
                   <label className="block text-[10px] font-mono text-white/30 uppercase tracking-wider mb-1">{label}</label>
-                  <select
+                  <select aria-label={label}
                     value={val}
                     onChange={e => setter(e.target.value)}
                     className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-neon-purple/50 transition cursor-pointer"
@@ -390,7 +390,7 @@ Return only the JSON object.`;
 
               <div>
                 <label className="block text-[10px] font-mono text-white/30 uppercase tracking-wider mb-1">Scripts to generate</label>
-                <select
+                <select aria-label="Scripts to generate"
                   value={batchCount}
                   onChange={e => setBatchCount(Number(e.target.value))}
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-neon-purple/50 transition cursor-pointer"
@@ -403,7 +403,7 @@ Return only the JSON object.`;
 
               <div>
                 <label className="block text-[10px] font-mono text-white/30 uppercase tracking-wider mb-1">Vertical focus</label>
-                <select
+                <select aria-label="Vertical focus"
                   value={batchFocus}
                   onChange={e => setBatchFocus(e.target.value)}
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-neon-purple/50 transition cursor-pointer"

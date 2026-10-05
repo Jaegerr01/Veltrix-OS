@@ -1,5 +1,7 @@
 import type { Memory } from '../types';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import type { DbRow } from './_core';
+import { asErr } from '@/lib/errors';
 
 export async function getMemories(): Promise<Memory[]> {
   return safeRead(async () => {
@@ -12,7 +14,7 @@ export async function getMemories(): Promise<Memory[]> {
 
     if (error) throw error;
 
-    return (data || []).map((note: any) => ({
+    return (data || []).map((note: DbRow) => ({
       id: note.id,
       user_id: note.user_id,
       type: note.source === 'Delivery Manager Agent' || note.tags?.includes('autopilot') ? 'Decision' : 'Business',
@@ -27,12 +29,6 @@ export async function getMemories(): Promise<Memory[]> {
 }
 
 export async function addMemory(mem: Omit<Memory, 'id' | 'created_at' | 'updated_at'>): Promise<Memory> {
-  const fallbackMemory: Memory = {
-    id: 'mock-mem-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    ...mem
-  };
   return safeWrite<Memory>(async () => {
     const userId = await getUserId();
     let embedding: number[] | null = null;
@@ -70,7 +66,7 @@ export async function addMemory(mem: Omit<Memory, 'id' | 'created_at' | 'updated
       created_at: data.created_at,
       updated_at: data.updated_at
     } as Memory;
-  }, fallbackMemory, 'addMemory');
+  }, 'addMemory');
 }
 
 export async function searchMemories(query: string, limit: number = 5): Promise<Memory[]> {
@@ -93,7 +89,7 @@ export async function searchMemories(query: string, limit: number = 5): Promise<
       }
 
       if (data && data.length > 0) {
-        return data.map((note: any) => ({
+        return data.map((note: DbRow) => ({
           id: note.id,
           user_id: userId,
           type: 'Business',
@@ -105,7 +101,7 @@ export async function searchMemories(query: string, limit: number = 5): Promise<
           updated_at: new Date().toISOString()
         }));
       }
-    } catch (vectorErr: any) {
+    } catch (vectorErrRaw: unknown) { const vectorErr = asErr(vectorErrRaw);
       console.warn('Vector search failed, falling back to text search:', vectorErr.message || vectorErr);
     }
 
@@ -119,7 +115,7 @@ export async function searchMemories(query: string, limit: number = 5): Promise<
 
     if (error) throw error;
 
-    return (data || []).map((note: any) => ({
+    return (data || []).map((note: DbRow) => ({
       id: note.id,
       user_id: note.user_id,
       type: 'Business',

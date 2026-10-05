@@ -8,10 +8,10 @@ import { requestApproval } from './approvals';
  * BHAG → quarter → month → week. The Core drafts, Barry ratifies through the
  * Approval Queue (type 'goal_ratification'), and only then do goals become
  * real rows. Weekly department goals derive automatically inside a ratified
- * month. Doctrine: Obsidian → Entity/Goal Cascade.md.
+ * month. Doctrine: Memory Vault.
  */
 
-// The BHAG revenue staircase (Obsidian → BHAG.md). Month 1 = July 2026.
+// The BHAG revenue staircase (Memory Vault). Month 1 = July 2026.
 export const BHAG_START = { year: 2026, month: 7 }; // 1-based month
 export const REVENUE_STAIRCASE: Record<number, { revenue: number; driver: string }> = {
   1: { revenue: 3000, driver: '1 implementation deal (dental, AI Receptionist)' },
@@ -54,7 +54,7 @@ export function weekPeriod(date = new Date()): string {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-// Standing weekly department goal templates (Obsidian → Entity/Goal Cascade.md)
+// Standing weekly department goal templates (Memory Vault)
 const WEEKLY_TEMPLATE: { department: EntityDepartment; title: string; target: Record<string, unknown> }[] = [
   { department: 'growth', title: '4–5 Reels shipped (dental-heavy rotation)', target: { reels: 4 } },
   { department: 'revenue', title: 'Qualify leads · ≥1 proposal in progress · 100% follow-up SLA', target: { proposals_in_progress: 1, followup_sla: 1 } },

@@ -1,10 +1,16 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
-import ScraperControl from '@/components/ScraperControl';
-import ScraperImport from '@/components/ScraperImport';
+import PageSkeleton from '@/components/PageSkeleton';
+import { clickable } from '@/lib/a11y';
+import DialogOverlay from '@/components/DialogOverlay';
+import dynamic from 'next/dynamic';
+
+const ScraperImport = dynamic(() => import('@/components/ScraperImport'), { ssr: false });
+
+const ScraperControl = dynamic(() => import('@/components/ScraperControl'), { ssr: false });
 
 const STAGE_KEYS = {
   prospecting: ['New', 'Researched'],
@@ -12,6 +18,9 @@ const STAGE_KEYS = {
   proposal: ['Proposal Sent', 'Call Booked'],
   won: ['Won'],
 };
+
+/** Only the fields the pipeline needs from a proposal. Money shown on this page comes from real proposal rows. */
+interface ProposalRow { lead_id?: string | null; price?: number | null; status: string; provider_message_id?: string | null }
 
 interface Lead {
   id: string;
@@ -33,12 +42,15 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [isScraperOpen, setIsScraperOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [proposals, setProposals] = useState<ProposalRow[]>([]);
 
   const loadLeads = async () => {
     try {
-      const data = await db.getLeads();
+      const [data, props] = await Promise.all([db.getLeads(), db.getProposals().catch(() => [])]);
       setLeads(data);
+      setProposals(props as unknown as ProposalRow[]);
     } catch (err) {
       console.warn('Failed to load leads from database:', err);
     } finally {
@@ -47,15 +59,16 @@ export default function LeadsPage() {
   };
 
   useEffect(() => {
-    loadLeads();
+    const t = setTimeout(() => { void loadLeads(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
-  const getDealValue = (l: Lead) => {
-    // Generate a clean, realistic estimated deal value based on lead score
-    if (l.lead_score >= 8) return 2500;
-    if (l.lead_score >= 6) return 1800;
-    return 1200;
-  };
+  // Real money only: the sum of this lead's proposals that are actually out (sent with proof of delivery) or accepted.
+  // Leads carry no deal value of their own, so none is invented from the lead score.
+  const getDealValue = (l: Lead) =>
+    proposals
+      .filter(p => p.lead_id === l.id && ((['Sent', 'Viewed'].includes(p.status) && Boolean(p.provider_message_id)) || p.status === 'Accepted'))
+      .reduce((sum, p) => sum + (p.price || 0), 0);
 
   const getScoreColor = (score: number) => {
     if (score >= 7.5) return 'var(--signal-400)';
@@ -65,9 +78,7 @@ export default function LeadsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Loading lead database..." />
-      </div>
+      <PageSkeleton label="Loading lead database..." />
     );
   }
 
@@ -80,6 +91,7 @@ export default function LeadsPage() {
   // Compute stats
   const totalValue = leads.reduce((sum, l) => sum + getDealValue(l), 0);
   const wonValue = wonLeads.reduce((sum, l) => sum + getDealValue(l), 0);
+  const wonCount = wonLeads.length;
 
   const pipelineColumns = [
     {
@@ -120,12 +132,12 @@ export default function LeadsPage() {
         subtitle="Manage your prospective clients, qualify their automation needs, and track deal stages."
         stats={[
           { value: String(leads.length), label: 'TOTAL LEADS', color: 'var(--text-strong)' },
-          { value: `$${(totalValue / 1000).toFixed(0)}K`, label: 'PIPELINE EST', color: 'var(--cyan-300)' },
-          { value: `$${(wonValue / 1000).toFixed(0)}K`, label: 'CLOSED WON', color: 'var(--signal-400)' },
+          { value: `$${(totalValue / 1000).toFixed(1)}K`, label: 'PROPOSALS OUT', color: 'var(--cyan-300)' },
+          { value: String(wonCount), label: 'LEADS WON', color: 'var(--signal-400)' },
         ]}
         action={
           <div
-            onClick={() => setIsScraperOpen(true)}
+            {...clickable(() => setIsScraperOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -150,6 +162,9 @@ export default function LeadsPage() {
           </div>
         }
       />
+      {leads.length === 0 && (
+        <EmptyState icon="users" title="No leads yet" body="Scrape prospects, import a CSV, or ask the CEO to research a niche. Every lead lands in this pipeline." action={<button type="button" className="vx-linkbtn" onClick={() => setIsScraperOpen(true)}>Scrape leads</button>} />
+      )}
 
       {/* Pipeline Board */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-5)', alignItems: 'stretch' }}>
@@ -177,7 +192,7 @@ export default function LeadsPage() {
               </span>
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--cyan-300)', marginBottom: 'var(--space-4)' }}>
-              ${col.value.toLocaleString()}
+              {col.value > 0 ? `$${col.value.toLocaleString()} in proposals` : 'No proposals yet'}
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -185,7 +200,7 @@ export default function LeadsPage() {
                 col.leads.map((deal) => (
                   <div
                     key={deal.id}
-                    onClick={() => setSelectedLead(deal)}
+                    {...clickable(() => setSelectedLead(deal))}
                     style={{
                       padding: 'var(--space-4)',
                       borderRadius: 'var(--radius-md)',
@@ -202,7 +217,7 @@ export default function LeadsPage() {
                     
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-body)' }}>
-                        ${getDealValue(deal).toLocaleString()}
+                        {getDealValue(deal) > 0 ? `$${getDealValue(deal).toLocaleString()}` : 'No proposal'}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {deal.lead_score > 0 && (
@@ -238,45 +253,30 @@ export default function LeadsPage() {
         ))}
       </section>
 
-      {/* Scraper Drawer / Modal */}
+      {/* Lead scout: control panel, with the CSV/JSON import as its own dialog */}
       {isScraperOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) { setIsScraperOpen(false); loadLeads(); }
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
-          <div
-            className="vx-glass max-w-4xl w-full max-h-[85vh] overflow-y-auto p-6 rounded-2xl border border-white/[0.08]"
-            style={{ background: 'var(--grad-panel)' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--hairline)' }}>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>
-                Autonomous Lead Scout
-              </h3>
-              <button
-                onClick={() => { setIsScraperOpen(false); loadLeads(); }}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}
-              >
-                <span style={{ fontSize: 20, color: 'var(--text-muted)' }}>×</span>
+        <DialogOverlay label="Autonomous Lead Scout" onClose={() => { setIsScraperOpen(false); loadLeads(); }}>
+          <div className="vx-glass max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 rounded-2xl border border-white/[0.08]" style={{ background: 'var(--grad-panel)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>Autonomous Lead Scout</h2>
+              <button type="button" aria-label="Close lead scout" className="vx-tap" onClick={() => { setIsScraperOpen(false); loadLeads(); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--text-muted)' }}>
+                <VxIcon name="close" size={18} />
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ScraperControl />
-              <ScraperImport onClose={() => { setIsScraperOpen(false); loadLeads(); }} onImported={loadLeads} />
+            <ScraperControl />
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="vx-linkbtn" onClick={() => { setIsScraperOpen(false); setIsImportOpen(true); }}>Import scraper output (JSON or CSV)</button>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
+      )}
+      {isImportOpen && (
+        <ScraperImport onClose={() => { setIsImportOpen(false); loadLeads(); }} onImported={loadLeads} />
       )}
 
       {/* Lead Details Modal */}
       {selectedLead && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedLead(null);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Lead details" onClose={() => setSelectedLead(null)}>
           <div
             className="vx-glass max-w-xl w-full p-6 rounded-2xl border border-white/[0.08]"
             style={{ background: 'var(--grad-panel)' }}
@@ -361,7 +361,7 @@ export default function LeadsPage() {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   );

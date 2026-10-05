@@ -1,4 +1,4 @@
-export default function Sparkline({ data, color = '#a855f7' }: { data: number[]; color?: string }) {
+export default function Sparkline({ data, color = 'var(--violet-400)' }: { data: number[]; color?: string }) {
   if (data.length < 2) return null;
   const W = 220, H = 56;
   const max = Math.max(...data, 1);

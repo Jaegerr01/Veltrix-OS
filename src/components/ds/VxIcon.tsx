@@ -3,7 +3,7 @@
 import React from 'react';
 
 /**
- * Line-icon set ported verbatim from the "VELTRIX Command OS" design
+ * Line-icon set ported verbatim from the "PostelOS" design
  * prototype (ICON_PATHS). Uniform 1.75px stroke, 24-grid, currentColor.
  * These are the exact glyphs the design uses inside agent orbs and chrome.
  */
@@ -154,6 +154,34 @@ const ICON_PATHS: Record<string, () => El[]> = {
     ['path', { d: 'M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z' }],
     ['polyline', { points: '9,12 11,14 15,10' }],
   ],
+  /* --- Added for the shared component library (Modal, Select, Breadcrumb,
+     Tooltip, DataList). Same 24-grid, same 1.75px stroke. --- */
+  close: () => [
+    ['line', { x1: 6, y1: 6, x2: 18, y2: 18 }],
+    ['line', { x1: 18, y1: 6, x2: 6, y2: 18 }],
+  ],
+  chevronDown: () => [['polyline', { points: '6,9 12,15 18,9' }]],
+  chevronRight: () => [['polyline', { points: '9,6 15,12 9,18' }]],
+  chevronLeft: () => [['polyline', { points: '15,6 9,12 15,18' }]],
+  info: () => [
+    ['circle', { cx: 12, cy: 12, r: 9 }],
+    ['line', { x1: 12, y1: 11, x2: 12, y2: 16 }],
+    ['line', { x1: 12, y1: 8, x2: 12, y2: 8 }],
+  ],
+  alert: () => [
+    ['path', { d: 'M12 4l9 16H3z' }],
+    ['line', { x1: 12, y1: 10, x2: 12, y2: 14 }],
+    ['line', { x1: 12, y1: 17, x2: 12, y2: 17 }],
+  ],
+  trash: () => [
+    ['polyline', { points: '4,7 20,7' }],
+    ['path', { d: 'M9 7V5h6v2' }],
+    ['path', { d: 'M6 7l1 13h10l1-13' }],
+  ],
+  home: () => [
+    ['path', { d: 'M4 11l8-7 8 7' }],
+    ['path', { d: 'M6 10v10h12V10' }],
+  ],
 };
 
 export type VxIconName = keyof typeof ICON_PATHS;
@@ -164,12 +192,20 @@ export function VxIcon({
   color = 'currentColor',
   strokeWidth = 1.75,
   style,
+  title,
 }: {
   name: VxIconName;
   size?: number;
   color?: string;
   strokeWidth?: number;
   style?: React.CSSProperties;
+  /**
+   * Accessible name. Icons are decorative by default (`aria-hidden`), because
+   * they almost always sit beside a text label that already says the same
+   * thing. Pass `title` only when the icon carries meaning on its own —
+   * otherwise screen readers announce it twice.
+   */
+  title?: string;
 }) {
   const build = ICON_PATHS[name] || ICON_PATHS.target;
   const els = build();
@@ -184,6 +220,10 @@ export function VxIcon({
       strokeLinecap="round"
       strokeLinejoin="round"
       style={style}
+      role={title ? 'img' : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      focusable="false"
     >
       {els.map((e, i) => {
         const Tag = e[0] as keyof React.JSX.IntrinsicElements;

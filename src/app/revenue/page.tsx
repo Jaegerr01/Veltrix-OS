@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { StatCard, VeltrixSpinner } from '@/components/ds';
+import { StatCard } from '@/components/ds';
 import { db } from '@/lib/db';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface RevenueItem {
   id: string;
@@ -48,6 +49,7 @@ export default function RevenuePage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [outreach, setOutreach] = useState<Outreach[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,30 +76,29 @@ export default function RevenuePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Loading revenue matrices..." />
-      </div>
+      <PageSkeleton label="Loading revenue matrices..." />
     );
   }
 
   // 1. Calculations for KPIs
-  const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status)).reduce((sum, p) => sum + (p.price || 0), 0);
+  // Only deliveries with proof count: a row is "sent" only if a provider message id (or manual attestation) is recorded.
+  const hasProof = (x: unknown) => Boolean((x as { provider_message_id?: string | null }).provider_message_id);
+  const pipelineValue = proposals.filter(p => ['Sent', 'Viewed'].includes(p.status) && hasProof(p)).reduce((sum, p) => sum + (p.price || 0), 0);
   const totalRevenueValue = revenue.reduce((sum, r) => sum + (r.amount || 0), 0);
   const activeRetainers = clients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
 
-  const sentMsgs = outreach.filter(m => m.status === 'Sent');
+  const sentMsgs = outreach.filter(m => m.status === 'Sent' && hasProof(m));
   const repliedMsgs = outreach.filter(m => m.status === 'Replied');
-  const openRatePct = sentMsgs.length > 0 ? Math.round((repliedMsgs.length / sentMsgs.length) * 100) : 42;
+  const replyRatePct = sentMsgs.length > 0 ? Math.round((repliedMsgs.length / sentMsgs.length) * 100) : null;
 
   const KPIS = [
-    { label: 'Pipeline Value', value: pipelineValue > 0 ? `$${(pipelineValue / 1000).toFixed(1)}K` : '$74.4K', delta: '+18%', accent: 'violet' },
-    { label: 'Recurring Retainers', value: `$${activeRetainers}/mo`, delta: '+12%', accent: 'blue' },
-    { label: 'Outreach Delivered', value: String(outreach.filter(o => o.status === 'Sent').length), delta: '+24%', accent: 'cyan' },
-    { label: 'Outreach Reply Rate', value: `${openRatePct}%`, delta: '+3%', accent: 'magenta' },
+    { label: 'Open proposals (confirmed sent)', value: `$${(pipelineValue / 1000).toFixed(1)}K`, accent: 'violet' },
+    { label: 'Recurring Retainers', value: `$${activeRetainers}/mo`, accent: 'signal' },
+    { label: 'Outreach delivered (confirmed)', value: String(sentMsgs.length), accent: 'cyan' },
+    { label: 'Reply rate (of confirmed sends)', value: replyRatePct === null ? '\u2014' : `${replyRatePct}%`, accent: 'magenta' },
   ] as const;
 
   // 2. Bar Chart weekly bucket distribution
-  const now = Date.now();
   const oneWeek = 7 * 24 * 60 * 60 * 1000;
   const weeklyTotals = Array(12).fill(0);
 
@@ -111,8 +112,8 @@ export default function RevenuePage() {
 
   const maxTotal = Math.max(...weeklyTotals, 1);
   const BAR_VALS = weeklyTotals.map(tot => {
-    if (tot === 0) return 20; // default height for visual placeholder
-    return Math.max(20, Math.round((tot / maxTotal) * 100));
+    if (tot === 0) return 2; // no revenue that week: a hairline baseline, never a fake bar
+    return Math.max(6, Math.round((tot / maxTotal) * 100));
   });
 
   // 3. Channel Mix calculations
@@ -149,7 +150,6 @@ export default function RevenuePage() {
             label={k.label}
             value={k.value}
             unit=""
-            delta={k.delta}
             accent={k.accent}
             style={{ animation: 'vxFadeUp 0.6s var(--ease-out) both', animationDelay: `${i * 0.06}s` }}
           />

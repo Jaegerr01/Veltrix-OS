@@ -3,7 +3,7 @@
 import React from 'react';
 import { ContentIdea } from '@/lib/types';
 import StatusBadge from './StatusBadge';
-import { FileCode, Globe, Check, Send, Sparkles } from 'lucide-react';
+import { Globe, Check, Send } from 'lucide-react';
 
 interface ContentIdeaCardProps {
   idea: ContentIdea;
@@ -11,7 +11,7 @@ interface ContentIdeaCardProps {
 }
 
 export default function ContentIdeaCard({ idea, onUpdateStatus }: ContentIdeaCardProps) {
-  const getPlatformIcon = (platform: string) => {
+  const getPlatformIcon = (_platform: string) => {
     return <Globe size={15} className="text-neon-cyan" />;
   };
 
@@ -36,7 +36,7 @@ export default function ContentIdeaCard({ idea, onUpdateStatus }: ContentIdeaCar
         {idea.hook && (
           <div className="my-2.5 p-2 bg-neon-purple/5 border border-neon-purple/10 rounded text-[11px] font-sans text-neon-purple">
             <span className="text-[8px] font-mono uppercase tracking-widest block font-bold mb-0.5">Viral Hook:</span>
-            <p className="italic select-text">"{idea.hook}"</p>
+            <p className="italic select-text">&ldquo;{idea.hook}&rdquo;</p>
           </div>
         )}
 

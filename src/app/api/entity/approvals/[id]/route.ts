@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/requireUser';
-import { checkRateLimit } from '@/lib/auth/rateLimit';
+import { checkRateLimit, rateLimitResponse } from '@/lib/auth/rateLimit';
 import { decideApprovalRequest } from '@/lib/entity/approvals';
+import { asErr } from '@/lib/errors';
+
+const bodySchema = z.object({
+  decision: z.enum(['approve', 'reject']),
+  editedPayload: z.record(z.string(), z.unknown()).optional(),
+  rejectionReason: z.string().max(1000).optional(),
+});
 
 // POST /api/entity/approvals/[id]
 // Body: { decision: 'approve' | 'reject', editedPayload?: object, rejectionReason?: string }
-// Barry's one-click decision. Approve executes the action (guardrails intact);
-// reject archives it with a reason (Phase 4 learning data).
+// Approve executes the action through the guarded delivery pipeline. If the action did NOT happen
+// (provider error, kill switch, cap, blacklist, no email on file) the response says so explicitly
+// (executed:false, HTTP 409) and the request stays retryable - never a pretend success.
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -14,47 +23,31 @@ export async function POST(
   const auth = await requireUser(req);
   if (auth.response) return auth.response;
 
-  const rl = await checkRateLimit(`approvals:${auth.user.id}`, { limit: 30, windowMs: 60_000 });
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { success: false, error: 'Rate limit exceeded. Try again in a minute.' },
-      { status: 429 }
-    );
-  }
+  const rl = await checkRateLimit(`approvals:${auth.user.id}`, { limit: 30, windowMs: 60_000, failClosed: true });
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const { id } = await params;
 
-  try {
-    const body = await req.json().catch(() => ({}));
-    const decision = body.decision;
-    if (decision !== 'approve' && decision !== 'reject') {
-      return NextResponse.json(
-        { success: false, error: "decision must be 'approve' or 'reject'." },
-        { status: 400 }
-      );
-    }
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, error: "decision must be 'approve' or 'reject'." }, { status: 400 });
+  }
 
-    const result = await decideApprovalRequest({
-      id,
-      decision,
-      editedPayload: body.editedPayload,
-      rejectionReason: body.rejectionReason,
-    });
+  try {
+    const result = await decideApprovalRequest({ id, ...parsed.data });
 
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
-
-    return NextResponse.json({
-      success: true,
-      request: result.request,
-      executionNote: result.executionNote,
-    });
-  } catch (error: any) {
+    if (result.executed === false) {
+      return NextResponse.json(
+        { success: false, executed: false, error: result.executionNote || 'The approved action did not complete.', request: result.request, executionNote: result.executionNote },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ success: true, executed: true, request: result.request, executionNote: result.executionNote });
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error in POST /api/entity/approvals/[id]:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to decide approval request.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to decide approval request. Check the server log.' }, { status: 500 });
   }
 }

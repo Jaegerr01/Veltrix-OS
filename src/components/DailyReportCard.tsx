@@ -14,7 +14,7 @@ export default function DailyReportCard({ report }: DailyReportCardProps) {
         <div className="flex items-center space-x-2.5 text-neon-purple">
           <ClipboardList size={18} />
           <h4 className="font-mono text-sm font-bold uppercase tracking-wider">
-            VELTRIX Daily Command Report
+            PostelOS Daily Command Report
           </h4>
         </div>
         <span className="font-mono text-xs font-bold text-neon-purple bg-neon-purple/10 px-2 py-0.5 rounded">

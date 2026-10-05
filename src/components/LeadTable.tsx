@@ -107,9 +107,9 @@ export default function LeadTable({
               <td className="px-6 py-4 space-y-1.5">
                 <StatusBadge status={lead.status} />
                 <div className="pt-0.5">
-                  <select
+                  <select aria-label={`Status for ${lead.business_name}`}
                     value={lead.status}
-                    onChange={(e) => onUpdateStatus(lead.id, e.target.value as any)}
+                    onChange={(e) => onUpdateStatus(lead.id, e.target.value as Parameters<typeof onUpdateStatus>[1])}
                     className="bg-cyber-bg border border-white/10 rounded text-[9px] text-foreground font-mono focus:outline-none focus:border-neon-cyan p-1 w-full max-w-[120px]"
                   >
                     <option value="New">New</option>
@@ -125,7 +125,7 @@ export default function LeadTable({
                   <div className="flex items-center space-x-1 mt-1">
                     <button
                       onClick={() => onUpdateStatus(lead.id, 'Contacted')}
-                      title="Mark Contacted"
+                      title="Mark Contacted - manual status change (does NOT send anything)"
                       className="px-1 py-0.5 rounded bg-white/5 hover:bg-neon-cyan/20 border border-white/5 text-[7px] font-mono text-muted-foreground hover:text-neon-cyan cursor-pointer"
                     >
                       CNT

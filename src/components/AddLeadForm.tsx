@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { authFetch } from '@/lib/authFetch';
+import { asErr } from '@/lib/errors';
+import { useToast } from '@/components/Toast';
 
 interface Props {
   onClose: () => void;
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
+  const toast = useToast();
   const [businessName, setBusinessName] = useState('');
   const [contactName, setContactName] = useState('');
   const [industry, setIndustry] = useState('');
@@ -58,11 +61,11 @@ export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
         onLeadAdded();
         onClose();
       } else {
-        alert('Failed to add lead: ' + json.error);
+        toast.error('Could not add the lead', json.error);
       }
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       console.warn('Error adding lead:', err);
-      alert('Error adding lead: ' + err.message);
+      toast.error('Could not add the lead', err.message);
     } finally {
       setSubmitting(false);
     }
@@ -70,7 +73,7 @@ export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cyber-bg/85 backdrop-blur-md animate-fade-in">
-      <div className="glass-panel p-6 border border-neon-cyan/40 rounded-xl bg-cyber-bg/95 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[0_0_50px_rgba(6,182,212,0.25)] space-y-4">
+      <div className="glass-panel p-6 border border-neon-cyan/40 rounded-xl bg-cyber-bg/95 max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-4">
         <div className="flex justify-between items-center border-b border-white/10 pb-3">
           <h4 className="text-sm font-mono font-bold text-neon-cyan uppercase tracking-wider">
             Add a Potential Client (Lead)
@@ -167,7 +170,7 @@ export default function AddLeadForm({ onClose, onLeadAdded }: Props) {
           </div>
           <div>
             <label className="block text-[10px] font-mono text-muted-foreground uppercase mb-1">How we found them</label>
-            <select
+            <select aria-label="How we found them"
               value={source}
               onChange={(e) => setSource(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-neon-cyan transition font-mono"

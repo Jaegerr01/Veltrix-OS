@@ -52,9 +52,9 @@ export default function PageHeaderCard({
           <VxIcon name={icon} size={24} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', letterSpacing: '-0.01em' }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', letterSpacing: '-0.01em' }}>
             {title}
-          </div>
+          </h2>
           {subtitle ? <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>{subtitle}</div> : null}
         </div>
         {stats?.length ? (

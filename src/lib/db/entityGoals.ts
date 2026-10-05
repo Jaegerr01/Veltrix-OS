@@ -21,12 +21,6 @@ export async function getEntityGoals(filter?: { period?: string; level?: string;
 export async function addEntityGoal(
   goal: Omit<EntityGoal, 'id' | 'created_at' | 'status'> & { status?: EntityGoal['status'] }
 ): Promise<EntityGoal> {
-  const fallback: EntityGoal = {
-    id: 'mock-goal-' + Date.now(),
-    created_at: new Date().toISOString(),
-    status: 'draft',
-    ...goal,
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -36,7 +30,7 @@ export async function addEntityGoal(
       .single();
     if (error) throw error;
     return data;
-  }, fallback, 'addEntityGoal');
+  }, 'addEntityGoal');
 }
 
 export async function updateEntityGoal(id: string, updates: Partial<EntityGoal>): Promise<EntityGoal | null> {
@@ -51,5 +45,5 @@ export async function updateEntityGoal(id: string, updates: Partial<EntityGoal>)
       .single();
     if (error) throw error;
     return data;
-  }, null, 'updateEntityGoal');
+  }, 'updateEntityGoal');
 }

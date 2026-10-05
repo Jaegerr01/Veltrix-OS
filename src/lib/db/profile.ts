@@ -1,14 +1,14 @@
 import type { BusinessProfile, Goal, Offer } from '../types';
-import * as seedData from '../seedData';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import type { DbRow } from './_core';
 import { addMemory } from './memory';
 
 export async function getBusinessProfile(): Promise<BusinessProfile> {
   const userId = await getUserId().catch(() => 'demo-user');
   const fallbackProfile: BusinessProfile = {
     id: userId,
-    business_name: 'VELTRIX Operator',
-    description: 'A business powered by VELTRIX OS.',
+    business_name: 'PostelOS Operator',
+    description: 'A business powered by PostelOS.',
     services: ['AI Website Development', 'AI Receptionist Chatbots'],
     target_monthly_revenue: 6000,
     current_monthly_revenue: 0,
@@ -32,8 +32,8 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
     if (!profileData) {
       const defaultProfile = {
         id: userId,
-        business_name: 'VELTRIX Operator',
-        description: 'A business powered by VELTRIX OS.',
+        business_name: 'PostelOS Operator',
+        description: 'A business powered by PostelOS.',
         services: ['AI Website Development', 'AI Receptionist Chatbots'],
         target_monthly_revenue: 6000,
         current_monthly_revenue: 0,
@@ -63,7 +63,7 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
         .select('amount')
         .eq('user_id', userId)
         .eq('status', 'Paid');
-      const closed = revData ? revData.reduce((acc: number, r: any) => acc + Number(r.amount), 0) : 0;
+      const closed = revData ? revData.reduce((acc: number, r: DbRow) => acc + Number(r.amount), 0) : 0;
       profileData.current_monthly_revenue = closed;
     } catch (revErr) {
       console.warn('Failed to calculate revenue dynamically:', revErr);
@@ -73,21 +73,7 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
 }
 
 export async function updateBusinessProfile(updates: Partial<BusinessProfile>): Promise<BusinessProfile> {
-  const userId = await getUserId().catch(() => 'demo-user');
-  const fallbackProfile: BusinessProfile = {
-    id: userId,
-    business_name: updates.business_name || 'VELTRIX Operator',
-    description: updates.description || 'A business powered by VELTRIX OS.',
-    services: updates.services || ['AI Website Development', 'AI Receptionist Chatbots'],
-    target_monthly_revenue: updates.target_monthly_revenue || 6000,
-    current_monthly_revenue: updates.current_monthly_revenue || 0,
-    primary_offer: updates.primary_offer || 'AI Website System',
-    secondary_offer: updates.secondary_offer || 'AI Receptionist Voice/Chatbot',
-    target_markets: updates.target_markets || ['Local Medical Clinics', 'Chiropractors', 'Dentists'],
-    autopilot: updates.autopilot !== undefined ? updates.autopilot : false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+  const userId = await getUserId();
   return safeWrite(async () => {
     const { data, error } = await supabase
       .from('profiles')
@@ -102,7 +88,7 @@ export async function updateBusinessProfile(updates: Partial<BusinessProfile>): 
       console.warn('Failed to sync updated business profile to memory:', syncErr);
     }
     return data;
-  }, fallbackProfile, 'updateBusinessProfile');
+  }, 'updateBusinessProfile');
 }
 
 export async function getGoals(): Promise<Goal[]> {
@@ -119,19 +105,6 @@ export async function getGoals(): Promise<Goal[]> {
 }
 
 export async function addGoal(goal: Omit<Goal, 'id' | 'created_at' | 'updated_at'>): Promise<Goal> {
-  const fallbackGoal: Goal = {
-    id: 'mock-goal-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    title: goal.title,
-    description: goal.description || '',
-    target_amount: goal.target_amount,
-    status: goal.status,
-    priority: goal.priority,
-    deadline: goal.deadline || '',
-    success_criteria: goal.success_criteria || '',
-    user_id: 'demo-user'
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -146,24 +119,10 @@ export async function addGoal(goal: Omit<Goal, 'id' | 'created_at' | 'updated_at
       console.warn('Failed to sync goal to memory:', err);
     }
     return data;
-  }, fallbackGoal, 'addGoal');
+  }, 'addGoal');
 }
 
 export async function updateGoal(id: string, updates: Partial<Goal>): Promise<Goal> {
-  const fallbackGoal: Goal = {
-    id,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    title: updates.title || '',
-    description: updates.description || '',
-    target_amount: updates.target_amount || 0,
-    status: updates.status || 'Pending',
-    priority: updates.priority || 'Medium',
-    deadline: updates.deadline || '',
-    success_criteria: updates.success_criteria || '',
-    user_id: 'demo-user',
-    ...updates
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -180,7 +139,7 @@ export async function updateGoal(id: string, updates: Partial<Goal>): Promise<Go
       console.warn('Failed to sync goal to memory:', err);
     }
     return data;
-  }, fallbackGoal, 'updateGoal');
+  }, 'updateGoal');
 }
 
 export async function getOffers(): Promise<Offer[]> {
@@ -193,56 +152,12 @@ export async function getOffers(): Promise<Offer[]> {
       .order('created_at', { ascending: true });
     if (error) throw error;
 
-    // Auto seed default offers if empty
-    if (data && data.length === 0) {
-      const defaultOffers = seedData.defaultOffers.map(o => ({
-        name: o.name,
-        description: o.description,
-        target_customer: o.target_customer,
-        price_min: o.price_min,
-        price_max: o.price_max,
-        monthly_retainer_min: o.monthly_retainer_min,
-        monthly_retainer_max: o.monthly_retainer_max,
-        deliverables: o.deliverables,
-        status: o.status,
-        user_id: userId
-      }));
-      const { data: seeded, error: seedError } = await supabase
-        .from('offers')
-        .insert(defaultOffers)
-        .select();
-      if (seedError) throw seedError;
-      if (seeded) {
-        for (const off of seeded) {
-          try {
-            await syncOfferToMemory(off);
-          } catch (err) {
-            console.warn('Failed to sync offer to memory:', err);
-          }
-        }
-      }
-      return seeded || [];
-    }
+    // No auto-seeding: an empty offers table is shown as an empty state, never filled with invented offers/prices.
     return data || [];
   }, [], 'getOffers');
 }
 
 export async function addOffer(offer: Omit<Offer, 'id' | 'created_at' | 'updated_at'>): Promise<Offer> {
-  const fallbackOffer: Offer = {
-    id: 'mock-offer-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    name: offer.name,
-    description: offer.description || '',
-    target_customer: offer.target_customer || '',
-    price_min: offer.price_min || 0,
-    price_max: offer.price_max || 0,
-    monthly_retainer_min: offer.monthly_retainer_min || 0,
-    monthly_retainer_max: offer.monthly_retainer_max || 0,
-    deliverables: offer.deliverables || [],
-    status: offer.status,
-    user_id: 'demo-user'
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -257,7 +172,7 @@ export async function addOffer(offer: Omit<Offer, 'id' | 'created_at' | 'updated
       console.warn('Failed to sync offer to memory:', err);
     }
     return data;
-  }, fallbackOffer, 'addOffer');
+  }, 'addOffer');
 }
 
 export async function syncBusinessProfileToMemory(profile: BusinessProfile): Promise<void> {

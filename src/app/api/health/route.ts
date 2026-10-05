@@ -1,20 +1,30 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { isGeminiConfigured } from '@/lib/ai/gemini';
-import { getResendClient, FROM_EMAIL } from '@/lib/email/resend';
+import { geminiConfigured } from '@/lib/ai/gemini';
+import { listProviders, selectProvider } from '@/lib/email/config';
 import { requireUser } from '@/lib/auth/requireUser';
+import { asErr } from '@/lib/errors';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * VELTRIX OS — System Health / Diagnostics
+ * PostelOS — System Health / Diagnostics
  *
  * Hit /api/health to see, at a glance, which integrations are wired up and which
  * are missing. NEVER returns secret values — only whether each key is present and
  * whether each live connection works. Add ?deep=1 to also make a real (quota-using)
  * Gemini call to confirm the key is valid.
+ *
+ * Three tiers, by design:
+ *   • anonymous       → liveness only ({ service, ready }). Safe for uptime monitors.
+ *   • authenticated   → the full env presence map and per-check detail.
+ *   • authenticated
+ *     + ?deep=1       → additionally burns a real Gemini call.
+ *
+ * The env map and check details name every integration the deployment does and
+ * does not have, which is a useful reconnaissance list — so they are not public.
  */
 
 type Check = {
@@ -31,14 +41,16 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const deep = url.searchParams.get('deep') === '1';
 
-  // SECURITY: ?deep=1 burns a real Gemini call — require an authenticated
-  // operator so it can't be used as an unauthenticated quota-abuse vector.
-  // Plain /api/health (presence/reachability checks only) stays open for
-  // uptime monitors.
-  if (deep) {
-    const auth = await requireUser(req);
-    if (auth.response) return auth.response;
-  }
+  // SECURITY: detail is operator-only. ?deep=1 additionally burns a real Gemini
+  // call, so it must never be reachable unauthenticated. An anonymous caller
+  // gets liveness only.
+  const auth = await requireUser(req);
+  const isOperator = !auth.response;
+  // A browser that sent a Bearer token (or asked for ?deep=1) must see the real 401/403.
+  // Swallowing those into the anonymous liveness stub made /health show
+  // "Health report unavailable (HTTP 200)" with every card stuck on Checking...
+  const triedAuth = (req.headers.get('Authorization') || '').startsWith('Bearer ');
+  if (!isOperator && (triedAuth || deep)) return auth.response!;
 
   const checks: Record<string, Check> = {};
 
@@ -69,7 +81,7 @@ export async function GET(req: Request) {
       checks.supabase = error
         ? { ok: false, detail: `Connected, but query failed: ${error.message}. (Have you run supabase_schema.sql?)` }
         : { ok: true, detail: 'Connected and the leads table is reachable.' };
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       checks.supabase = { ok: false, detail: `Connection error: ${e?.message || e}` };
     }
   }
@@ -80,14 +92,14 @@ export async function GET(req: Request) {
     : { ok: false, detail: 'SUPABASE_SERVICE_ROLE_KEY missing — server-side agent writes will fail.' };
 
   // ── Gemini (the agents' brains) ────────────────────────────────────────────
-  if (!isGeminiConfigured) {
+  if (!geminiConfigured()) {
     checks.gemini = { ok: false, detail: 'GEMINI_API_KEY missing — every agent will fail at stage 1 and the pipeline stalls.' };
   } else if (deep) {
     try {
       const { gemini } = await import('@/lib/ai/gemini');
       const reply = await gemini.callRawLLM('Reply with the single word: OK', 'You are a health check. Reply with one word.');
       checks.gemini = { ok: !!reply, detail: `Key valid — live model responded ("${reply.trim().slice(0, 20)}").` };
-    } catch (e: any) {
+    } catch (eRaw: unknown) { const e = asErr(eRaw);
       checks.gemini = { ok: false, detail: `Key present but live call failed: ${e?.message || e}` };
     }
   } else {
@@ -95,27 +107,32 @@ export async function GET(req: Request) {
   }
 
   // ── Resend (real email sending) ────────────────────────────────────────────
-  const resend = getResendClient();
-  if (!resend) {
-    checks.resend = { ok: false, detail: 'RESEND_API_KEY missing — outreach + briefs are silently skipped (this is your "outreach can\'t send" bug).' };
+  const providerSel = selectProvider();
+  const providerInfo = listProviders().find(p => p.id === providerSel.provider);
+  if (!providerSel.provider) {
+    checks.resend = { ok: false, detail: providerSel.reason || 'No email provider configured. Open Settings -> Email for the exact missing variable names.' };
   } else {
-    const usingTestSender = FROM_EMAIL.includes('onboarding@resend.dev');
-    checks.resend = {
-      ok: true,
-      detail: usingTestSender
-        ? `Configured, but using the test sender (${FROM_EMAIL}). It can ONLY email your own Resend account address until you verify a domain + set RESEND_FROM_EMAIL.`
-        : `Configured with sender ${FROM_EMAIL}.`,
-    };
+    checks.resend = { ok: !providerInfo?.warning, detail: `Provider "${providerSel.provider}" selected.${providerInfo?.warning ? ' Warning: ' + providerInfo.warning : ''} Configured does not prove deliverability - use Settings -> Email -> "Send test email to myself".` };
   }
 
   // ── Roll-up ────────────────────────────────────────────────────────────────
   const critical = ['supabase', 'gemini', 'resend'];
   const missing = critical.filter((k) => !checks[k]?.ok);
   const ready = missing.length === 0;
+  const status = ready ? 200 : 503;
+
+  // Anonymous callers (uptime monitors) get liveness only — no env map, no
+  // per-integration detail, no raw driver error text.
+  if (!isOperator) {
+    return NextResponse.json(
+      { service: 'PostelOS', ready, checkedAt: new Date().toISOString() },
+      { status }
+    );
+  }
 
   return NextResponse.json(
     {
-      service: 'VELTRIX Command OS',
+      service: 'PostelOS',
       ready,
       summary: ready
         ? 'All critical systems are live. The autonomous pipeline can run end-to-end.'
@@ -124,6 +141,6 @@ export async function GET(req: Request) {
       checks,
       checkedAt: new Date().toISOString(),
     },
-    { status: ready ? 200 : 503 }
+    { status }
   );
 }

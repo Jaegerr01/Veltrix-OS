@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { vault } from '../db/vault';
 import { BusinessProfile, Goal, Offer, Lead, Task, Revenue, Followup, Memory, Client, Proposal, Project } from '../types';
 
 export interface BusinessContext {
@@ -23,6 +24,8 @@ export interface BusinessContext {
     qualifiedLeadsCount: number;
   };
   contextString: string;
+  /** Constitution + pinned Memory Vault notes (empty string if the vault is unavailable). */
+  vaultContext: string;
 }
 
 export async function buildBusinessContext(): Promise<BusinessContext> {
@@ -52,6 +55,12 @@ export async function buildBusinessContext(): Promise<BusinessContext> {
     db.getProjects(),
   ]);
 
+  // Standing context from the built-in Memory Vault (Constitution + pinned notes). Never blocks the request.
+  const vaultContext = await vault.standingContext().catch((e: Error) => {
+    console.warn('[context] Memory Vault unavailable:', e.message);
+    return '';
+  });
+
   // Closed revenue calculation
   const closedRevenue = revenues
     .filter(r => r.status === 'Paid')
@@ -69,7 +78,7 @@ export async function buildBusinessContext(): Promise<BusinessContext> {
   const activeProposalsCount = proposals.filter(p => ['Draft', 'Sent'].includes(p.status)).length;
   const qualifiedLeadsCount = leads.filter(l => ['New', 'Researched', 'Qualified', 'Contacted', 'Replied'].includes(l.status)).length;
 
-  const contextString = `
+  const baseContext = `
 === BUSINESS PROFILE ===
 Company Name: ${profile.business_name}
 Description: ${profile.description || 'N/A'}
@@ -105,6 +114,7 @@ ${projects.length === 0 ? 'No active delivery projects.' : projects.map(p => `- 
 === UPCOMING FOLLOW-UPS ===
 ${followups.length === 0 ? 'No followups scheduled.' : followups.map(f => `- ID: ${f.id} | Lead ID: ${f.lead_id} (Date: ${f.followup_date}, Type: ${f.followup_type}, Status: ${f.status})`).join('\n')}
 `.trim();
+  const contextString = vaultContext ? `${vaultContext}\n\n${baseContext}` : baseContext;
 
   return {
     profile,
@@ -128,5 +138,6 @@ ${followups.length === 0 ? 'No followups scheduled.' : followups.map(f => `- ID:
       qualifiedLeadsCount,
     },
     contextString,
+    vaultContext,
   };
 }

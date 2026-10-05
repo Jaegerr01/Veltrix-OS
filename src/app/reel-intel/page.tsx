@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { VxIcon } from '@/components/ds';
+import { VxIcon, EmptyState } from '@/components/ds';
 import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/Toast';
 
@@ -56,7 +56,7 @@ interface ReelIntelResult {
   creator: string;
   topic: string;
   keyTakeaways: string[];
-  veltrixRelevance: string;
+  postelosRelevance: string;
   implementationSuggestions: ImplementationSuggestion[];
   tags: string[];
 }
@@ -87,7 +87,7 @@ export default function ReelIntelPage() {
   const [note, setNote] = React.useState('');
   const [analyzing, setAnalyzing] = React.useState(false);
   const [result, setResult] = React.useState<ReelIntelResult | null>(null);
-  const [savedToObsidian, setSavedToObsidian] = React.useState(false);
+  const [savedToVault, setSavedToVault] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryNote[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(true);
   const toast = useToast();
@@ -137,8 +137,8 @@ export default function ReelIntelPage() {
       const data = await res.json();
       if (data.success) {
         setResult(data.data);
-        setSavedToObsidian(!!data.savedToObsidian);
-        toast.success('Nova: analysis complete', data.savedToObsidian ? 'Saved to your Obsidian vault.' : 'Saved to your notes.');
+        setSavedToVault(!!data.savedToVault);
+        toast.success('Nova: analysis complete', data.savedToVault ? 'Saved to your Memory Vault (Reel Intel folder).' : 'Saved to your notes.');
         setUrl('');
         setNote('');
         loadHistory();
@@ -210,7 +210,7 @@ export default function ReelIntelPage() {
                   </span>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', color: 'var(--text-strong)', textTransform: 'uppercase' }}>{result.topic}</span>
                 </div>
-                {savedToObsidian && (
+                {savedToVault && (
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--signal-400)' }}>saved to vault</span>
                 )}
               </div>
@@ -229,10 +229,10 @@ export default function ReelIntelPage() {
                 </div>
               )}
 
-              {result.veltrixRelevance && (
+              {result.postelosRelevance && (
                 <div style={{ marginBottom: 'var(--space-5)' }}>
-                  <div style={sectionLabel}>VELTRIX Relevance</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 'var(--lh-normal)' }}>{result.veltrixRelevance}</div>
+                  <div style={sectionLabel}>PostelOS Relevance</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 'var(--lh-normal)' }}>{result.postelosRelevance}</div>
                 </div>
               )}
 
@@ -273,9 +273,7 @@ export default function ReelIntelPage() {
           {historyLoading ? (
             <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: 'var(--space-4) 0' }}>Loading…</div>
           ) : history.length === 0 ? (
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: 'var(--space-4) 0', lineHeight: 'var(--lh-normal)' }}>
-              No reels analyzed yet. Paste a reel URL to build your intel library.
-            </div>
+            <EmptyState compact level={2} icon="play" title="No reels analyzed yet" body="Paste a reel URL above to start your intel library." />
           ) : (
             history.map((h) => (
               <div key={h.id} style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', background: 'var(--ink-700)', border: '1px solid var(--hairline)', marginBottom: 'var(--space-3)' }}>

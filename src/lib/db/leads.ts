@@ -15,25 +15,6 @@ export async function getLeads(): Promise<Lead[]> {
 }
 
 export async function addLead(lead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>): Promise<Lead> {
-  const fallbackLead: Lead = {
-    id: 'mock-lead-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    business_name: lead.business_name,
-    contact_name: lead.contact_name || '',
-    industry: lead.industry || '',
-    website: lead.website || '',
-    email: lead.email || '',
-    phone: lead.phone || '',
-    social_link: lead.social_link || '',
-    location: lead.location || '',
-    pain_point: lead.pain_point || '',
-    lead_score: lead.lead_score || 0,
-    status: lead.status || 'New',
-    source: lead.source || 'Manual',
-    notes: lead.notes || '',
-    user_id: 'demo-user'
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -43,30 +24,10 @@ export async function addLead(lead: Omit<Lead, 'id' | 'created_at' | 'updated_at
       .single();
     if (error) throw error;
     return data;
-  }, fallbackLead, 'addLead');
+  }, 'addLead');
 }
 
 export async function updateLead(id: string, updates: Partial<Lead>): Promise<Lead> {
-  const fallbackLead: Lead = {
-    id,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    business_name: updates.business_name || '',
-    contact_name: updates.contact_name || '',
-    industry: updates.industry || '',
-    website: updates.website || '',
-    email: updates.email || '',
-    phone: updates.phone || '',
-    social_link: updates.social_link || '',
-    location: updates.location || '',
-    pain_point: updates.pain_point || '',
-    lead_score: updates.lead_score || 0,
-    status: updates.status || 'New',
-    source: updates.source || 'Manual',
-    notes: updates.notes || '',
-    user_id: 'demo-user',
-    ...updates
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -78,7 +39,7 @@ export async function updateLead(id: string, updates: Partial<Lead>): Promise<Le
       .single();
     if (error) throw error;
     return data;
-  }, fallbackLead, 'updateLead');
+  }, 'updateLead');
 }
 
 export async function deleteLead(id: string): Promise<boolean> {
@@ -90,7 +51,7 @@ export async function deleteLead(id: string): Promise<boolean> {
       .eq('id', id)
       .eq('user_id', userId);
     return !error;
-  }, false, 'deleteLead');
+  }, 'deleteLead');
 }
 
 export async function getLeadScores(leadId?: string): Promise<LeadScore[]> {
@@ -105,19 +66,6 @@ export async function getLeadScores(leadId?: string): Promise<LeadScore[]> {
 }
 
 export async function addLeadScore(score: Omit<LeadScore, 'id' | 'created_at'>): Promise<LeadScore> {
-  const fallbackScore: LeadScore = {
-    id: 'mock-score-' + Date.now(),
-    created_at: new Date().toISOString(),
-    lead_id: score.lead_id,
-    website_score: score.website_score || 0,
-    branding_score: score.branding_score || 0,
-    automation_need_score: score.automation_need_score || 0,
-    ability_to_pay_score: score.ability_to_pay_score || 0,
-    urgency_score: score.urgency_score || 0,
-    total_score: score.total_score || 0,
-    reasoning: score.reasoning || '',
-    user_id: 'demo-user'
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -139,5 +87,5 @@ export async function addLeadScore(score: Omit<LeadScore, 'id' | 'created_at'>):
     }
 
     return data;
-  }, fallbackScore, 'addLeadScore');
+  }, 'addLeadScore');
 }

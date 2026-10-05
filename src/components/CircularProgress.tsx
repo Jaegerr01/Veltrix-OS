@@ -7,8 +7,8 @@ export default function CircularProgress({ percentage }: { percentage: number })
       <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
         <defs>
           <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%"   stopColor="#a855f7" />
-            <stop offset="100%" stopColor="#06b6d4" />
+            <stop offset="0%"   stopColor="var(--violet-400)" />
+            <stop offset="100%" stopColor="var(--cyan-400)" />
           </linearGradient>
         </defs>
         <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="9" />

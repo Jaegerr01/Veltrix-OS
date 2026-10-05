@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 
 /* ============================================================
-   VELTRIX Design System primitives — ported from _ds_bundle.js
+   PostelOS Design System primitives — ported from _ds_bundle.js
    (Avatar, Badge, Button, Card, Input, Switch, StatCard).
    Faithful to the prototype's inline-style rendering.
    ============================================================ */
@@ -24,6 +25,7 @@ export function StatCard({
   value,
   unit,
   delta,
+  deltaLabel = 'vs last week',
   accent = 'cyan',
   icon,
   style,
@@ -33,6 +35,8 @@ export function StatCard({
   value: React.ReactNode;
   unit?: React.ReactNode;
   delta?: string | number | null;
+  /** What the delta is measured against. Say the real period, not a default. */
+  deltaLabel?: React.ReactNode;
   accent?: keyof typeof STAT_ACCENTS | string;
   icon?: React.ReactNode;
   style?: Style;
@@ -83,10 +87,15 @@ export function StatCard({
         {unit ? <span style={{ fontSize: 14, color: 'var(--text-dim)' }}>{unit}</span> : null}
       </div>
       {delta != null ? (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: trendColor }}>
-          <span>{up ? '▲' : '▼'}</span>
-          {typeof delta === 'string' ? delta.replace(/^\+/, '') : Math.abs(delta) + '%'}
-          <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>vs last week</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-xs)', fontWeight: 600, color: trendColor }}>
+          {/* The arrow is decorative — the direction is already in the text and
+              in the colour, and colour alone must never carry the meaning. */}
+          <span aria-hidden="true">{up ? '▲' : '▼'}</span>
+          <span>
+            {up ? 'Up ' : 'Down '}
+            {typeof delta === 'string' ? delta.replace(/^\+/, '') : Math.abs(delta) + '%'}
+          </span>
+          {deltaLabel ? <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>{deltaLabel}</span> : null}
         </span>
       ) : null}
     </div>
@@ -159,8 +168,7 @@ export function Avatar({
           }}
         >
           {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <Image src={src} alt={name} width={px} height={px} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             children || initials
           )}
@@ -248,7 +256,7 @@ const BTN_VARIANTS: Record<string, Style> = {
   primary: { background: 'var(--grad-brand)', color: 'var(--text-on-accent)', border: '1px solid transparent', boxShadow: 'var(--glow-violet)' },
   secondary: { background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--border-default)', boxShadow: 'var(--sheen-top)' },
   ghost: { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent', boxShadow: 'none' },
-  danger: { background: 'var(--danger-400)', color: 'var(--white)', border: '1px solid transparent', boxShadow: '0 0 22px rgba(255,77,109,0.4)' },
+  danger: { background: 'var(--danger-600)', color: 'var(--white)', border: '1px solid transparent', boxShadow: '0 0 22px rgba(255,77,109,0.4)' },
 };
 
 export function Button({
@@ -297,21 +305,29 @@ export function Button({
         ...v,
         ...style,
       }}
+      {...rest}
+      /* These sit AFTER {...rest} on purpose. Declared before it, a caller
+         passing its own onMouseEnter silently replaced the hover treatment;
+         now the built-in effect runs and the caller's handler is chained. */
       onMouseDown={(e) => {
         if (!disabled) e.currentTarget.style.transform = 'translateY(1px) scale(0.99)';
+        rest.onMouseDown?.(e);
       }}
       onMouseUp={(e) => {
         e.currentTarget.style.transform = '';
+        rest.onMouseUp?.(e);
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = '';
         e.currentTarget.style.filter = '';
+        if (variant === 'ghost') e.currentTarget.style.background = 'transparent';
+        rest.onMouseLeave?.(e);
       }}
       onMouseEnter={(e) => {
         if (!disabled) e.currentTarget.style.filter = variant === 'ghost' ? 'none' : 'brightness(1.12)';
         if (!disabled && variant === 'ghost') e.currentTarget.style.background = 'var(--surface-hover)';
+        rest.onMouseEnter?.(e);
       }}
-      {...rest}
     >
       {leadingIcon ? <span style={{ display: 'inline-flex', fontSize: '1.1em' }}>{leadingIcon}</span> : null}
       {children}
@@ -349,7 +365,7 @@ export function Card({
         borderRadius: 'var(--radius-lg)',
         padding,
         color: 'var(--text-body)',
-        boxShadow: glow ? 'var(--shadow-lg), var(--glow-soft)' : 'var(--shadow-md), var(--sheen-top)',
+        boxShadow: glow || (interactive && hover) ? 'var(--shadow-lg), var(--glow-soft), var(--sheen-top)' : 'var(--shadow-md), var(--sheen-top)',
         backdropFilter: 'var(--blur-sm)',
         WebkitBackdropFilter: 'var(--blur-sm)',
         transition: 'transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out)',
@@ -420,12 +436,13 @@ export function Input({
           disabled={disabled}
           onFocus={(e) => {
             setFocus(true);
-            rest.onFocus && rest.onFocus(e);
+            rest.onFocus?.(e);
           }}
           onBlur={(e) => {
             setFocus(false);
-            rest.onBlur && rest.onBlur(e);
+            rest.onBlur?.(e);
           }}
+          aria-invalid={error ? true : undefined}
           {...rest}
           style={{
             flex: 1,
@@ -433,10 +450,12 @@ export function Input({
             height: '100%',
             background: 'transparent',
             border: 'none',
-            outline: 'none',
+            /* No `outline: none` here. The wrapper's colour change is a hint,
+               not a focus indicator, and it never fires for programmatic focus —
+               the global :focus-visible ring is what keyboard users rely on. */
             color: 'var(--text-strong)',
             fontFamily: 'var(--font-body)',
-            fontSize: size === 'sm' ? 13 : 14,
+            fontSize: size === 'sm' ? 'var(--text-sm)' : 'var(--text-base)',
           }}
         />
       </div>
@@ -454,6 +473,7 @@ export function Switch({
   onChange,
   disabled = false,
   label,
+  ariaLabel,
   id,
   style,
 }: {
@@ -462,6 +482,8 @@ export function Switch({
   onChange?: (v: boolean) => void;
   disabled?: boolean;
   label?: React.ReactNode;
+  /** Accessible name when no visible `label` is given. */
+  ariaLabel?: string;
   id?: string;
   style?: Style;
 }) {
@@ -473,43 +495,11 @@ export function Switch({
   const toggle = () => {
     if (disabled) return;
     if (!isControlled) setInternal(!on);
-    onChange && onChange(!on);
+    onChange?.(!on);
   };
   const control = (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      id={fid}
-      onClick={toggle}
-      disabled={disabled}
-      style={{
-        width: 44,
-        height: 24,
-        flex: '0 0 auto',
-        padding: 2,
-        borderRadius: 'var(--radius-pill)',
-        border: 'none',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        background: on ? 'var(--grad-brand)' : 'var(--ink-500)',
-        boxShadow: on ? 'var(--glow-violet)' : 'inset 0 0 0 1px var(--border-default)',
-        transition: 'background var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out)',
-        opacity: disabled ? 0.5 : 1,
-        display: 'inline-flex',
-        alignItems: 'center',
-      }}
-    >
-      <span
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: '50%',
-          background: 'var(--white)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
-          transform: on ? 'translateX(20px)' : 'translateX(0)',
-          transition: 'transform var(--dur-base) var(--ease-spring)',
-        }}
-      />
+    <button type="button" role="switch" aria-checked={on} aria-label={label ? undefined : ariaLabel} id={fid} onClick={toggle} disabled={disabled} className="vx-switch">
+      <span className="vx-switch__track" data-on={on}><span className="vx-switch__thumb" /></span>
     </button>
   );
   if (!label) return <span style={style}>{control}</span>;

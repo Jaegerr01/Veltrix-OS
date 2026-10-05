@@ -10,7 +10,9 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 
-## VELTRIX COMMAND OS
+## PostelOS
+
+**Brand:** PostelOS — the AI command center by Postel Studio (formerly "Veltrix Command OS"). Palette: deep black + electric purple (`#8B5CF6` → `#B14CFF` → `#C026D3`), white type, Outfit + Plus Jakarta Sans. Tokens: `src/app/postel-ds.css`; brand components: `src/components/ds/Postel*.tsx`; assets: `public/brand/`; copy constants: `src/lib/brand.ts`. The `vx-` CSS prefix and `vx_*` localStorage keys are internal and intentionally unchanged.
 
 **Stack:** Next.js 16.2.6 · React 19 · Tailwind 4 · Supabase · Gemini AI · ElevenLabs · Framer Motion
 
@@ -22,13 +24,13 @@ Rules:
 
 ## Agentic OS — Brain Layer
 
-**Obsidian Vault:** `E:\Vetrix-app\Veltrix`
+**Memory Vault (built in):** notes live in Supabase (`vault_notes` / `vault_links`, migration `2026-10-02_004_memory_vault.sql`).
 
-The vault is the VELTRIX knowledge brain. Notes sync to Supabase `memories` table via:
-- API: `POST /api/obsidian/sync`
-- UI: "Sync Obsidian Brain" button in the Command Deck panel
-
-To add knowledge: create `.md` files in the Obsidian vault, then hit Sync.
+- UI: `/memory` (folder tree, markdown editor/preview, search, tags, backlinks, pin, import/export as a .zip of .md files).
+- API: `/api/memory` (+ `/[id]`, `/export`, `/import`) - owner only, zod-validated.
+- Agents: `lib/db/vault.ts` (`vault.agentRead / agentWrite`, `journalToVault`). Agents may create notes and append to notes they wrote, never edit owner/system notes.
+- The pinned **Constitution** note (seeded on first load) plus other pinned notes are injected into the CEO agent / ARIA prompts via `lib/context/buildBusinessContext.ts`.
+- The old external Obsidian sync (`/api/obsidian/*`) was removed.
 
 ---
 
@@ -94,10 +96,7 @@ src/
         command/route.ts        ← General AI command routing
         command-deck/route.ts   ← Command Deck 5-action handler
         report/route.ts         ← Daily report generator
-      obsidian/
-        sync/route.ts           ← Obsidian vault → Supabase memory sync
   components/
-    CommandDeck.tsx             ← 5-button operator command panel + Obsidian sync
     SystemVitals.tsx            ← BHAG tracker + live metrics
     Sidebar.tsx                 ← Navigation
     VoiceAssistant.tsx          ← ElevenLabs voice HUD
@@ -111,18 +110,18 @@ src/
 
 ### Reel Intel Feature
 
-Paste an Instagram reel URL → Nova (AI agent) analyzes the content → saves structured note to Obsidian vault + Supabase → shows actionable Intel Brief.
+Paste an Instagram reel URL → Nova (AI agent) analyzes the content → saves a structured note to the Memory Vault (Reel Intel folder) + Supabase → shows actionable Intel Brief.
 
 ```
 src/
   app/
     reel-intel/page.tsx          ← Reel Intel page (URL input + Intel Brief display + history)
-    api/reel-intel/route.ts      ← POST: analyze reel (oEmbed + Gemini + Supabase + Obsidian)
+    api/reel-intel/route.ts      ← POST: analyze reel (oEmbed + Gemini + Supabase + Memory Vault)
     api/reel-intel/history/      ← GET: past analyzed reels
 ```
 
 **Dedup:** Same reel shortcode won't be analyzed twice (409 returned).
-**Obsidian:** Writes to `E:\Vetrix-app\Veltrix\Reel Intel\` when running locally.
+**Memory Vault:** saved to the `Reel Intel` folder of the built-in vault.
 
 ---
 
@@ -141,13 +140,13 @@ Chain: **Scraper import → Daniel → Emma → Olivia → Approval Queue → gu
    Score ≥7 AND `profile.autopilot` on → triggers outreach.
 3. `outreach` (Emma): research-informed message; autonomous mode also runs
    `proposal` (Olivia) and composes ONE email (message + proposal) — but per
-   Entity Phase 1 (Obsidian → Entity/VELTRIX Constitution.md, Article 3) it does
+   Entity Phase 1 (PostelOS Constitution (Memory Vault note "Constitution"), Article 3) it does
    NOT send. It files an approval card via `lib/entity/approvals.ts`.
 4. Barry decides in the dashboard `ApprovalQueue` (approve / edit-and-approve /
    reject). Approval executes `sendOutreachEmail` — guardrails STILL apply.
    Rejected cards never execute. Failed/refused sends stay Draft — never
    phantom "Sent". Requires the `approval_requests` table
-   (`migrations/2026-07-12_approval_requests.sql`).
+   (`migrations/2026-10-02_002_core_tables.sql`).
 5. `lib/email/send.ts` guardrails (autonomous flag): `OUTREACH_SEND_ENABLED=false`
    kill switch · `OUTREACH_DAILY_CAP` (default 15) · `OUTREACH_BLACKLIST` (emails/
    domains). Provider order: Gmail (`GMAIL_USER`+`GMAIL_APP_PASSWORD`) → Resend.
@@ -163,7 +162,7 @@ Requires `npm install` after pull (new deps: nodemailer, @types/nodemailer).
 - Service-role key is server-side only; RLS patched in commit 801c188 — never expose it client-side.
 - Full findings live in AUDIT_REPORT.md — read it before touching auth, autopilot, or the chat function.
 
-## Relationship to other VELTRIX repos
+## Relationship to other PostelOS repos
 
 - This is Barry's PERSONAL operator OS (single-user). The multi-tenant customer product
   is `veltrix-nexus` (separate repo). Website is `Vortex Solutions MK2`. Don't merge their

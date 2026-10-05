@@ -1,5 +1,8 @@
 import type { Task } from '../types';
-import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import { supabase, getUserId, safeRead, safeWrite, withOptionalColumns } from './_core';
+
+// Orchestration columns (migrations/2026-10-02_003_task_orchestration.sql). Writes still work before it is applied.
+const OPTIONAL_COLS = ['run_id', 'depends_on', 'requires_approval', 'approval_request_id', 'error', 'started_at', 'finished_at', 'created_by', 'agent_key', 'params'];
 
 export async function getTasks(): Promise<Task[]> {
   return safeRead(async () => {
@@ -15,58 +18,25 @@ export async function getTasks(): Promise<Task[]> {
 }
 
 export async function addTask(task: Omit<Task, 'id' | 'created_at' | 'updated_at'>): Promise<Task> {
-  const fallbackTask: Task = {
-    id: 'mock-task-' + Date.now(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    agent_name: task.agent_name || 'Manual Task',
-    title: task.title,
-    description: task.description || '',
-    priority: task.priority || 'Medium',
-    status: task.status || 'Pending',
-    due_date: task.due_date || '',
-    related_client_id: task.related_client_id || '',
-    user_id: 'demo-user'
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert({ ...task, user_id: userId })
-      .select()
-      .single();
+    const { data, error } = await withOptionalColumns({ ...task, user_id: userId }, OPTIONAL_COLS, p =>
+      supabase.from('tasks').insert(p).select().single()
+    );
     if (error) throw error;
     return data;
-  }, fallbackTask, 'addTask');
+  }, 'addTask');
 }
 
 export async function updateTask(id: string, updates: Partial<Task>): Promise<Task> {
-  const fallbackTask: Task = {
-    id,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    agent_name: updates.agent_name || 'Manual Task',
-    title: updates.title || '',
-    description: updates.description || '',
-    priority: updates.priority || 'Medium',
-    status: updates.status || 'Pending',
-    due_date: updates.due_date || '',
-    related_client_id: updates.related_client_id || '',
-    user_id: 'demo-user',
-    ...updates
-  };
   return safeWrite(async () => {
     const userId = await getUserId();
-    const { data, error } = await supabase
-      .from('tasks')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const { data, error } = await withOptionalColumns({ ...updates, updated_at: new Date().toISOString() }, OPTIONAL_COLS, p =>
+      supabase.from('tasks').update(p).eq('id', id).eq('user_id', userId).select().single()
+    );
     if (error) throw error;
     return data;
-  }, fallbackTask, 'updateTask');
+  }, 'updateTask');
 }
 
 export async function deleteTask(id: string): Promise<boolean> {
@@ -78,5 +48,5 @@ export async function deleteTask(id: string): Promise<boolean> {
       .eq('id', id)
       .eq('user_id', userId);
     return !error;
-  }, false, 'deleteTask');
+  }, 'deleteTask');
 }

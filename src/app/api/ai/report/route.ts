@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { gemini } from '@/lib/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
+import { asErr } from '@/lib/errors';
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
@@ -12,7 +13,6 @@ export async function POST(req: Request) {
   try {
     const profile = await db.getBusinessProfile();
     const leads = await db.getLeads();
-    const goals = await db.getGoals();
     const memories = await db.getMemories();
     const reports = await db.getDailyReports();
 
@@ -53,8 +53,8 @@ export async function POST(req: Request) {
     // Parse the report text to extract fields for database insertion
     const lines = reportText.split('\n');
     let topPriority = 'Review qualified leads and outline sales scripts.';
-    let leadsToContact: string[] = [];
-    let followupsDue: string[] = [];
+    const leadsToContact: string[] = [];
+    const followupsDue: string[] = [];
     let contentToPost = 'Draft LinkedIn hook for business AI.';
     let recommendedAction = 'Contact dentist leads.';
 
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
     // Save report copy as a business memory
     await db.addMemory({
       type: 'Decision',
-      content: `Veltrix Daily Command Report generated for ${todayStr}. Recommended action: ${recommendedAction}`,
+      content: `PostelOS Daily Command Report generated for ${todayStr}. Recommended action: ${recommendedAction}`,
       tags: ['daily-report', 'automated'],
       importance: 6,
       source: 'AI CEO'
@@ -131,7 +131,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, report: newReport, rawText: reportText });
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error generating daily report API:', error);
     try {
       const profile = await db.getBusinessProfile();
@@ -152,7 +152,7 @@ export async function POST(req: Request) {
       });
 
       const reportText = `
-VELTRIX Daily Command Report
+PostelOS Daily Command Report
 
 Revenue Target:
 $${profile?.target_monthly_revenue || 6000}
@@ -190,8 +190,8 @@ Access CRM potential clients page.
 
       const lines = reportText.split('\n');
       let topPriority = 'Qualify and follow up with all active leads in CRM to close the gap.';
-      let leadsToContact: string[] = [];
-      let followupsDue: string[] = [];
+      const leadsToContact: string[] = [];
+      const followupsDue: string[] = [];
       let contentToPost = 'Leverage AI receptionists to prevent after-hour appointment leaks.';
       let recommendedAction = 'Review qualification parameters and customize outreach.';
 
@@ -240,7 +240,7 @@ Access CRM potential clients page.
 
       await db.addMemory({
         type: 'Decision',
-        content: `Veltrix Daily Report simulated for ${todayStr}. Recommended: ${recommendedAction}`,
+        content: `PostelOS Daily Report simulated for ${todayStr}. Recommended: ${recommendedAction}`,
         tags: ['daily-report', 'automated', 'offline-fallback'],
         importance: 5,
         source: 'AI CEO Simulator'

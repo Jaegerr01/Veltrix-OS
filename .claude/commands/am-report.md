@@ -1,6 +1,6 @@
 # AM Report
 
-Run VELTRIX's morning command briefing. Pulls live data from the Supabase database and generates a sharp daily briefing via the CEO Agent.
+Run PostelOS's morning command briefing. Pulls live data from the Supabase database and generates a sharp daily briefing via the CEO Agent.
 
 ## What it does
 
@@ -25,4 +25,4 @@ curl -X POST http://localhost:3000/api/ai/command-deck \
   -d '{"command":"am-report"}'
 ```
 
-Or just open the Command Deck panel in the VELTRIX dashboard and click **AM Report**.
+Or just open the Command Deck panel in the PostelOS dashboard and click **AM Report**.

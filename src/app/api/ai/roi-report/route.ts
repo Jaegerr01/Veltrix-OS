@@ -1,15 +1,17 @@
+import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { gemini } from '@/lib/ai/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
-import { getResendClient, FROM_EMAIL } from '@/lib/email/resend';
+import { sendEmail as deliverEmail } from '@/lib/email/send';
+import { asErr } from '@/lib/errors';
 
 function estimateMonthlySaving(servicePurchased: string): number {
   const s = (servicePurchased || '').toLowerCase();
   if (s.includes('receptionist') || s.includes('booking')) return 1000;
   if (s.includes('growth') || s.includes('package')) return 750;
-  return 500; // website / brand default
+  return 500; // website / brand default. ASSUMPTION, not a measurement - labelled as such in the report.
 }
 
 export async function POST(req: Request) {
@@ -25,9 +27,9 @@ export async function POST(req: Request) {
   let sendEmail = false;
 
   try {
-    const body = await req.json().catch(() => ({}));
-    clientId = body.clientId || '';
-    sendEmail = body.sendEmail === true;
+    const parsedBody = z.object({ clientId: z.string().min(1).max(100), sendEmail: z.boolean().optional() }).safeParse(await req.json().catch(() => null));
+    clientId = parsedBody.success ? parsedBody.data.clientId : '';
+    sendEmail = parsedBody.success && parsedBody.data.sendEmail === true;
 
     if (!clientId) {
       return NextResponse.json({ success: false, error: 'clientId is required.' }, { status: 400 });
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
       });
     } catch (aiErr) {
       console.warn('Gemini unavailable for ROI report — using fallback:', aiErr);
-      narrative = `${client.business_name} has been an active VELTRIX client for ${monthsActive} month${monthsActive !== 1 ? 's' : ''}, with ${client.service_purchased || 'an AI solution'} deployed and ${completionRate}% of project milestones completed. The investment of $${lifetimeValue.toLocaleString()} has been put to work across ${tasksTotal} delivery tasks, with estimated returns of ~$${estimatedMonthlySaving.toLocaleString()}/month in operational value — representing a projected ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}% ROI on the engagement. To maximise results further, we recommend scheduling a performance review call to identify the next high-impact automation opportunity.`;
+      narrative = `${client.business_name} has been an active PostelOS client for ${monthsActive} month${monthsActive !== 1 ? 's' : ''}, with ${client.service_purchased || 'an AI solution'} deployed and ${completionRate}% of project milestones completed. The investment of $${lifetimeValue.toLocaleString()} has been put to work across ${tasksTotal} delivery tasks, with an ASSUMED (not measured) value of ~$${estimatedMonthlySaving.toLocaleString()}/month in operational value — representing a projected ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}% ROI on the engagement. To maximise results further, we recommend scheduling a performance review call to identify the next high-impact automation opportunity.`;
     }
 
     const report = {
@@ -123,9 +125,11 @@ export async function POST(req: Request) {
 
     // Optional: send report email to client
     let emailDelivered = false;
+    let emailError: string | undefined;
+    let emailMessageId: string | undefined;
+    if (sendEmail && !client.email) emailError = 'This client has no email address on file.';
     if (sendEmail && client.email) {
-      const resend = getResendClient();
-      if (resend) {
+      {
         try {
           const emailBody = [
             `Hi ${client.contact_name || client.business_name},`,
@@ -136,32 +140,35 @@ export async function POST(req: Request) {
             `Service:               ${client.service_purchased || 'AI Solution'}`,
             `Months Active:         ${monthsActive}`,
             `Milestones Complete:   ${tasksCompleted}/${tasksTotal} (${completionRate}%)`,
-            `Est. Monthly Value:    ~$${estimatedMonthlySaving.toLocaleString()}`,
+            `Assumed Monthly Value (not measured): ~$${estimatedMonthlySaving.toLocaleString()}`,
             `Projected ROI:         ${estimatedRoiPct > 0 ? '+' : ''}${estimatedRoiPct}%`,
             '',
-            'Powered by VELTRIX Command OS',
+            'Powered by PostelOS',
           ].join('\n');
 
-          const { error: sendErr } = await resend.emails.send({
-            from: FROM_EMAIL,
-            to: [client.email],
-            subject: `Your VELTRIX ROI Summary — ${client.business_name}`,
+          const sent = await deliverEmail({
+            to: client.email,
+            kind: 'transactional',
+            unsubscribe: false,
+            subject: `Your PostelOS ROI Summary — ${client.business_name}`,
             text: emailBody,
           });
 
-          if (sendErr) {
-            console.warn('Resend error sending ROI report:', sendErr);
-          } else {
+          if (sent.delivered) {
             emailDelivered = true;
+            emailMessageId = sent.messageId;
+          } else {
+            emailError = sent.reason || 'The email provider rejected the message.';
           }
-        } catch (sendErr) {
+        } catch (sendErrRaw: unknown) { const sendErr = asErr(sendErrRaw);
           console.warn('Failed to send ROI report email:', sendErr);
+          emailError = sendErr?.message || 'Email send failed.';
         }
       }
     }
 
-    return NextResponse.json({ success: true, report, emailDelivered });
-  } catch (error: any) {
+    return NextResponse.json({ success: true, report, emailDelivered, emailError, emailMessageId });
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Error generating ROI report:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

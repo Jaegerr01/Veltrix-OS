@@ -1,8 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon } from '@/components/ds';
 import { db } from '@/lib/db';
+import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
+import { asErr } from '@/lib/errors';
+import DialogOverlay from '@/components/DialogOverlay';
+import PageSkeleton from '@/components/PageSkeleton';
+import { clickable } from '@/lib/a11y';
 
 interface Lead {
   id: string;
@@ -15,7 +20,12 @@ interface Proposal {
   client_id?: string;
   title: string;
   price: number;
-  status: 'Draft' | 'Sent' | 'Viewed' | 'Accepted' | 'Rejected' | 'Needs Revision';
+  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Sending' | 'Sent' | 'Failed' | 'Viewed' | 'Accepted' | 'Rejected' | 'Needs Revision';
+  provider?: string | null;
+  provider_message_id?: string | null;
+  sent_at?: string | null;
+  error?: string | null;
+  attempts?: number | null;
   timeline?: string;
   problem?: string;
   solution?: string;
@@ -85,7 +95,8 @@ export default function ProposalsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const t = setTimeout(() => { void fetchData(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const getLeadName = (id?: string) => {
@@ -130,7 +141,7 @@ export default function ProposalsPage() {
 
       // Refresh
       await fetchData();
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       setFormError(`Failed to save proposal: ${err.message}`);
     }
   };
@@ -144,16 +155,16 @@ export default function ProposalsPage() {
     }
   };
 
+  const { busyId, notice, setNotice, run } = useSendAction(fetchData);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Connecting to Proposal catalog..." />
-      </div>
+      <PageSkeleton label="Connecting to Proposal catalog..." />
     );
   }
 
   // Filter into Kanban columns
-  const drafts = proposals.filter((p) => ['Draft', 'Needs Revision'].includes(p.status));
+  const drafts = proposals.filter((p) => ['Draft', 'Needs Revision', 'Pending Approval', 'Approved', 'Sending', 'Failed'].includes(p.status));
   const sent = proposals.filter((p) => ['Sent', 'Viewed'].includes(p.status));
   const accepted = proposals.filter((p) => p.status === 'Accepted');
   const rejected = proposals.filter((p) => p.status === 'Rejected');
@@ -162,8 +173,8 @@ export default function ProposalsPage() {
   const closedWonValue = accepted.reduce((sum, p) => sum + (p.price || 0), 0);
 
   const columns = [
-    { name: 'Drafts', tone: 'var(--text-dim)', proposals: drafts, count: drafts.length },
-    { name: 'Sent / Pending', tone: 'var(--cyan-300)', proposals: sent, count: sent.length },
+    { name: 'Not sent yet', tone: 'var(--text-dim)', proposals: drafts, count: drafts.length },
+    { name: 'Sent (delivered)', tone: 'var(--cyan-300)', proposals: sent, count: sent.length },
     { name: 'Accepted (Won)', tone: 'var(--signal-400)', proposals: accepted, count: accepted.length },
     { name: 'Rejected', tone: 'var(--danger-400)', proposals: rejected, count: rejected.length },
   ];
@@ -181,7 +192,7 @@ export default function ProposalsPage() {
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -205,8 +216,10 @@ export default function ProposalsPage() {
         }
       />
 
+      <Notice notice={notice} onClose={() => setNotice(null)} />
+
       {/* Kanban Board */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-5)', alignItems: 'start' }}>
+      <section className="vx-kanban" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-5)', alignItems: 'start' }}>
         {columns.map((col) => (
           <div key={col.name} className="vx-glass" style={columnCardStyle}>
             {/* Header */}
@@ -248,30 +261,25 @@ export default function ProposalsPage() {
                         </span>
                       )}
                     </div>
-                    <h5 style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-strong)' }}>
                       {prop.title}
-                    </h5>
+                    </h3>
+                    <div><SendStateBadge record={prop} /></div>
+                    <SendDetails record={prop} />
                     <p style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
                       Prospect: <span style={{ color: 'var(--violet-200)' }}>{getLeadName(prop.lead_id)}</span>
                     </p>
 
                     {/* Action buttons */}
                     <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
-                      {['Draft', 'Needs Revision'].includes(prop.status) && (
-                        <button
-                          onClick={() => handleUpdateStatus(prop.id, 'Sent')}
-                          style={{
-                            background: 'rgba(76,215,246,0.1)',
-                            border: '1px solid rgba(76,215,246,0.2)',
-                            color: 'var(--cyan-300)',
-                            fontSize: 10.5,
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Send Offer
-                        </button>
+                      {['Draft', 'Needs Revision', 'Pending Approval', 'Approved'].includes(prop.status) && (
+                        <>
+                          <SendButton label="Approve & send" tone="info" busy={busyId === prop.id} onClick={() => run('proposals', prop.id)} title="Approves and emails this proposal to the lead now" />
+                          <SendButton label="Mark sent (I sent it)" tone="ok" busy={busyId === prop.id} onClick={() => run('proposals', prop.id, { manual: true })} title="You handed it over outside the app. Records your confirmation only." />
+                        </>
+                      )}
+                      {prop.status === 'Failed' && (
+                        <SendButton label="Retry send" tone="warn" busy={busyId === prop.id} onClick={() => run('proposals', prop.id, { retry: true })} />
                       )}
                       {['Sent', 'Viewed'].includes(prop.status) && (
                         <>
@@ -320,13 +328,9 @@ export default function ProposalsPage() {
 
       {/* Create Proposal Modal */}
       {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Create proposal" onClose={() => setIsModalOpen(false)}>
           <form
+            noValidate
             onSubmit={handleCreateProposal}
             className="vx-glass max-w-lg w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
             style={{ background: 'var(--grad-panel)' }}
@@ -335,15 +339,11 @@ export default function ProposalsPage() {
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>
                 Draft New Proposal Package
               </h3>
-              <span style={{ cursor: 'pointer', fontSize: 20, color: 'var(--text-muted)' }} onClick={() => setIsModalOpen(false)}>
-                ×
-              </span>
+              <button type="button" aria-label="Close dialog" onClick={() => setIsModalOpen(false)} style={{ cursor: 'pointer', fontSize: 22, lineHeight: 1, color: 'var(--text-muted)', background: 'none', border: 0, minWidth: 44, minHeight: 44 }}>&times;</button>
             </div>
 
             {formError && (
-              <div style={{ color: 'var(--danger-400)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                ⚠️ {formError}
-              </div>
+              <div role="alert" className="vx-callout" data-tone="bad"><div><p className="vx-callout__body">{formError}</p></div></div>
             )}
 
             <div className="grid grid-cols-2 gap-4">
@@ -353,7 +353,7 @@ export default function ProposalsPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Assign Lead Prospect *</label>
-                <select style={inputStyle} value={leadId} onChange={(e) => setLeadId(e.target.value)} required>
+                <select aria-label="Lead prospect" style={inputStyle} value={leadId} onChange={(e) => setLeadId(e.target.value)} required>
                   {leads.length > 0 ? (
                     leads.map((l) => (
                       <option key={l.id} value={l.id}>
@@ -428,7 +428,7 @@ export default function ProposalsPage() {
               Draft Proposal Offer
             </button>
           </form>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import type { ChatMessage } from '../types';
 import { supabase, getUserId, safeRead, safeWrite } from './_core';
+import type { DbRow } from './_core';
 
 export async function getChatMessages(): Promise<ChatMessage[]> {
   const fallbackMessages = [
@@ -7,7 +8,7 @@ export async function getChatMessages(): Promise<ChatMessage[]> {
       id: 'msg-start-1',
       sender: 'ai' as const,
       agentName: 'CEO Agent',
-      message: 'VELTRIX COMMAND OS Initialized. I am your AI Chief of Staff. What is our focus today?',
+      message: 'PostelOS Initialized. I am your AI Chief of Staff. What is our focus today?',
       created_at: new Date().toISOString()
     }
   ];
@@ -27,7 +28,7 @@ export async function getChatMessages(): Promise<ChatMessage[]> {
       return fallbackMessages;
     }
 
-    return data.map((act: any) => ({
+    return data.map((act: DbRow) => ({
       id: act.id,
       sender: act.actor === 'Operator' ? 'user' : 'ai',
       agentName: act.actor === 'Operator' ? undefined : act.actor,
@@ -38,13 +39,6 @@ export async function getChatMessages(): Promise<ChatMessage[]> {
 }
 
 export async function addChatMessage(msg: Omit<ChatMessage, 'id' | 'created_at'>): Promise<ChatMessage> {
-  const fallbackMessage: ChatMessage = {
-    id: 'mock-msg-' + Date.now(),
-    sender: msg.sender,
-    agentName: msg.agentName,
-    message: msg.message,
-    created_at: new Date().toISOString()
-  };
   return safeWrite<ChatMessage>(async () => {
     const userId = await getUserId();
     const { data, error } = await supabase
@@ -68,7 +62,7 @@ export async function addChatMessage(msg: Omit<ChatMessage, 'id' | 'created_at'>
       message: data.output || '',
       created_at: data.created_at
     };
-  }, fallbackMessage, 'addChatMessage');
+  }, 'addChatMessage');
 }
 
 export async function clearChatMessages(): Promise<void> {
@@ -81,5 +75,5 @@ export async function clearChatMessages(): Promise<void> {
       .eq('type', 'system')
       .eq('action', 'chat_message');
     if (error) throw error;
-  }, undefined, 'clearChatMessages');
+  }, 'clearChatMessages');
 }

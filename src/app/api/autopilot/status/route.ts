@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth/requireUser';
+import { asErr } from '@/lib/errors';
 
 // GET /api/autopilot/status
 // Returns live pipeline status for the dashboard
@@ -30,21 +31,21 @@ export async function GET(req: Request) {
     };
 
     // Last 10 agent activities
-    const recentActivity = activities.slice(0, 10).map((a: any) => ({
+    const recentActivity = activities.slice(0, 10).map((a) => ({
       id: a.id,
-      actor: a.agent_name || a.actor,
+      actor: a.agent_name,
       action: a.action,
       status: a.status,
       createdAt: a.created_at
     }));
 
     // Last pipeline run
-    const lastPipelineRun = (activities as any[]).find(a => a.action?.includes('Pipeline Completed'));
+    const lastPipelineRun = activities.find(a => a.action?.includes('Pipeline Completed'));
 
     // Active agents (activity in last hour)
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
     const activeAgents = [...new Set(
-      (activities as any[])
+      activities
         .filter(a => a.created_at > oneHourAgo && a.agent_name !== 'Pipeline')
         .map(a => a.agent_name)
     )].slice(0, 5);
@@ -63,7 +64,7 @@ export async function GET(req: Request) {
       completedTasks,
       totalProposals: proposals.length
     });
-  } catch (err: any) {
+  } catch (errRaw: unknown) { const err = asErr(errRaw);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

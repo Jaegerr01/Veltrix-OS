@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { gemini, isGeminiConfigured, isQuotaError, QUOTA_MESSAGE } from '@/lib/ai/gemini';
+import { journalToVault } from '@/lib/db/vault';
+import { gemini, geminiConfigured, isQuotaError, QUOTA_MESSAGE } from '@/lib/ai/gemini';
 import { requireUser } from '@/lib/auth/requireUser';
 import { checkRateLimit } from '@/lib/auth/rateLimit';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { AGENTS } from '@/lib/agents/agents';
+import { validateText, badRequest, LIMITS } from '@/lib/validation';
+import { asErr } from '@/lib/errors';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,7 +15,7 @@ interface ReelIntelResult {
   creator: string;
   topic: string;
   keyTakeaways: string[];
-  veltrixRelevance: string;
+  postelosRelevance: string;
   implementationSuggestions: { area: string; action: string; priority: string }[];
   tags: string[];
 }
@@ -47,55 +50,30 @@ function extractShortcode(url: string): string | null {
   return match ? match[1] : null;
 }
 
-// ── Write note to Obsidian vault (local dev only) ────────────────────────────
+// -- Save the analysis into the built-in Memory Vault (folder "Reel Intel") --
 
-async function writeToObsidian(title: string, content: string): Promise<boolean> {
-  const vaultPath = process.env.OBSIDIAN_VAULT_PATH;
-  if (!vaultPath) return false;
-
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
-
-    const reelIntelDir = path.join(vaultPath, 'Reel Intel');
-    if (!fs.existsSync(reelIntelDir)) {
-      fs.mkdirSync(reelIntelDir, { recursive: true });
-    }
-
-    const safeTitle = title.replace(/[<>:"/\\|?*]/g, '-').substring(0, 80);
-    const filename = `${safeTitle}.md`;
-    const filepath = path.join(reelIntelDir, filename);
-
-    fs.writeFileSync(filepath, content, 'utf-8');
-    return true;
-  } catch (err) {
-    console.warn('Failed to write to Obsidian vault:', err);
-    return false;
-  }
-}
-
-// ── Build Obsidian markdown note ─────────────────────────────────────────────
-
-function buildObsidianNote(url: string, result: ReelIntelResult): string {
+function buildReelNote(url: string, result: ReelIntelResult): string {
   const date = new Date().toISOString().split('T')[0];
   const tags = result.tags.map(t => `#${t.replace(/\s+/g, '-')}`).join(' ');
-
-  let md = `---\nsource: instagram-reel\nurl: ${url}\ncreator: ${result.creator}\ntopic: ${result.topic}\ndate: ${date}\ntags: [${result.tags.map(t => `"${t}"`).join(', ')}]\n---\n\n`;
-  md += `# ${result.summary.split('.')[0]}\n\n`;
+  let md = `# ${result.summary.split('.')[0]}\n\n`;
   md += `> **Source**: [Instagram Reel](${url})  \n`;
   md += `> **Creator**: ${result.creator}  \n`;
   md += `> **Topic**: ${result.topic}  \n`;
   md += `> **Analyzed**: ${date}  \n\n`;
   md += `## Summary\n${result.summary}\n\n`;
   md += `## Key Takeaways\n${result.keyTakeaways.map(t => `- ${t}`).join('\n')}\n\n`;
-  md += `## VELTRIX Relevance\n${result.veltrixRelevance}\n\n`;
+  md += `## PostelOS Relevance\n${result.postelosRelevance}\n\n`;
   md += `## Implementation Suggestions\n`;
   result.implementationSuggestions.forEach(s => {
     md += `- **[${s.area}]** ${s.action} _(${s.priority} priority)_\n`;
   });
   md += `\n${tags}\n`;
-
   return md;
+}
+
+async function saveToVault(title: string, content: string, tags: string[]): Promise<boolean> {
+  const saved = await journalToVault({ title, body: content, folder: 'Reel Intel', tags: ['reel-intel', ...tags], agent: 'reelIntel' });
+  return saved !== null;
 }
 
 // ── POST handler ─────────────────────────────────────────────────────────────
@@ -108,16 +86,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
   }
 
-  if (!isGeminiConfigured) {
+  if (!geminiConfigured()) {
     return NextResponse.json({ success: false, error: 'Gemini API key not configured.' }, { status: 500 });
   }
 
   try {
-    const { url, context } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { url } = body;
 
-    if (!url || typeof url !== 'string') {
+    if (!url || typeof url !== 'string' || url.length > 2048) {
       return NextResponse.json({ success: false, error: 'URL is required.' }, { status: 400 });
     }
+
+    // Free-text note that gets folded into the analysis prompt — bound it so
+    // request cost isn't caller-controlled.
+    const contextCheck = validateText(body.context, 'Context', {
+      max: LIMITS.prompt,
+      required: false,
+    });
+    if (!contextCheck.ok) return badRequest(contextCheck.error);
+    const context = contextCheck.value;
 
     // Validate Instagram URL
     const shortcode = extractShortcode(url);
@@ -160,7 +148,7 @@ export async function POST(req: NextRequest) {
       context ? `User's context note: ${context}` : '',
     ].filter(Boolean).join('\n');
 
-    const prompt = `Analyze this Instagram Reel and extract actionable business intelligence:\n\n${contextParts}\n\nProvide your deep analysis as the JSON object specified in your instructions. Research the topic thoroughly and map everything to VELTRIX's context as an AI automation agency targeting SMBs.`;
+    const prompt = `Analyze this Instagram Reel and extract actionable business intelligence:\n\n${contextParts}\n\nProvide your deep analysis as the JSON object specified in your instructions. Research the topic thoroughly and map everything to PostelOS's context as an AI automation agency targeting SMBs.`;
 
     const rawResponse = await gemini.callRawLLM(prompt, agent.systemPrompt);
 
@@ -176,13 +164,13 @@ export async function POST(req: NextRequest) {
         creator: typeof parsed.creator === 'string' ? parsed.creator : authorName,
         topic: typeof parsed.topic === 'string' ? parsed.topic : 'General',
         keyTakeaways: Array.isArray(parsed.keyTakeaways) ? parsed.keyTakeaways.filter((t: unknown) => typeof t === 'string') : [],
-        veltrixRelevance: typeof parsed.veltrixRelevance === 'string' ? parsed.veltrixRelevance : '',
+        postelosRelevance: typeof parsed.postelosRelevance === 'string' ? parsed.postelosRelevance : '',
         implementationSuggestions: Array.isArray(parsed.implementationSuggestions)
-          ? parsed.implementationSuggestions.map((s: any) => ({
+          ? parsed.implementationSuggestions.map((s: { area?: unknown; action?: unknown; priority?: unknown } | null) => ({
               area: typeof s?.area === 'string' ? s.area : 'Strategy',
               action: typeof s?.action === 'string' ? s.action : '',
               priority: typeof s?.priority === 'string' ? s.priority : 'Medium',
-            })).filter((s: any) => s.action)
+            })).filter((s: { action: unknown }) => s.action)
           : [],
         tags: Array.isArray(parsed.tags) ? parsed.tags.filter((t: unknown) => typeof t === 'string').slice(0, 10) : [],
       };
@@ -196,7 +184,7 @@ export async function POST(req: NextRequest) {
     // Save to Supabase notes table
     let noteId: string | null = null;
     if (supabaseAdmin) {
-      const noteContent = `[REEL INTEL: ${result.summary.split('.')[0]}]\n\nSource: ${url}\nCreator: ${result.creator}\nTopic: ${result.topic}\n\n${result.summary}\n\nKey Takeaways:\n${result.keyTakeaways.map(t => `• ${t}`).join('\n')}\n\nVELTRIX Relevance:\n${result.veltrixRelevance}\n\nImplementation:\n${result.implementationSuggestions.map(s => `• [${s.area}] ${s.action} (${s.priority})`).join('\n')}`;
+      const noteContent = `[REEL INTEL: ${result.summary.split('.')[0]}]\n\nSource: ${url}\nCreator: ${result.creator}\nTopic: ${result.topic}\n\n${result.summary}\n\nKey Takeaways:\n${result.keyTakeaways.map(t => `• ${t}`).join('\n')}\n\nPostelOS Relevance:\n${result.postelosRelevance}\n\nImplementation:\n${result.implementationSuggestions.map(s => `• [${s.area}] ${s.action} (${s.priority})`).join('\n')}`;
 
       let embedding: number[] | null = null;
       try {
@@ -227,16 +215,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Write to Obsidian vault (local dev only)
-    const obsidianNote = buildObsidianNote(url, result);
+    // File the brief in the built-in Memory Vault (best effort; the analysis itself is already saved above)
+    const reelNote = buildReelNote(url, result);
     const safeTitle = `${result.topic} - ${result.creator} - ${new Date().toISOString().split('T')[0]}`;
-    const savedToObsidian = await writeToObsidian(safeTitle, obsidianNote);
+    const savedToVault = await saveToVault(safeTitle, reelNote, result.tags.slice(0, 5));
 
     return NextResponse.json({
       success: true,
       data: result,
       noteId,
-      savedToObsidian,
+      savedToVault,
       metadata: {
         author: authorName,
         caption: caption || null,
@@ -244,7 +232,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-  } catch (error: any) {
+  } catch (errorRaw: unknown) { const error = asErr(errorRaw);
     console.error('Reel Intel API error:', error);
     // A rate-limit rejection is not a fault the user can act on beyond waiting,
     // and the raw provider payload is ~20 lines of JSON. Surface the short form.

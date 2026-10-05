@@ -1,8 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PageHeaderCard, VxIcon, VeltrixSpinner } from '@/components/ds';
+import { PageHeaderCard, VxIcon, EmptyState } from '@/components/ds';
 import { db } from '@/lib/db';
+import { SendStateBadge, SendDetails, SendButton, Notice, useSendAction } from '@/components/SendState';
+import { asErr } from '@/lib/errors';
+import DialogOverlay from '@/components/DialogOverlay';
+import PageSkeleton from '@/components/PageSkeleton';
+import { useToast } from '@/components/Toast';
+import { clickable } from '@/lib/a11y';
 
 interface Lead {
   id: string;
@@ -14,9 +20,13 @@ interface OutreachMessage {
   lead_id: string;
   channel: 'Email' | 'LinkedIn' | 'Instagram' | 'WhatsApp' | 'Facebook' | 'Discord';
   message: string;
-  status: 'Draft' | 'Approved' | 'Sent' | 'Replied' | 'Failed';
+  status: 'Draft' | 'Approved' | 'Sending' | 'Sent' | 'Replied' | 'Failed';
   approval_status: 'Pending Approval' | 'Approved' | 'Rejected';
   sent_at?: string;
+  provider?: string | null;
+  provider_message_id?: string | null;
+  error?: string | null;
+  attempts?: number;
   created_at: string;
 }
 
@@ -45,6 +55,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 export default function OutreachPage() {
+  const toast = useToast();
   const [messages, setMessages] = useState<OutreachMessage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +87,8 @@ export default function OutreachPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const t = setTimeout(() => { void fetchData(); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const getLeadName = (id: string) => {
@@ -104,33 +116,34 @@ export default function OutreachPage() {
       setBody('');
       setIsModalOpen(false);
       await fetchData();
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       setFormError(`Failed to save message: ${err.message}`);
     }
   };
 
-  const handleUpdateStatus = async (id: string, updates: Partial<OutreachMessage>) => {
+  const handleUpdateStatus = async (id: string, updates: Partial<OutreachMessage>, undo?: Partial<OutreachMessage>, title?: string) => {
     try {
       await db.updateOutreachMessage(id, updates);
       await fetchData();
+      if (undo) toast.undoable(title ?? 'Message updated', async () => { await db.updateOutreachMessage(id, undo); await fetchData(); });
     } catch (err) {
-      console.warn('Failed to update outreach state:', err);
+      toast.error('Could not update the message', asErr(err).message);
     }
   };
 
+  const { busyId, notice, setNotice, run } = useSendAction(fetchData);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <VeltrixSpinner message="Synchronizing outreach sequences..." />
-      </div>
+      <PageSkeleton label="Synchronizing outreach sequences..." />
     );
   }
 
   // Filter messages by activeTab
   const filteredMessages = messages.filter((m) => {
     if (activeTab === 'Draft') return m.status === 'Draft';
-    if (activeTab === 'Approved') return m.status === 'Approved';
-    return m.status === 'Sent' || m.status === 'Replied' || m.status === 'Failed';
+    if (activeTab === 'Approved') return ['Approved', 'Sending', 'Failed'].includes(m.status);
+    return m.status === 'Sent' || m.status === 'Replied';
   });
 
   const getChannelColor = (ch: OutreachMessage['channel']) => {
@@ -147,12 +160,13 @@ export default function OutreachPage() {
         subtitle="Manage automated and manual customer outreach drafts, review queues, and channel deliveries."
         stats={[
           { value: String(messages.filter(m => m.status === 'Draft').length), label: 'DRAFTS', color: 'var(--text-dim)' },
-          { value: String(messages.filter(m => m.status === 'Approved').length), label: 'APPROVED QUEUE', color: 'var(--cyan-300)' },
-          { value: String(messages.filter(m => ['Sent', 'Replied'].includes(m.status)).length), label: 'SENT DELIVERIES', color: 'var(--signal-400)' },
+          { value: String(messages.filter(m => ['Approved', 'Sending'].includes(m.status)).length), label: 'APPROVED - NOT SENT', color: 'var(--cyan-300)' },
+          { value: String(messages.filter(m => m.status === 'Failed').length), label: 'FAILED', color: 'var(--danger-400)' },
+          { value: String(messages.filter(m => ['Sent', 'Replied'].includes(m.status) && !!m.provider_message_id).length), label: 'CONFIRMED SENT', color: 'var(--signal-400)' },
         ]}
         action={
           <div
-            onClick={() => setIsModalOpen(true)}
+            {...clickable(() => setIsModalOpen(true))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -181,7 +195,7 @@ export default function OutreachPage() {
         {(['Draft', 'Approved', 'Sent'] as const).map((tab) => (
           <div
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            {...clickable(() => setActiveTab(tab))}
             style={{
               fontFamily: 'var(--font-display)',
               fontSize: 13.5,
@@ -195,10 +209,12 @@ export default function OutreachPage() {
               transition: 'color 0.2s ease',
             }}
           >
-            {tab}
+            {tab === 'Approved' ? 'Ready / Failed' : tab}
           </div>
         ))}
       </div>
+
+      <Notice notice={notice} onClose={() => setNotice(null)} />
 
       {/* Message Feed */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 'var(--space-6)' }}>
@@ -220,9 +236,12 @@ export default function OutreachPage() {
                 >
                   {msg.channel.toUpperCase()}
                 </span>
-                <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                  {new Date(msg.created_at).toLocaleDateString()}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <SendStateBadge record={msg.approval_status === 'Rejected' && msg.status !== 'Sent' ? { ...msg, status: 'Rejected' } : msg} />
+                  <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                    {new Date(msg.created_at).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
 
               <div>
@@ -250,12 +269,17 @@ export default function OutreachPage() {
                 </div>
               </div>
 
+              <SendDetails record={msg} />
+
               {/* Action Toolbar */}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-                {msg.status === 'Draft' && (
+                {msg.status === 'Draft' && msg.approval_status !== 'Rejected' && (
                   <>
+                    {msg.channel === 'Email' && (
+                      <SendButton label="Approve & send" tone="info" busy={busyId === msg.id} onClick={() => run('outreach', msg.id)} title="Approves this message and sends it through your email provider now" />
+                    )}
                     <button
-                      onClick={() => handleUpdateStatus(msg.id, { status: 'Approved', approval_status: 'Approved' })}
+                      onClick={() => handleUpdateStatus(msg.id, { status: 'Approved', approval_status: 'Approved' }, { status: 'Draft', approval_status: msg.approval_status }, 'Draft approved (not sent yet)')}
                       style={{
                         background: 'rgba(46,230,160,0.1)',
                         border: '1px solid rgba(46,230,160,0.2)',
@@ -269,7 +293,7 @@ export default function OutreachPage() {
                       Approve
                     </button>
                     <button
-                      onClick={() => handleUpdateStatus(msg.id, { approval_status: 'Rejected' })}
+                      onClick={() => handleUpdateStatus(msg.id, { approval_status: 'Rejected' }, { approval_status: msg.approval_status }, 'Draft rejected')}
                       style={{
                         background: 'rgba(239,68,68,0.06)',
                         border: '1px solid rgba(239,68,68,0.15)',
@@ -284,50 +308,28 @@ export default function OutreachPage() {
                     </button>
                   </>
                 )}
-                {msg.status === 'Approved' && (
-                  <button
-                    onClick={() => handleUpdateStatus(msg.id, { status: 'Sent', sent_at: new Date().toISOString() })}
-                    style={{
-                      background: 'rgba(76,215,246,0.1)',
-                      border: '1px solid rgba(76,215,246,0.2)',
-                      color: 'var(--cyan-300)',
-                      fontSize: 11,
-                      padding: '4px 12px',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Send Now
-                  </button>
+                {msg.status === 'Approved' && msg.channel === 'Email' && (
+                  <SendButton label="Send now" tone="info" busy={busyId === msg.id} onClick={() => run('outreach', msg.id)} />
+                )}
+                {msg.status === 'Failed' && (
+                  <SendButton label="Retry send" tone="warn" busy={busyId === msg.id} onClick={() => run('outreach', msg.id, { retry: true })} />
+                )}
+                {['Draft', 'Approved'].includes(msg.status) && msg.channel !== 'Email' && msg.approval_status !== 'Rejected' && (
+                  <SendButton label="Mark sent (I sent it)" tone="ok" busy={busyId === msg.id} onClick={() => run('outreach', msg.id, { manual: true })} title={`${msg.channel} is sent by you by hand. This records your confirmation - the app did not send it.`} />
                 )}
               </div>
             </div>
           ))
         ) : (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              textAlign: 'center',
-              padding: 'var(--space-10) 0',
-              color: 'var(--text-dim)',
-              fontSize: 13.5,
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            No outreach messages in this folder.
-          </div>
+          <EmptyState icon="send" title="No messages in this tab" body="Drafts show up here once an agent writes one or you compose your own. Nothing is sent without your approval." action={<button type="button" className="vx-linkbtn" onClick={() => setIsModalOpen(true)}>Compose a message</button>} style={{ gridColumn: '1 / -1' }} />
         )}
       </section>
 
       {/* Compose Modal */}
       {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-[50] flex items-center justify-center p-6"
-        >
+        <DialogOverlay label="Create outreach draft" onClose={() => setIsModalOpen(false)}>
           <form
+            noValidate
             onSubmit={handleCreateOutreach}
             className="vx-glass max-w-md w-full p-6 rounded-2xl border border-white/[0.08] space-y-4"
             style={{ background: 'var(--grad-panel)' }}
@@ -336,21 +338,17 @@ export default function OutreachPage() {
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>
                 Draft Outreach Message
               </h3>
-              <span style={{ cursor: 'pointer', fontSize: 20, color: 'var(--text-muted)' }} onClick={() => setIsModalOpen(false)}>
-                ×
-              </span>
+              <button type="button" aria-label="Close dialog" onClick={() => setIsModalOpen(false)} style={{ cursor: 'pointer', fontSize: 22, lineHeight: 1, color: 'var(--text-muted)', background: 'none', border: 0, minWidth: 44, minHeight: 44 }}>&times;</button>
             </div>
 
             {formError && (
-              <div style={{ color: 'var(--danger-400)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                ⚠️ {formError}
-              </div>
+              <div role="alert" className="vx-callout" data-tone="bad"><div><p className="vx-callout__body">{formError}</p></div></div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Assign Recipient (Lead) *</label>
-                <select style={inputStyle} value={leadId} onChange={(e) => setLeadId(e.target.value)} required>
+                <select aria-label="Recipient lead" style={inputStyle} value={leadId} onChange={(e) => setLeadId(e.target.value)} required>
                   {leads.length > 0 ? (
                     leads.map((l) => (
                       <option key={l.id} value={l.id}>
@@ -364,7 +362,7 @@ export default function OutreachPage() {
               </div>
               <div>
                 <label className="vx-eyebrow" style={{ display: 'block', marginBottom: 6 }}>Outreach Channel</label>
-                <select style={inputStyle} value={channel} onChange={(e) => setChannel(e.target.value as any)}>
+                <select aria-label="Outreach channel" style={inputStyle} value={channel} onChange={(e) => setChannel(e.target.value as typeof channel)}>
                   <option value="Email">Email</option>
                   <option value="LinkedIn">LinkedIn</option>
                   <option value="Instagram">Instagram</option>
@@ -417,7 +415,7 @@ export default function OutreachPage() {
               Queue Outreach Draft
             </button>
           </form>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   );

@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Shield, ArrowLeft, Lock, Database, RefreshCw, CheckSquare } from 'lucide-react';
+import { SUPPORT_EMAIL } from '@/lib/brand';
 
 export default function PrivacyPolicy() {
   return (
@@ -11,7 +12,7 @@ export default function PrivacyPolicy() {
       <div className="flex justify-between items-center">
         <Link
           href="/"
-          className="flex items-center space-x-1.5 text-xs font-mono text-neon-cyan hover:underline cursor-pointer"
+          className="vx-tap flex items-center space-x-1.5 text-xs font-mono text-neon-cyan hover:underline cursor-pointer"
         >
           <ArrowLeft size={14} />
           <span>BACK TO DASHBOARD</span>
@@ -24,15 +25,15 @@ export default function PrivacyPolicy() {
         
         {/* Header Block */}
         <div className="flex items-start space-x-4 border-b border-white/5 pb-6">
-          <div className="p-3 bg-neon-purple/10 text-neon-purple rounded-xl border border-neon-purple/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+          <div className="p-3 bg-neon-purple/10 text-neon-purple rounded-xl border border-neon-purple/20">
             <Shield size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-mono">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground font-mono">
               PRIVACY POLICY
-            </h1>
+            </h2>
             <p className="text-sm text-muted-foreground mt-1 font-mono text-neon-cyan">
-              VELTRIX COMMAND OS DATA GOVERNANCE
+              PostelOS DATA GOVERNANCE
             </p>
           </div>
         </div>
@@ -40,10 +41,10 @@ export default function PrivacyPolicy() {
         {/* Intro */}
         <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
           <p>
-            Welcome to <span className="font-semibold text-foreground">VELTRIX COMMAND OS</span>. We are committed to maintaining the confidentiality and integrity of your corporate information, client logs, and operational pipeline. 
+            Welcome to <span className="font-semibold text-foreground">PostelOS</span>. We are committed to maintaining the confidentiality and integrity of your corporate information, client logs, and operational pipeline. 
           </p>
           <p>
-            This Privacy Policy describes how we handle, process, and protect information when you run the VELTRIX COMMAND OS dashboard, connect database layers (Supabase/LocalStorage), and query AI reasoning services (Gemini API).
+            This Privacy Policy describes how we handle, process, and protect information when you run the PostelOS dashboard, connect database layers (Supabase/LocalStorage), and query AI reasoning services (Gemini API).
           </p>
         </div>
 
@@ -56,7 +57,7 @@ export default function PrivacyPolicy() {
               <span>1. Data Ownership & Storage</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              VELTRIX operates on a decentralized storage paradigm. Your data (leads, client profiles, revenue metrics, memory vaults, task logs) resides either in your browser's local sandbox (LocalStorage) or is securely written to your private, self-hosted Supabase database. We do not host or store your database credentials.
+              PostelOS operates on a decentralized storage paradigm. Your data (leads, client profiles, revenue metrics, memory vaults, task logs) resides either in your browser&apos;s local sandbox (LocalStorage) or is securely written to your private, self-hosted Supabase database. We do not host or store your database credentials.
             </p>
           </div>
 
@@ -76,7 +77,7 @@ export default function PrivacyPolicy() {
               <span>3. Control & Purge Mechanisms</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Under our settings panel, you maintain absolute control over database slates. You can trigger a full workspace purge at any time using the "Reset to Clean Slate" option, which instantly removes all local leads, transactions, and system parameters from active memory storage.
+              Under our settings panel, you maintain absolute control over database slates. You can trigger a full workspace purge at any time using the &quot;Reset to Clean Slate&quot; option, which instantly removes all local leads, transactions, and system parameters from active memory storage.
             </p>
           </div>
 
@@ -100,7 +101,7 @@ export default function PrivacyPolicy() {
               Information We Process
             </h3>
             <p className="leading-relaxed">
-              When configuring your workspace, we read: (a) Business Metadata (revenue targets, catalog packages); (b) CRM Pipelines (business names, locations, contact notes); (c) Earnings Details (setup and recurring fee values); (d) Content Outlines (social media themes). None of this tracking metadata is shared with or processed by VELTRIX servers.
+              When configuring your workspace, we read: (a) Business Metadata (revenue targets, catalog packages); (b) CRM Pipelines (business names, locations, contact notes); (c) Earnings Details (setup and recurring fee values); (d) Content Outlines (social media themes). None of this tracking metadata is shared with or processed by PostelOS servers.
             </p>
           </div>
 
@@ -119,7 +120,7 @@ export default function PrivacyPolicy() {
             </h3>
             <p className="leading-relaxed">
               For questions regarding the command framework or configuration security, please get in touch with our team at: 
-              <span className="text-neon-cyan font-mono block mt-1">security@veltrix.ai</span>
+              <span className="text-neon-cyan font-mono block mt-1">{SUPPORT_EMAIL}</span>
             </p>
           </div>
 

@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, Zap, RefreshCw, CheckCircle2, AlertCircle,
   Users, Mail, FileText, Calendar, Brain, TrendingUp,
-  Play, Clock, ChevronRight
+  Play, ChevronRight
 } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
+import { asErr } from '@/lib/errors';
 
 interface PipelineData {
   pipeline: {
@@ -60,9 +61,9 @@ const STAGE_CONFIG = [
   { key: 'new', label: 'New', color: '#6b7280', icon: Users },
   { key: 'qualified', label: 'Qualified', color: '#8b5cf6', icon: Zap },
   { key: 'contacted', label: 'Contacted', color: '#3b82f6', icon: Mail },
-  { key: 'replied', label: 'Replied', color: '#06b6d4', icon: CheckCircle2 },
+  { key: 'replied', label: 'Replied', color: 'var(--cyan-400)', icon: CheckCircle2 },
   { key: 'proposalSent', label: 'Proposal', color: '#f59e0b', icon: FileText },
-  { key: 'callBooked', label: 'Call Booked', color: '#10b981', icon: Calendar },
+  { key: 'callBooked', label: 'Call Booked', color: 'var(--signal-400)', icon: Calendar },
   { key: 'won', label: 'Won', color: '#22c55e', icon: TrendingUp },
 ];
 
@@ -100,9 +101,9 @@ export function AutonomyStatus() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
+    const t0 = setTimeout(() => { void fetchStatus(); }, 0);
     const interval = setInterval(fetchStatus, 30000);
-    return () => clearInterval(interval);
+    return () => { clearTimeout(t0); clearInterval(interval); };
   }, [fetchStatus]);
 
   const triggerPipeline = async () => {
@@ -120,7 +121,7 @@ export function AutonomyStatus() {
         });
       }
       await fetchStatus();
-    } catch (err: any) {
+    } catch (errRaw: unknown) { const err = asErr(errRaw);
       setRunResult({ leadsProcessed: 0, actionsExecuted: [], errors: [err.message], durationMs: 0 });
     }
     setRunning(false);
@@ -339,9 +340,9 @@ export function AutonomyStatus() {
           disabled={briefLoading}
           className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[11px] font-mono font-bold uppercase tracking-widest transition-all duration-200 cursor-pointer disabled:opacity-50"
           style={{
-            background: 'rgba(6,182,212,0.1)',
-            border: '1px solid rgba(6,182,212,0.3)',
-            color: '#67e8f9'
+            background: 'color-mix(in srgb, var(--cyan-400) 10%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--cyan-400) 30%, transparent)',
+            color: 'var(--cyan-300)',
           }}
         >
           {briefLoading ? (
